@@ -10,6 +10,8 @@ The service is built with [Better Auth](https://www.better-auth.com/) and runs o
 - **Session Handling**: Secure session tokens with IP and user agent tracking
 - **OAuth Integration**: Support for third-party authentication providers
 - **Email Verification**: Token-based email verification and password reset flows
+- **Role-Based Access Control**: Support for citizen, support, manager, and superAdmin roles
+- **Organization Management**: Multi-tenant support teams with role-based permissions
 
 ## Architecture
 
@@ -106,10 +108,32 @@ The service will be available at `http://localhost:8787`.
 ### API Endpoints
 
 - `GET/POST /api/auth/*` - Better Auth endpoints for authentication
+- `GET/POST /api/auth/organization/*` - Organization management (create teams, manage members, etc.)
+
+See [Better Auth Organization Plugin Docs](https://www.better-auth.com/docs/plugins/organization) for available endpoints.
+
+## Role-Based Access Control
+
+### User Roles
+
+| Role | Database Field | Description |
+|------|----------------|-------------|
+| **citizen** | No org membership | Regular users (default) |
+| **support** | Organization member (role='member') | Support team members |
+| **manager** | Organization admin (role='admin') | Team managers |
+| **superAdmin** | `isSuperAdmin=true` | System administrators |
+
+### Key Points
+
+- **Citizens**: All users by default, no special database flags
+- **Support/Manager**: Determined by organization membership and role
+- **SuperAdmin**: Must be manually set via database (`isSuperAdmin=true`)
+- Organizations are managed via Better Auth's organization plugin
+- Permissions are defined in `src/lib/better-auth/options.ts`
 
 ## Database Schema
 
-The service uses a PostgreSQL database with four core tables managed by Drizzle ORM:
+The service uses PostgreSQL with eight tables managed by Drizzle ORM:
 
 ### Tables
 
@@ -120,6 +144,7 @@ Stores user account information:
 - `email` (text, unique) - Email address
 - `emailVerified` (boolean) - Email verification status
 - `image` (text, nullable) - Profile image URL
+- `isSuperAdmin` (boolean) - Super admin flag (default: false)
 - `createdAt` (timestamp) - Account creation time
 - `updatedAt` (timestamp) - Last update time
 
@@ -131,6 +156,7 @@ Manages active authentication sessions:
 - `userId` (text, FK → user) - Associated user (cascade delete)
 - `ipAddress` (text, nullable) - Client IP
 - `userAgent` (text, nullable) - Client user agent
+- `activeOrganizationId` (text, nullable) - Currently active organization
 - `createdAt` / `updatedAt` (timestamp)
 
 #### `account`
@@ -152,6 +178,18 @@ Handles email verification and password reset tokens:
 - `value` (text) - Verification token/code
 - `expiresAt` (timestamp) - Token expiration
 - `createdAt` / `updatedAt` (timestamp)
+
+#### `organization`
+Support teams with name, slug, logo, metadata
+
+#### `member`
+Organization membership with `role` field ('member' or 'admin')
+
+#### `invitation`
+Pending team invitations with status tracking
+
+#### `jwks`
+JWT token keys for token verification
 
 ### Migrations
 
@@ -184,11 +222,12 @@ const app = new Hono<{ Bindings: CloudflareBindings }>()
 
 ### Making Schema Changes
 
-1. Modify `src/db/schema.ts`
-2. Generate migration: `pnpm drizzle-kit generate`
-3. Review migration in `drizzle/` directory
-4. Push to database: `pnpm drizzle-kit push`
-5. Restart dev server to pick up changes
+1. Modify Better Auth options in `src/lib/better-auth/options.ts` (if needed)
+2. Regenerate schema: `pnpm better-auth-gen-schema`
+3. Generate migration: `pnpm drizzle-kit generate`
+4. Review migration in `drizzle/` directory
+5. Push to database: `pnpm drizzle-kit push`
+6. Restart dev server to pick up changes
 
 ### Testing Locally
 
@@ -228,6 +267,17 @@ pnpm wrangler secret put DATABASE_URL
 pnpm wrangler secret put BETTER_AUTH_URL
 ```
 
+## Setting Up First Super Admin
+
+The first user must be manually promoted after registration.
+
+**Via SQL:**
+```sql
+UPDATE "user" SET is_super_admin = true WHERE email = 'admin@example.com';
+```
+
+**Via Database GUI:** Edit the user row in Neon console and set `is_super_admin` to `true`.
+
 ## Troubleshooting
 
 ### "Failed to connect to database"
@@ -241,8 +291,13 @@ pnpm wrangler secret put BETTER_AUTH_URL
 - Verify `BETTER_AUTH_URL` matches your deployed URL
 
 ### Type errors after schema changes
-- Run `pnpm cf-typegen` to regenerate Worker types
+- Run `pnpm cf-gen-types` to regenerate Worker types
 - Restart TypeScript server in your editor
+
+### Organization operations not working
+- Check Better Auth's [organization plugin documentation](https://www.better-auth.com/docs/plugins/organization)
+- Verify `allowUserToCreateOrganization` setting in options
+- Use Better Auth's built-in organization endpoints at `/api/auth/organization/*`
 
 ## Notes
 

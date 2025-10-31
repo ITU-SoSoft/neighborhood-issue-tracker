@@ -1,5 +1,5 @@
 import { BetterAuthOptions } from 'better-auth';
-import { openAPI, jwt } from 'better-auth/plugins';
+import { openAPI, jwt, organization } from 'better-auth/plugins';
 
 /**
  * Custom options for Better Auth
@@ -18,6 +18,20 @@ export const betterAuthOptions: BetterAuthOptions = {
   basePath: '/api/auth', // default is good
 
   /**
+   * User model customization
+   */
+  user: {
+    additionalFields: {
+      isSuperAdmin: {
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
+        input: false, // Users cannot set this themselves - must be set via database
+      },
+    },
+  },
+
+  /**
    * Plugins
    */
   plugins: [
@@ -26,6 +40,37 @@ export const betterAuthOptions: BetterAuthOptions = {
       theme: 'purple', // Scalar theme: default, moon, purple, solarized, etc.
     }),
     jwt(), // JSON Web Token support
+    organization({
+      // Only users with isSuperAdmin=true can create organizations (support teams)
+      allowUserToCreateOrganization: false,
+      
+      // Define organization roles (Better Auth uses 'member' and 'admin')
+      // In your app: member=support, admin=manager
+      roles: {
+        member: {
+          name: 'Support',
+          description: 'Support team member who can handle issues',
+          permissions: [
+            'issue:read',
+            'issue:write',
+            'issue:comment',
+          ],
+        },
+        admin: {
+          name: 'Manager',
+          description: 'Team manager who can manage their team',
+          permissions: [
+            'issue:read',
+            'issue:write',
+            'issue:comment',
+            'issue:assign',
+            'team:read',
+            'team:invite',
+            'team:remove_member',
+          ],
+        },
+      },
+    }),
   ],
 
   // .... More options
