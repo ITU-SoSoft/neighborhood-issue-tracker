@@ -32,6 +32,14 @@ export const betterAuthOptions: BetterAuthOptions = {
   },
 
   /**
+   * Email and password authentication
+   */
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false, // Set to true for production
+  },
+
+  /**
    * Plugins
    */
   plugins: [
