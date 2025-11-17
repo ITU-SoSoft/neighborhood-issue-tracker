@@ -18,6 +18,11 @@ export const betterAuthOptions: BetterAuthOptions = {
   basePath: '/api/auth', // default is good
 
   /**
+   * Trusted origins for CORS
+   */
+  trustedOrigins: ['http://localhost:3000'],
+
+  /**
    * User model customization
    */
   user: {

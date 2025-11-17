@@ -80,13 +80,22 @@ BETTER_AUTH_SECRET=<your-generated-secret>
 DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
 ```
 
+### 3. Configure CORS for Web App Integration
+
+The service is configured to allow cross-origin requests from the web application. CORS is handled through:
+
+1. **Hono CORS Middleware** (`src/index.ts`): Handles OPTIONS preflight requests
+2. **Better Auth trustedOrigins** (`src/lib/better-auth/options.ts`): Validates request origins
+
+For local development, the service accepts requests from `http://localhost:3000`. For production, update these configurations to match your deployed web app URL.
+
 **Note**: The `.env` file is used by:
 - Drizzle CLI for migrations (`drizzle-kit generate`, `drizzle-kit push`)
 - Better Auth CLI for local testing
 
 For production deployment, these environment variables must be configured as Cloudflare Worker secrets/bindings.
 
-### 3. Set up the database
+### 4. Set up the database
 
 Generate and push the database schema:
 
