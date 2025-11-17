@@ -29,7 +29,7 @@ async function handleResponse<T>(response: Response) {
 }
 
 export async function signInRequest(input: SignInInput) {
-  const response = await fetch(`${AUTH_BASE_URL}/sign-in`, {
+  const response = await fetch(`${AUTH_BASE_URL}/sign-in/email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -42,7 +42,7 @@ export async function signInRequest(input: SignInInput) {
 }
 
 export async function signUpRequest(input: SignUpInput) {
-  const response = await fetch(`${AUTH_BASE_URL}/sign-up`, {
+  const response = await fetch(`${AUTH_BASE_URL}/sign-up/email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
