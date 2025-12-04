@@ -1,0 +1,637 @@
+import {
+  APIError,
+  Category,
+  CategoryCreate,
+  CategoryListResponse,
+  CategoryUpdate,
+  Comment as TicketComment,
+  CommentCreate,
+  CommentListResponse,
+  DashboardKPIs,
+  Escalation,
+  EscalationCreate,
+  EscalationListResponse,
+  EscalationReview,
+  EscalationStatus,
+  Feedback,
+  FeedbackCreate,
+  FeedbackTrendsResponse,
+  HeatmapResponse,
+  LoginRequest,
+  LoginResponse,
+  MemberPerformanceResponse,
+  NearbyTicket,
+  PhotoUploadResponse,
+  PhotoType,
+  QuarterlyReport,
+  RefreshTokenRequest,
+  RegisterRequest,
+  RegisterResponse,
+  RequestOTPRequest,
+  RequestOTPResponse,
+  StaffLoginRequest,
+  TeamPerformanceResponse,
+  Ticket,
+  TicketAssignUpdate,
+  TicketCreate,
+  TicketDetail,
+  TicketListResponse,
+  TicketStatus,
+  TicketStatusUpdate,
+  TokenResponse,
+  User,
+  UserListResponse,
+  UserRole,
+  UserRoleUpdate,
+  UserUpdate,
+  VerifyOTPRequest,
+  VerifyOTPResponse,
+  CategoryStatsResponse,
+} from "./types";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
+  "http://localhost:8000/api/v1";
+
+// Token storage keys
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+
+// Token management
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setTokens(accessToken: string, refreshToken: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+export function clearTokens(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+// API Error handling
+export class ApiError extends Error {
+  status: number;
+  detail: string;
+
+  constructor(status: number, detail: string) {
+    super(detail);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    let detail = "An unexpected error occurred";
+    try {
+      const error = await response.json();
+      // Handle FastAPI validation errors (array format)
+      if (Array.isArray(error.detail)) {
+        detail = error.detail
+          .map((err: { loc?: string[]; msg?: string }) => {
+            const field = err.loc?.slice(-1)[0] || "field";
+            return `${field}: ${err.msg}`;
+          })
+          .join(", ");
+      } else if (typeof error.detail === "string") {
+        detail = error.detail;
+      } else if (error.message) {
+        detail = error.message;
+      }
+      console.error("API Error:", error);
+    } catch {
+      // ignore JSON parse errors
+    }
+    throw new ApiError(response.status, detail);
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return {} as T;
+  }
+}
+
+// Build headers with optional auth
+function buildHeaders(includeAuth = true): HeadersInit {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  if (includeAuth) {
+    const token = getAccessToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+
+  return headers;
+}
+
+// Generic fetch wrapper with token refresh
+async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  requiresAuth = true,
+): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...buildHeaders(requiresAuth),
+      ...(options.headers || {}),
+    },
+  });
+
+  // Handle 401 - try to refresh token
+  if (response.status === 401 && requiresAuth) {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        const tokenResponse = await refreshAccessToken({
+          refresh_token: refreshToken,
+        });
+        setTokens(tokenResponse.access_token, tokenResponse.refresh_token);
+
+        // Retry the original request
+        const retryResponse = await fetch(url, {
+          ...options,
+          headers: {
+            ...buildHeaders(true),
+            ...(options.headers || {}),
+          },
+        });
+        return handleResponse<T>(retryResponse);
+      } catch {
+        // Refresh failed, clear tokens
+        clearTokens();
+        throw new ApiError(401, "Session expired. Please log in again.");
+      }
+    }
+  }
+
+  return handleResponse<T>(response);
+}
+
+// ============================================================================
+// AUTH API
+// ============================================================================
+
+export async function requestOTP(
+  data: RequestOTPRequest,
+): Promise<RequestOTPResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<RequestOTPResponse>(response);
+}
+
+export async function verifyOTP(
+  data: VerifyOTPRequest,
+): Promise<VerifyOTPResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<VerifyOTPResponse>(response);
+}
+
+export async function register(
+  data: RegisterRequest,
+): Promise<RegisterResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<RegisterResponse>(response);
+}
+
+export async function login(data: LoginRequest): Promise<LoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<LoginResponse>(response);
+}
+
+export async function staffLogin(
+  data: StaffLoginRequest,
+): Promise<LoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/staff/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<LoginResponse>(response);
+}
+
+export async function refreshAccessToken(
+  data: RefreshTokenRequest,
+): Promise<TokenResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<TokenResponse>(response);
+}
+
+export async function getCurrentUser(): Promise<User> {
+  return apiFetch<User>("/auth/me");
+}
+
+// ============================================================================
+// USERS API
+// ============================================================================
+
+export async function getUsers(params?: {
+  role?: UserRole;
+  team_id?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<UserListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.role) searchParams.set("role", params.role);
+  if (params?.team_id) searchParams.set("team_id", params.team_id);
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<UserListResponse>(`/users${query ? `?${query}` : ""}`);
+}
+
+export async function getUserById(userId: string): Promise<User> {
+  return apiFetch<User>(`/users/${userId}`);
+}
+
+export async function updateUser(
+  userId: string,
+  data: UserUpdate,
+): Promise<User> {
+  return apiFetch<User>(`/users/${userId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateUserRole(
+  userId: string,
+  data: UserRoleUpdate,
+): Promise<User> {
+  return apiFetch<User>(`/users/${userId}/role`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  return apiFetch<void>(`/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+// ============================================================================
+// CATEGORIES API
+// ============================================================================
+
+export async function getCategories(
+  activeOnly = true,
+): Promise<CategoryListResponse> {
+  const query = activeOnly ? "?active_only=true" : "";
+  return apiFetch<CategoryListResponse>(`/categories${query}`, {}, false);
+}
+
+export async function getCategoryById(categoryId: string): Promise<Category> {
+  return apiFetch<Category>(`/categories/${categoryId}`, {}, false);
+}
+
+export async function createCategory(data: CategoryCreate): Promise<Category> {
+  return apiFetch<Category>("/categories", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateCategory(
+  categoryId: string,
+  data: CategoryUpdate,
+): Promise<Category> {
+  return apiFetch<Category>(`/categories/${categoryId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+// ============================================================================
+// TICKETS API
+// ============================================================================
+
+export async function createTicket(data: TicketCreate): Promise<Ticket> {
+  return apiFetch<Ticket>("/tickets/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
+  assignee_id?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<TicketListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.status_filter)
+    searchParams.set("status_filter", params.status_filter);
+  if (params?.category_id) searchParams.set("category_id", params.category_id);
+  if (params?.assignee_id) searchParams.set("assignee_id", params.assignee_id);
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<TicketListResponse>(`/tickets/${query ? `?${query}` : ""}`);
+}
+
+export async function getMyTickets(params?: {
+  page?: number;
+  page_size?: number;
+}): Promise<TicketListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<TicketListResponse>(`/tickets/my${query ? `?${query}` : ""}`);
+}
+
+export async function getAssignedTickets(params?: {
+  page?: number;
+  page_size?: number;
+}): Promise<TicketListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<TicketListResponse>(
+    `/tickets/assigned${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getNearbyTickets(params: {
+  latitude: number;
+  longitude: number;
+  radius_meters?: number;
+  category_id?: string;
+}): Promise<NearbyTicket[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("latitude", params.latitude.toString());
+  searchParams.set("longitude", params.longitude.toString());
+  if (params.radius_meters)
+    searchParams.set("radius_meters", params.radius_meters.toString());
+  if (params.category_id) searchParams.set("category_id", params.category_id);
+
+  return apiFetch<NearbyTicket[]>(`/tickets/nearby?${searchParams.toString()}`);
+}
+
+export async function getTicketById(ticketId: string): Promise<TicketDetail> {
+  return apiFetch<TicketDetail>(`/tickets/${ticketId}`);
+}
+
+export async function updateTicketStatus(
+  ticketId: string,
+  data: TicketStatusUpdate,
+): Promise<Ticket> {
+  return apiFetch<Ticket>(`/tickets/${ticketId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function assignTicket(
+  ticketId: string,
+  data: TicketAssignUpdate,
+): Promise<Ticket> {
+  return apiFetch<Ticket>(`/tickets/${ticketId}/assign`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function uploadTicketPhoto(
+  ticketId: string,
+  file: File,
+  photoType: PhotoType,
+): Promise<PhotoUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("photo_type", photoType);
+
+  const token = getAccessToken();
+  const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/photos`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  return handleResponse<PhotoUploadResponse>(response);
+}
+
+export async function followTicket(
+  ticketId: string,
+): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/tickets/${ticketId}/follow`, {
+    method: "POST",
+  });
+}
+
+export async function unfollowTicket(ticketId: string): Promise<void> {
+  return apiFetch<void>(`/tickets/${ticketId}/follow`, {
+    method: "DELETE",
+  });
+}
+
+// ============================================================================
+// COMMENTS API
+// ============================================================================
+
+export async function getTicketComments(
+  ticketId: string,
+): Promise<CommentListResponse> {
+  return apiFetch<CommentListResponse>(`/tickets/${ticketId}/comments`);
+}
+
+export async function createComment(
+  ticketId: string,
+  data: CommentCreate,
+): Promise<TicketComment> {
+  return apiFetch<TicketComment>(`/tickets/${ticketId}/comments`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// ============================================================================
+// FEEDBACK API
+// ============================================================================
+
+export async function submitFeedback(
+  ticketId: string,
+  data: FeedbackCreate,
+): Promise<Feedback> {
+  return apiFetch<Feedback>(`/feedback/tickets/${ticketId}`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getTicketFeedback(ticketId: string): Promise<Feedback> {
+  return apiFetch<Feedback>(`/feedback/tickets/${ticketId}`);
+}
+
+// ============================================================================
+// ESCALATIONS API
+// ============================================================================
+
+export async function createEscalation(
+  data: EscalationCreate,
+): Promise<Escalation> {
+  return apiFetch<Escalation>("/escalations", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getEscalations(params?: {
+  status_filter?: EscalationStatus;
+  page?: number;
+  page_size?: number;
+}): Promise<EscalationListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.status_filter)
+    searchParams.set("status_filter", params.status_filter);
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<EscalationListResponse>(
+    `/escalations${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getEscalationById(
+  escalationId: string,
+): Promise<Escalation> {
+  return apiFetch<Escalation>(`/escalations/${escalationId}`);
+}
+
+export async function approveEscalation(
+  escalationId: string,
+  data: EscalationReview,
+): Promise<Escalation> {
+  return apiFetch<Escalation>(`/escalations/${escalationId}/approve`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function rejectEscalation(
+  escalationId: string,
+  data: EscalationReview,
+): Promise<Escalation> {
+  return apiFetch<Escalation>(`/escalations/${escalationId}/reject`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+// ============================================================================
+// ANALYTICS API
+// ============================================================================
+
+export async function getDashboardKPIs(days = 30): Promise<DashboardKPIs> {
+  return apiFetch<DashboardKPIs>(`/analytics/dashboard?days=${days}`);
+}
+
+export async function getHeatmap(params?: {
+  days?: number;
+  category_id?: string;
+  status?: TicketStatus;
+}): Promise<HeatmapResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.days) searchParams.set("days", params.days.toString());
+  if (params?.category_id) searchParams.set("category_id", params.category_id);
+  if (params?.status) searchParams.set("status", params.status);
+
+  const query = searchParams.toString();
+  return apiFetch<HeatmapResponse>(
+    `/analytics/heatmap${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getTeamPerformance(
+  days = 30,
+): Promise<TeamPerformanceResponse> {
+  return apiFetch<TeamPerformanceResponse>(`/analytics/teams?days=${days}`);
+}
+
+export async function getMemberPerformance(
+  teamId: string,
+  days = 30,
+): Promise<MemberPerformanceResponse> {
+  return apiFetch<MemberPerformanceResponse>(
+    `/analytics/teams/${teamId}/members?days=${days}`,
+  );
+}
+
+export async function getCategoryStats(
+  days = 30,
+): Promise<CategoryStatsResponse> {
+  return apiFetch<CategoryStatsResponse>(`/analytics/categories?days=${days}`);
+}
+
+export async function getFeedbackTrends(
+  days = 30,
+): Promise<FeedbackTrendsResponse> {
+  return apiFetch<FeedbackTrendsResponse>(
+    `/analytics/feedback-trends?days=${days}`,
+  );
+}
+
+export async function getQuarterlyReport(
+  year: number,
+  quarter: number,
+): Promise<QuarterlyReport> {
+  return apiFetch<QuarterlyReport>(
+    `/analytics/quarterly-report?year=${year}&quarter=${quarter}`,
+  );
+}
