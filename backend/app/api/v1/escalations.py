@@ -1,0 +1,289 @@
+"""Escalation API routes."""
+
+from datetime import datetime, timezone
+from uuid import UUID
+
+from fastapi import APIRouter, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload
+
+from app.api.deps import DatabaseSession, ManagerUser, SupportUser
+from app.core.exceptions import (
+    EscalationAlreadyExistsException,
+    ForbiddenException,
+    NotFoundException,
+    TicketNotFoundException,
+)
+from app.models.escalation import EscalationRequest, EscalationStatus
+from app.models.ticket import StatusLog, Ticket, TicketStatus
+from app.schemas.escalation import (
+    EscalationCreate,
+    EscalationListResponse,
+    EscalationResponse,
+    EscalationReview,
+)
+
+router = APIRouter()
+
+
+def _build_escalation_response(escalation: EscalationRequest) -> EscalationResponse:
+    """Build an escalation response."""
+    return EscalationResponse(
+        id=escalation.id,
+        ticket_id=escalation.ticket_id,
+        ticket_title=escalation.ticket.title if escalation.ticket else None,
+        requester_id=escalation.requester_id,
+        requester_name=escalation.requester.name if escalation.requester else None,
+        reviewer_id=escalation.reviewer_id,
+        reviewer_name=escalation.reviewer.name if escalation.reviewer else None,
+        reason=escalation.reason,
+        status=escalation.status,
+        review_comment=escalation.review_comment,
+        created_at=escalation.created_at,
+        reviewed_at=escalation.reviewed_at,
+    )
+
+
+@router.post(
+    "",
+    response_model=EscalationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_escalation(
+    request: EscalationCreate,
+    current_user: SupportUser,
+    db: DatabaseSession,
+) -> EscalationResponse:
+    """Create an escalation request (support only)."""
+    # Verify ticket exists
+    result = await db.execute(
+        select(Ticket)
+        .options(joinedload(Ticket.escalation))
+        .where(Ticket.id == request.ticket_id, Ticket.deleted_at.is_(None))
+    )
+    ticket = result.scalar_one_or_none()
+
+    if ticket is None:
+        raise TicketNotFoundException()
+
+    # Check if escalation already exists
+    if ticket.escalation is not None:
+        raise EscalationAlreadyExistsException()
+
+    # Create escalation
+    escalation = EscalationRequest(
+        ticket_id=request.ticket_id,
+        requester_id=current_user.id,
+        reason=request.reason,
+        status=EscalationStatus.PENDING,
+    )
+    db.add(escalation)
+
+    # Update ticket status
+    old_status = ticket.status
+    ticket.status = TicketStatus.ESCALATED
+
+    # Create status log
+    status_log = StatusLog(
+        ticket_id=ticket.id,
+        old_status=old_status.value,
+        new_status=TicketStatus.ESCALATED.value,
+        changed_by_id=current_user.id,
+        comment=f"Escalated: {request.reason[:100]}",
+    )
+    db.add(status_log)
+
+    await db.commit()
+    await db.refresh(escalation)
+
+    # Load relationships
+    result = await db.execute(
+        select(EscalationRequest)
+        .options(
+            joinedload(EscalationRequest.ticket),
+            joinedload(EscalationRequest.requester),
+        )
+        .where(EscalationRequest.id == escalation.id)
+    )
+    escalation = result.scalar_one()
+
+    return _build_escalation_response(escalation)
+
+
+@router.get(
+    "",
+    response_model=EscalationListResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def list_escalations(
+    current_user: ManagerUser,
+    db: DatabaseSession,
+    status_filter: EscalationStatus | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> EscalationListResponse:
+    """List all escalation requests (manager only)."""
+    query = select(EscalationRequest)
+
+    if status_filter:
+        query = query.where(EscalationRequest.status == status_filter)
+
+    # Get total count
+    count_query = select(func.count()).select_from(query.subquery())
+    total = (await db.execute(count_query)).scalar() or 0
+
+    # Get paginated results
+    query = (
+        query.options(
+            joinedload(EscalationRequest.ticket),
+            joinedload(EscalationRequest.requester),
+            joinedload(EscalationRequest.reviewer),
+        )
+        .order_by(EscalationRequest.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+
+    result = await db.execute(query)
+    escalations = result.unique().scalars().all()
+
+    return EscalationListResponse(
+        items=[_build_escalation_response(e) for e in escalations],
+        total=total,
+    )
+
+
+@router.get(
+    "/{escalation_id}",
+    response_model=EscalationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_escalation(
+    escalation_id: UUID,
+    current_user: SupportUser,
+    db: DatabaseSession,
+) -> EscalationResponse:
+    """Get an escalation request by ID."""
+    result = await db.execute(
+        select(EscalationRequest)
+        .options(
+            joinedload(EscalationRequest.ticket),
+            joinedload(EscalationRequest.requester),
+            joinedload(EscalationRequest.reviewer),
+        )
+        .where(EscalationRequest.id == escalation_id)
+    )
+    escalation = result.scalar_one_or_none()
+
+    if escalation is None:
+        raise NotFoundException(detail="Escalation not found")
+
+    return _build_escalation_response(escalation)
+
+
+@router.patch(
+    "/{escalation_id}/approve",
+    response_model=EscalationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def approve_escalation(
+    escalation_id: UUID,
+    request: EscalationReview,
+    current_user: ManagerUser,
+    db: DatabaseSession,
+) -> EscalationResponse:
+    """Approve an escalation request (manager only)."""
+    result = await db.execute(
+        select(EscalationRequest)
+        .options(
+            joinedload(EscalationRequest.ticket),
+            joinedload(EscalationRequest.requester),
+        )
+        .where(EscalationRequest.id == escalation_id)
+    )
+    escalation = result.scalar_one_or_none()
+
+    if escalation is None:
+        raise NotFoundException(detail="Escalation not found")
+
+    if escalation.status != EscalationStatus.PENDING:
+        raise ForbiddenException(detail="Escalation has already been reviewed")
+
+    # Update escalation
+    escalation.status = EscalationStatus.APPROVED
+    escalation.reviewer_id = current_user.id
+    escalation.review_comment = request.comment
+    escalation.reviewed_at = datetime.now(timezone.utc)
+
+    # Update ticket status back to in_progress
+    if escalation.ticket:
+        escalation.ticket.status = TicketStatus.IN_PROGRESS
+
+        # Create status log
+        status_log = StatusLog(
+            ticket_id=escalation.ticket.id,
+            old_status=TicketStatus.ESCALATED.value,
+            new_status=TicketStatus.IN_PROGRESS.value,
+            changed_by_id=current_user.id,
+            comment=f"Escalation approved: {request.comment or 'No comment'}",
+        )
+        db.add(status_log)
+
+    await db.commit()
+    await db.refresh(escalation)
+
+    return _build_escalation_response(escalation)
+
+
+@router.patch(
+    "/{escalation_id}/reject",
+    response_model=EscalationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def reject_escalation(
+    escalation_id: UUID,
+    request: EscalationReview,
+    current_user: ManagerUser,
+    db: DatabaseSession,
+) -> EscalationResponse:
+    """Reject an escalation request (manager only)."""
+    result = await db.execute(
+        select(EscalationRequest)
+        .options(
+            joinedload(EscalationRequest.ticket),
+            joinedload(EscalationRequest.requester),
+        )
+        .where(EscalationRequest.id == escalation_id)
+    )
+    escalation = result.scalar_one_or_none()
+
+    if escalation is None:
+        raise NotFoundException(detail="Escalation not found")
+
+    if escalation.status != EscalationStatus.PENDING:
+        raise ForbiddenException(detail="Escalation has already been reviewed")
+
+    # Update escalation
+    escalation.status = EscalationStatus.REJECTED
+    escalation.reviewer_id = current_user.id
+    escalation.review_comment = request.comment
+    escalation.reviewed_at = datetime.now(timezone.utc)
+
+    # Update ticket status back to in_progress
+    if escalation.ticket:
+        escalation.ticket.status = TicketStatus.IN_PROGRESS
+
+        # Create status log
+        status_log = StatusLog(
+            ticket_id=escalation.ticket.id,
+            old_status=TicketStatus.ESCALATED.value,
+            new_status=TicketStatus.IN_PROGRESS.value,
+            changed_by_id=current_user.id,
+            comment=f"Escalation rejected: {request.comment or 'No comment'}",
+        )
+        db.add(status_log)
+
+    await db.commit()
+    await db.refresh(escalation)
+
+    return _build_escalation_response(escalation)
