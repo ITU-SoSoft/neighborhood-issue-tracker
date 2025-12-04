@@ -1,0 +1,148 @@
+# Docker Compose for SoSoft Development Environment
+# Usage: docker compose up -d
+
+services:
+  # PostgreSQL with PostGIS (multi-arch image)
+  postgres:
+    image: imresamu/postgis:16-3.5
+    container_name: sosoft-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sosoft
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sosoft"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sosoft-network
+
+  # MinIO for S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    container_name: sosoft-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sosoft-network
+
+  # MinIO setup - creates bucket on startup
+  minio-setup:
+    image: minio/mc:latest
+    container_name: sosoft-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing myminio/sosoft-uploads;
+      mc anonymous set public myminio/sosoft-uploads;
+      exit 0;
+      "
+    networks:
+      - sosoft-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sosoft-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      # Application
+      DEBUG: "true"
+      ENVIRONMENT: "development"
+      
+      # Database
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/sosoft"
+      
+      # JWT
+      JWT_SECRET_KEY: "dev-secret-key-change-in-production"
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
+      
+      # OTP
+      OTP_EXPIRE_MINUTES: "5"
+      OTP_LENGTH: "6"
+      
+      # Twilio (disabled in development)
+      TWILIO_ENABLED: "false"
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_AUTH_TOKEN: ""
+      TWILIO_PHONE_NUMBER: ""
+      
+      # MinIO
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_BUCKET_NAME: "sosoft-uploads"
+      MINIO_SECURE: "false"
+      MINIO_PUBLIC_ENDPOINT: "localhost:9000"
+      
+      # CORS
+      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot reload in development
+      - ./backend/app:/app/app:ro
+      - ./backend/main.py:/app/main.py:ro
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    networks:
+      - sosoft-network
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    container_name: sosoft-frontend
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+      # API URL for server-side requests (container-to-container)
+      NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1"
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for hot reload
+      - ./web/src:/app/src:ro
+      - ./web/public:/app/public:ro
+      # Exclude node_modules from mount
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - sosoft-network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  sosoft-network:
+    driver: bridge
