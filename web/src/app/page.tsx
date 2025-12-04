@@ -74,7 +74,9 @@ export default function Home() {
         <section
           id="features"
           className="mx-auto grid max-w-5xl gap-6 px-6 pb-24 sm:grid-cols-3 sm:px-12"
+          aria-labelledby="features-heading"
         >
+          <h2 id="features-heading" className="sr-only">Features</h2>
           {[
             {
               title: "Map-based reporting",

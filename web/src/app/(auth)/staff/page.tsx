@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -12,29 +11,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
 import { Skeleton } from "@/components/ui/skeleton";
-import { login } from "@/lib/api/client";
+import { staffLogin } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/context";
-import { LoginInput, loginSchema } from "@/lib/validators";
+import { StaffLoginInput, staffLoginSchema } from "@/lib/validators";
 
-function SignInForm() {
+function StaffSignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login: authLogin } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<StaffLoginInput>({
+    resolver: zodResolver(staffLoginSchema),
     defaultValues: {
       email: "",
       password: "",
     },
   });
 
-  const onSubmit = async (values: LoginInput) => {
+  const onSubmit = async (values: StaffLoginInput) => {
     try {
       setIsSubmitting(true);
 
-      const response = await login(values);
+      const response = await staffLogin(values);
       await authLogin(response.access_token, response.refresh_token);
       
       toast.success("Signed in successfully");
@@ -62,43 +61,10 @@ function SignInForm() {
       }}
     >
       <div className="absolute inset-0 bg-slate-950/70" aria-hidden />
-      <div className="relative grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
-        <div className="space-y-8 rounded-4xl border border-primary/20 bg-primary/10 p-10 text-foreground shadow-xl backdrop-blur">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-            Welcome back
-          </p>
-          <h1 className="text-4xl font-semibold leading-snug lg:text-5xl">
-            Stay in sync with what matters in your neighborhood.
-          </h1>
-          <p className="text-base text-foreground/80">
-            Track the issues you care about, receive real-time updates from municipal teams, and work with neighbors to
-            resolve problems faster.
-          </p>
-          <ul className="space-y-3 text-sm text-foreground/75">
-            <li>Report new issues in seconds.</li>
-            <li>Keep track of issues you care about.</li>
-            <li>Coordinate volunteer efforts and community responses seamlessly.</li>
-          </ul>
-          <div className="rounded-3xl border border-primary/15 bg-background/85 p-6">
-            <p className="text-sm font-medium text-primary">New to the platform?</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Create an account to access collaborative reporting tools and invite your neighbors to join you.
-            </p>
-            <Link
-              href="/sign-up"
-              className="mt-4 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-            >
-              Create a free account
-            </Link>
-          </div>
-        </div>
-
+      <div className="relative w-full max-w-md">
         <AuthCard
-          title="Sign in"
-          subtitle="Enter your email and password to access your dashboard."
-          footerHint="Do not have an account yet?"
-          footerActionLabel="Create one now"
-          footerActionHref="/sign-up"
+          title="Staff Sign In"
+          subtitle="Enter your credentials to access the staff dashboard. This portal is exclusively for support and manager roles."
           className="bg-background/90 backdrop-blur"
         >
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -112,7 +78,7 @@ function SignInForm() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder="staff@example.com"
                 {...form.register("email")}
               />
             </FormField>
@@ -130,8 +96,18 @@ function SignInForm() {
                 {...form.register("password")}
               />
             </FormField>
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+              <p className="font-medium">Staff Only Access</p>
+              <p className="mt-1">
+                This login is restricted to support and manager accounts. If you are a citizen,
+                please use the{" "}
+                <a href="/sign-in" className="font-semibold text-red-800 hover:text-red-600 underline">
+                  citizen portal
+                </a>.
+              </p>
+            </div>
             <Button type="submit" className="w-full" isLoading={isSubmitting}>
-              Sign in
+              Sign in as Staff
             </Button>
           </form>
         </AuthCard>
@@ -140,7 +116,7 @@ function SignInForm() {
   );
 }
 
-function SignInFormFallback() {
+function StaffSignInFormFallback() {
   return (
     <div
       className="relative flex min-h-screen items-center justify-center px-4 py-16"
@@ -151,18 +127,10 @@ function SignInFormFallback() {
       }}
     >
       <div className="absolute inset-0 bg-slate-950/70" aria-hidden />
-      <div className="relative grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
-        <div className="space-y-8 rounded-4xl border border-primary/20 bg-primary/10 p-10 backdrop-blur">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
+      <div className="relative w-full max-w-md">
         <AuthCard
-          title="Sign in"
-          subtitle="Enter your email and password to access your dashboard."
-          footerHint="Do not have an account yet?"
-          footerActionLabel="Create one now"
-          footerActionHref="/sign-up"
+          title="Staff Sign In"
+          subtitle="Enter your credentials to access the staff dashboard. This portal is exclusively for support and manager roles."
           className="bg-background/90 backdrop-blur"
         >
           <div className="space-y-4">
@@ -174,6 +142,7 @@ function SignInFormFallback() {
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-10 w-full" />
             </div>
+            <Skeleton className="h-20 w-full rounded-2xl" />
             <Skeleton className="h-10 w-full" />
           </div>
         </AuthCard>
@@ -182,10 +151,10 @@ function SignInFormFallback() {
   );
 }
 
-export default function SignInPage() {
+export default function StaffSignInPage() {
   return (
-    <Suspense fallback={<SignInFormFallback />}>
-      <SignInForm />
+    <Suspense fallback={<StaffSignInFormFallback />}>
+      <StaffSignInForm />
     </Suspense>
   );
 }

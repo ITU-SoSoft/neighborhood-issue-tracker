@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 interface AuthCardProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   subtitle: string;
-  footerHint: string;
-  footerActionLabel: string;
-  footerActionHref: string;
+  footerHint?: string;
+  footerActionLabel?: string;
+  footerActionHref?: string;
 }
 
 export function AuthCard({
@@ -25,26 +25,28 @@ export function AuthCard({
   ...props
 }: AuthCardProps) {
   return (
-    <Card className={cn("w-full max-w-md space-y-8", className)} {...props}>
+    <Card className={cn("w-full max-w-md space-y-8 p-8", className)} {...props}>
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
-          <span className="grid h-8 w-8 place-content-center rounded-full bg-emerald-100 text-emerald-600">
+        <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+          <span className="grid h-8 w-8 place-content-center rounded-full bg-primary/10 text-primary">
             NT
           </span>
           Neighborhood Issue Tracker
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-          <p className="text-sm text-slate-500">{subtitle}</p>
+          <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
       </div>
       <div className="space-y-6">{children}</div>
-      <p className="text-center text-sm text-slate-500">
-        {footerHint}{" "}
-        <Link href={footerActionHref} className="font-semibold text-emerald-600 hover:text-emerald-700">
-          {footerActionLabel}
-        </Link>
-      </p>
+      {footerHint && footerActionLabel && footerActionHref && (
+        <p className="text-center text-sm text-muted-foreground">
+          {footerHint}{" "}
+          <Link href={footerActionHref} className="font-semibold text-primary hover:text-primary/80">
+            {footerActionLabel}
+          </Link>
+        </p>
+      )}
     </Card>
   );
 }
