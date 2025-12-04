@@ -1,0 +1,395 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useCategories } from "@/lib/queries/categories";
+import { useCreateTicket, useUploadTicketPhoto } from "@/lib/queries/tickets";
+import { PhotoType, LocationCreate } from "@/lib/api/types";
+import {
+  fadeInUp,
+  staggerContainer,
+  staggerItem,
+  scaleIn,
+} from "@/lib/animations";
+import {
+  ArrowLeft,
+  X,
+  MapPin,
+  Loader2,
+  Camera,
+  AlertCircle,
+  Upload,
+} from "lucide-react";
+
+// Dynamically import the map component to avoid SSR issues with Leaflet
+const LocationPicker = dynamic(
+  () => import("@/components/map/location-picker").then((mod) => mod.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[300px] rounded-xl bg-muted flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
+
+interface PhotoPreview {
+  file: File;
+  preview: string;
+}
+
+export default function CreateTicketPage() {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // TanStack Query hooks
+  const { data: categoriesData, isLoading: isLoadingCategories } = useCategories();
+  const categories = categoriesData?.items ?? [];
+
+  const createTicketMutation = useCreateTicket();
+  const uploadPhotoMutation = useUploadTicketPhoto();
+
+  // Form state
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null>(null);
+  const [photos, setPhotos] = useState<PhotoPreview[]>([]);
+
+  // Validation error state
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Clean up photo previews on unmount
+  useState(() => {
+    return () => {
+      photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
+    };
+  });
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newPhotos: PhotoPreview[] = [];
+    for (let i = 0; i < files.length && photos.length + newPhotos.length < 5; i++) {
+      const file = files[i];
+      if (file.type.startsWith("image/")) {
+        newPhotos.push({
+          file,
+          preview: URL.createObjectURL(file),
+        });
+      }
+    }
+
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationError(null);
+
+    // Validation
+    if (!title.trim()) {
+      setValidationError("Please enter a title");
+      return;
+    }
+    if (!description.trim()) {
+      setValidationError("Please enter a description");
+      return;
+    }
+    if (!categoryId) {
+      setValidationError("Please select a category");
+      return;
+    }
+    if (!location) {
+      setValidationError("Please select a location on the map");
+      return;
+    }
+
+    try {
+      // Create the ticket
+      const ticketLocation: LocationCreate = {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: location.address,
+        city: "Istanbul", // Default city, could be extracted from address
+      };
+
+      const ticket = await createTicketMutation.mutateAsync({
+        title: title.trim(),
+        description: description.trim(),
+        category_id: categoryId,
+        location: ticketLocation,
+      });
+
+      // Upload photos if any
+      if (photos.length > 0) {
+        await Promise.all(
+          photos.map((photo) =>
+            uploadPhotoMutation.mutateAsync({
+              ticketId: ticket.id,
+              file: photo.file,
+              photoType: PhotoType.REPORT,
+            })
+          )
+        );
+      }
+
+      toast.success("Issue reported successfully!");
+      // Navigate to the ticket detail page
+      router.push(`/tickets/${ticket.id}`);
+    } catch (err) {
+      console.error("Failed to create ticket:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create ticket. Please try again."
+      );
+    }
+  };
+
+  const isSubmitting = createTicketMutation.isPending || uploadPhotoMutation.isPending;
+
+  return (
+    <motion.div 
+      className="mx-auto max-w-2xl space-y-6"
+      initial="hidden"
+      animate="visible"
+      variants={staggerContainer}
+    >
+      {/* Header */}
+      <motion.div className="flex items-center gap-4" variants={fadeInUp}>
+        <Link href="/tickets">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Report an Issue</h1>
+          <p className="text-muted-foreground">Help improve your neighborhood</p>
+        </div>
+      </motion.div>
+
+      {/* Form */}
+      <motion.form onSubmit={handleSubmit} variants={fadeInUp}>
+        <Card className="p-6 space-y-6">
+          {/* Error message */}
+          <AnimatePresence>
+            {validationError && (
+              <motion.div 
+                className="flex items-center gap-2 rounded-lg bg-destructive/10 p-4 text-destructive"
+                role="alert"
+                aria-live="polite"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <p className="text-sm">{validationError}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="title">
+              Title <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="title"
+              placeholder="Brief description of the issue"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={100}
+              aria-describedby="title-hint"
+            />
+            <p id="title-hint" className="text-xs text-muted-foreground">{title.length}/100 characters</p>
+          </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <Label htmlFor="category">
+              Category <span className="text-destructive">*</span>
+            </Label>
+            {isLoadingCategories ? (
+              <div className="flex items-center gap-2 py-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading categories...</span>
+              </div>
+            ) : (
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="description">
+              Description <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="description"
+              placeholder="Provide details about the issue. Include any relevant information that could help resolve it."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              maxLength={1000}
+              aria-describedby="description-hint"
+            />
+            <p id="description-hint" className="text-xs text-muted-foreground">{description.length}/1000 characters</p>
+          </div>
+
+          {/* Location */}
+          <div className="space-y-2">
+            <Label id="location-label">
+              Location <span className="text-destructive">*</span>
+            </Label>
+            <LocationPicker onLocationSelect={setLocation} />
+            {location?.address && (
+              <div className="mt-2 flex items-start gap-2 rounded-lg bg-primary/5 p-3 text-sm text-primary">
+                <MapPin className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+                <span className="line-clamp-2">{location.address}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Photos */}
+          <div className="space-y-2">
+            <Label>
+              Photos <span className="text-muted-foreground font-normal">(optional, max 5)</span>
+            </Label>
+            
+            {/* Photo grid */}
+            <motion.div 
+              className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
+              <AnimatePresence mode="popLayout">
+                {photos.map((photo, index) => (
+                  <motion.div
+                    key={photo.preview}
+                    className="relative aspect-square overflow-hidden rounded-xl border border-border"
+                    variants={scaleIn}
+                    initial="hidden"
+                    animate="visible"
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    layout
+                  >
+                    <img
+                      src={photo.preview}
+                      alt={`Photo preview: ${photo.file.name}`}
+                      className="h-full w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="absolute right-2 top-2 rounded-full bg-black/50 p-1 text-white transition hover:bg-black/70"
+                      aria-label={`Remove photo ${index + 1}`}
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              
+              {/* Add photo button */}
+              {photos.length < 5 && (
+                  <motion.button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border text-muted-foreground transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  layout
+                  aria-label="Add a photo"
+                >
+                  <Camera className="h-6 w-6" aria-hidden="true" />
+                  <span className="text-xs font-medium">Add Photo</span>
+                </motion.button>
+              )}
+            </motion.div>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoSelect}
+              className="hidden"
+              aria-label="Upload photos"
+            />
+            <p className="text-xs text-muted-foreground">
+              Add photos to help identify the issue. Supports JPG, PNG formats.
+            </p>
+          </div>
+
+          {/* Submit button */}
+          <div className="flex justify-end gap-3 border-t border-border pt-6">
+            <Link href="/tickets">
+              <Button type="button" variant="outline" disabled={isSubmitting}>
+                Cancel
+              </Button>
+            </Link>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Submit Report
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      </motion.form>
+    </motion.div>
+  );
+}
