@@ -5,3 +5,4 @@ export * from "./categories";
 export * from "./users";
 export * from "./analytics";
 export * from "./escalations";
+export * from "./addresses";

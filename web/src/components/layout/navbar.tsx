@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Search, Shield } from "lucide-react";
+import Link from "next/link";
+import { Bell, Search, Shield, UserCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
 import { useCommandPalette } from "@/components/command-palette";
 import { Button } from "@/components/ui/button";
@@ -69,17 +70,36 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
           </span>
         </Button>
 
-        {/* User avatar (mobile) */}
-        <div
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium lg:hidden",
-            isStaff ? "bg-slate-700 text-white" : "bg-primary/10 text-primary",
-          )}
-          role="img"
-          aria-label={`User: ${user?.name || "Unknown"}`}
-        >
-          {user?.name?.charAt(0).toUpperCase() || "U"}
-        </div>
+        {/* Profile button - icon on desktop */}
+        <Link href="/profile" className="hidden lg:block">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "relative",
+              isStaff ? "text-slate-600 hover:text-slate-900" : "text-muted-foreground hover:text-foreground",
+            )}
+            aria-label="Go to profile"
+          >
+            <UserCircle className="h-5 w-5" aria-hidden="true" />
+          </Button>
+        </Link>
+
+        {/* User avatar - on mobile with profile link */}
+        <Link href="/profile" className="lg:hidden">
+          <div
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors cursor-pointer",
+              isStaff 
+                ? "bg-slate-700 text-white hover:bg-slate-600" 
+                : "bg-primary/10 text-primary hover:bg-primary/20",
+            )}
+            role="button"
+            aria-label={`Go to profile (${user?.name || "User"})`}
+          >
+            {user?.name?.charAt(0).toUpperCase() || "U"}
+          </div>
+        </Link>
       </div>
     </header>
   );

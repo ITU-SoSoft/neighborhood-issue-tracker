@@ -32,6 +32,7 @@ class UserUpdate(BaseSchema):
 
     name: str | None = Field(default=None, min_length=2, max_length=100)
     email: str | None = None
+    phone_number: str | None = Field(default=None, pattern=r"^\+90[0-9]{10}$")
 
 
 class UserRoleUpdate(BaseSchema):

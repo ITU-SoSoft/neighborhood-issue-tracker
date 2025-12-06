@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth/context";
 import { Card } from "@/components/ui/card";
@@ -11,7 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUpdateUser } from "@/lib/queries/users";
-import { UserRole } from "@/lib/api/types";
+import {
+  useSavedAddresses,
+  useCreateSavedAddress,
+  useDeleteSavedAddress,
+} from "@/lib/queries/addresses";
+import { SavedAddress } from "@/lib/api/types";
 import {
   formatDate,
   getRoleVariant,
@@ -29,25 +35,59 @@ import {
   Phone,
   Mail,
   Calendar,
-  Shield,
   Loader2,
   Edit2,
   Check,
   X,
+  MapPin,
+  Plus,
+  Trash2,
+  Home,
 } from "lucide-react";
+
+// Dynamically import the map component to avoid SSR issues with Leaflet
+const LocationPicker = dynamic(
+  () =>
+    import("@/components/map/location-picker").then((mod) => mod.LocationPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[200px] rounded-xl bg-muted flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const updateUserMutation = useUpdateUser();
 
+  // Saved addresses queries
+  const { data: addressesData, isLoading: isLoadingAddresses } =
+    useSavedAddresses();
+  const createAddressMutation = useCreateSavedAddress();
+  const deleteAddressMutation = useDeleteSavedAddress();
+
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [phoneNumber, setPhoneNumber] = useState(user?.phone_number || "");
+
+  // Add address state
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [newAddressName, setNewAddressName] = useState("");
+  const [newAddressLocation, setNewAddressLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null>(null);
 
   const handleStartEdit = () => {
     setName(user?.name || "");
     setEmail(user?.email || "");
+    setPhoneNumber(user?.phone_number || "");
     setIsEditing(true);
   };
 
@@ -64,6 +104,7 @@ export default function ProfilePage() {
         data: {
           name: name.trim() || undefined,
           email: email.trim() || undefined,
+          phone_number: phoneNumber.trim() || undefined,
         },
       });
       await refreshUser();
@@ -71,7 +112,49 @@ export default function ProfilePage() {
       toast.success("Profile updated successfully!");
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to update profile",
+        err instanceof Error ? err.message : "Failed to update profile"
+      );
+    }
+  };
+
+  const handleAddAddress = async () => {
+    if (!newAddressName.trim()) {
+      toast.error("Please enter a name for this address");
+      return;
+    }
+    if (!newAddressLocation) {
+      toast.error("Please select a location on the map");
+      return;
+    }
+
+    try {
+      await createAddressMutation.mutateAsync({
+        name: newAddressName.trim(),
+        address: newAddressLocation.address || "Selected location",
+        latitude: newAddressLocation.latitude,
+        longitude: newAddressLocation.longitude,
+        city: "Istanbul",
+      });
+      toast.success("Address saved successfully!");
+      setIsAddingAddress(false);
+      setNewAddressName("");
+      setNewAddressLocation(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save address"
+      );
+    }
+  };
+
+  const handleDeleteAddress = async (address: SavedAddress) => {
+    if (!confirm(`Are you sure you want to delete "${address.name}"?`)) return;
+
+    try {
+      await deleteAddressMutation.mutateAsync(address.id);
+      toast.success("Address deleted successfully!");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete address"
       );
     }
   };
@@ -97,7 +180,7 @@ export default function ProfilePage() {
             </div>
           </div>
           <div className="p-6 space-y-6">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-5 w-48" />
@@ -108,6 +191,8 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  const savedAddresses = addressesData?.items ?? [];
 
   return (
     <motion.div
@@ -176,7 +261,16 @@ export default function ProfilePage() {
                   <Phone className="h-4 w-4" />
                   Phone Number
                 </Label>
-                <p className="text-foreground">{user.phone_number}</p>
+                {isEditing ? (
+                  <Input
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+905XXXXXXXXX"
+                    pattern="^\+90[0-9]{10}$"
+                  />
+                ) : (
+                  <p className="text-foreground">{user.phone_number}</p>
+                )}
               </motion.div>
 
               {/* Email */}
@@ -197,17 +291,6 @@ export default function ProfilePage() {
                     {user.email || "Not provided"}
                   </p>
                 )}
-              </motion.div>
-
-              {/* Role */}
-              <motion.div className="space-y-2" variants={staggerItem}>
-                <Label className="flex items-center gap-2 text-muted-foreground">
-                  <Shield className="h-4 w-4" />
-                  Role
-                </Label>
-                <Badge variant={getRoleVariant(user.role)}>
-                  {getRoleLabel(user.role)}
-                </Badge>
               </motion.div>
 
               {/* Member since */}
@@ -236,6 +319,7 @@ export default function ProfilePage() {
                     onClick={handleCancelEdit}
                     disabled={updateUserMutation.isPending}
                   >
+                    <X className="mr-2 h-4 w-4" />
                     Cancel
                   </Button>
                   <Button
@@ -263,6 +347,150 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
+        </Card>
+      </motion.div>
+
+      {/* Saved Addresses Card */}
+      <motion.div variants={staggerItem}>
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Saved Addresses
+            </h3>
+            {!isAddingAddress && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAddingAddress(true)}
+                disabled={savedAddresses.length >= 10}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Address
+              </Button>
+            )}
+          </div>
+
+          {/* Add new address form */}
+          <AnimatePresence>
+            {isAddingAddress && (
+              <motion.div
+                className="mb-6 space-y-4 rounded-xl border border-border p-4 bg-muted/30"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="addressName">Address Name</Label>
+                  <Input
+                    id="addressName"
+                    value={newAddressName}
+                    onChange={(e) => setNewAddressName(e.target.value)}
+                    placeholder="e.g., Home, Work, School"
+                    maxLength={100}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Select Location</Label>
+                  <LocationPicker onLocationSelect={setNewAddressLocation} />
+                  {newAddressLocation?.address && (
+                    <div className="mt-2 flex items-start gap-2 rounded-lg bg-primary/5 p-3 text-sm text-primary">
+                      <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">
+                        {newAddressLocation.address}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsAddingAddress(false);
+                      setNewAddressName("");
+                      setNewAddressLocation(null);
+                    }}
+                    disabled={createAddressMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleAddAddress}
+                    disabled={createAddressMutation.isPending}
+                  >
+                    {createAddressMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Save Address
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Address list */}
+          {isLoadingAddresses ? (
+            <div className="space-y-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : savedAddresses.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No saved addresses yet</p>
+              <p className="text-sm">
+                Add your frequently used locations for faster ticket creation
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {savedAddresses.map((address) => (
+                <motion.div
+                  key={address.id}
+                  className="flex items-start justify-between rounded-xl border border-border p-4 hover:bg-muted/30 transition-colors"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-foreground flex items-center gap-2">
+                      <Home className="h-4 w-4 text-primary" />
+                      {address.name}
+                    </h4>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {address.address}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => handleDeleteAddress(address)}
+                    disabled={deleteAddressMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {savedAddresses.length >= 10 && (
+            <p className="text-xs text-muted-foreground mt-4 text-center">
+              Maximum 10 addresses allowed
+            </p>
+          )}
         </Card>
       </motion.div>
 

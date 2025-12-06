@@ -105,4 +105,12 @@ export const queryKeys = {
     quarterlyReport: (year: number, quarter: number) =>
       [...queryKeys.analytics.all, "quarterlyReport", { year, quarter }] as const,
   },
+
+  // Saved Addresses
+  addresses: {
+    all: ["addresses"] as const,
+    lists: () => [...queryKeys.addresses.all, "list"] as const,
+    list: () => [...queryKeys.addresses.lists()] as const,
+    detail: (id: string) => [...queryKeys.addresses.all, "detail", id] as const,
+  },
 } as const;

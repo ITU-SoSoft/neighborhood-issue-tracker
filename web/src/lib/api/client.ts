@@ -29,6 +29,10 @@ import {
   RegisterResponse,
   RequestOTPRequest,
   RequestOTPResponse,
+  SavedAddress,
+  SavedAddressCreate,
+  SavedAddressListResponse,
+  SavedAddressUpdate,
   StaffLoginRequest,
   TeamPerformanceResponse,
   Ticket,
@@ -634,4 +638,43 @@ export async function getQuarterlyReport(
   return apiFetch<QuarterlyReport>(
     `/analytics/quarterly-report?year=${year}&quarter=${quarter}`,
   );
+}
+
+// ============================================================================
+// SAVED ADDRESSES API
+// ============================================================================
+
+export async function getSavedAddresses(): Promise<SavedAddressListResponse> {
+  return apiFetch<SavedAddressListResponse>("/addresses");
+}
+
+export async function getSavedAddressById(
+  addressId: string,
+): Promise<SavedAddress> {
+  return apiFetch<SavedAddress>(`/addresses/${addressId}`);
+}
+
+export async function createSavedAddress(
+  data: SavedAddressCreate,
+): Promise<SavedAddress> {
+  return apiFetch<SavedAddress>("/addresses", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSavedAddress(
+  addressId: string,
+  data: SavedAddressUpdate,
+): Promise<SavedAddress> {
+  return apiFetch<SavedAddress>(`/addresses/${addressId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSavedAddress(addressId: string): Promise<void> {
+  return apiFetch<void>(`/addresses/${addressId}`, {
+    method: "DELETE",
+  });
 }

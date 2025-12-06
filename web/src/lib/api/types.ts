@@ -48,6 +48,41 @@ export interface UserListResponse {
 export interface UserUpdate {
   name?: string;
   email?: string;
+  phone_number?: string;
+}
+
+// Saved Address types
+export interface SavedAddress {
+  id: string;
+  user_id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  city: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedAddressCreate {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  city?: string;
+}
+
+export interface SavedAddressUpdate {
+  name?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+}
+
+export interface SavedAddressListResponse {
+  items: SavedAddress[];
+  total: number;
 }
 
 export interface UserRoleUpdate {

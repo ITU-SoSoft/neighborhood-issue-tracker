@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/select";
 import { useCategories } from "@/lib/queries/categories";
 import { useCreateTicket, useUploadTicketPhoto } from "@/lib/queries/tickets";
-import { PhotoType, LocationCreate } from "@/lib/api/types";
+import { useSavedAddresses } from "@/lib/queries/addresses";
+import { PhotoType, LocationCreate, SavedAddress } from "@/lib/api/types";
 import {
   fadeInUp,
   staggerContainer,
@@ -36,6 +37,8 @@ import {
   Camera,
   AlertCircle,
   Upload,
+  Home,
+  Navigation,
 } from "lucide-react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
@@ -63,6 +66,8 @@ export default function CreateTicketPage() {
   // TanStack Query hooks
   const { data: categoriesData, isLoading: isLoadingCategories } = useCategories();
   const categories = categoriesData?.items ?? [];
+  const { data: addressesData } = useSavedAddresses();
+  const savedAddresses = addressesData?.items ?? [];
 
   const createTicketMutation = useCreateTicket();
   const uploadPhotoMutation = useUploadTicketPhoto();
@@ -77,9 +82,30 @@ export default function CreateTicketPage() {
     address?: string;
   } | null>(null);
   const [photos, setPhotos] = useState<PhotoPreview[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [locationMode, setLocationMode] = useState<"map" | "saved">("map");
 
   // Validation error state
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Handle saved address selection
+  const handleSavedAddressSelect = (addressId: string) => {
+    setSelectedAddressId(addressId);
+    if (addressId === "map") {
+      setLocationMode("map");
+      setLocation(null);
+    } else {
+      setLocationMode("saved");
+      const address = savedAddresses.find((a) => a.id === addressId);
+      if (address) {
+        setLocation({
+          latitude: address.latitude,
+          longitude: address.longitude,
+          address: address.address,
+        });
+      }
+    }
+  };
 
   // Clean up photo previews on unmount
   useState(() => {
@@ -282,13 +308,61 @@ export default function CreateTicketPage() {
           </div>
 
           {/* Location */}
-          <div className="space-y-2">
+          <div className="space-y-4">
             <Label id="location-label">
               Location <span className="text-destructive">*</span>
             </Label>
-            <LocationPicker onLocationSelect={setLocation} />
+            
+            {/* Saved addresses quick select */}
+            {savedAddresses.length > 0 && (
+              <div className="space-y-2 relative z-[1100]">
+                <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Home className="h-4 w-4" />
+                  Use a saved address
+                </Label>
+                <Select value={selectedAddressId} onValueChange={handleSavedAddressSelect}>
+                  <SelectTrigger className="relative z-10 bg-background">
+                    <SelectValue placeholder="Select a saved address or pick on map" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[1200] shadow-xl">
+                    <SelectItem value="map">
+                      <div className="flex items-center gap-2">
+                        <Navigation className="h-4 w-4" />
+                        Pick location on map
+                      </div>
+                    </SelectItem>
+                    {savedAddresses.map((address) => (
+                      <SelectItem key={address.id} value={address.id}>
+                        <div className="flex items-center gap-2">
+                          <Home className="h-4 w-4" />
+                          <span className="font-medium">{address.name}</span>
+                          <span className="text-muted-foreground text-xs truncate max-w-[200px]">
+                            - {address.address}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Map picker - show when no saved addresses or "map" is selected */}
+            {(savedAddresses.length === 0 || locationMode === "map") && (
+              <div className="space-y-2">
+                {savedAddresses.length > 0 && (
+                  <Label className="text-sm text-muted-foreground flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Or pick a location on the map
+                  </Label>
+                )}
+                <LocationPicker onLocationSelect={setLocation} />
+              </div>
+            )}
+
+            {/* Selected location display */}
             {location?.address && (
-              <div className="mt-2 flex items-start gap-2 rounded-lg bg-primary/5 p-3 text-sm text-primary">
+              <div className="flex items-start gap-2 rounded-lg bg-primary/5 p-3 text-sm text-primary">
                 <MapPin className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
                 <span className="line-clamp-2">{location.address}</span>
               </div>

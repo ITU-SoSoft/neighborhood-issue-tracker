@@ -113,6 +113,19 @@ async def update_user(
         current_user.name = request.name
     if request.email is not None:
         current_user.email = request.email
+    if request.phone_number is not None:
+        # Check if phone number is already taken by another user
+        existing = await db.execute(
+            select(User).where(
+                User.phone_number == request.phone_number,
+                User.id != current_user.id,
+                User.deleted_at.is_(None),
+            )
+        )
+        if existing.scalar_one_or_none():
+            from app.core.exceptions import BadRequestException
+            raise BadRequestException(detail="Phone number is already in use")
+        current_user.phone_number = request.phone_number
 
     await db.commit()
     await db.refresh(current_user)

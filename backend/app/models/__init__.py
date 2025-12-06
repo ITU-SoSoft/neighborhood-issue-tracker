@@ -1,6 +1,7 @@
 """SQLAlchemy models package."""
 
 from app.models.base import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.address import SavedAddress
 from app.models.category import Category
 from app.models.comment import Comment
 from app.models.escalation import EscalationRequest, EscalationStatus
@@ -19,6 +20,7 @@ __all__ = [
     "User",
     "UserRole",
     "OTPCode",
+    "SavedAddress",
     "Team",
     "Category",
     "Location",
