@@ -8,6 +8,7 @@ from app.models.escalation import EscalationRequest, EscalationStatus
 from app.models.feedback import Feedback
 from app.models.photo import Photo, PhotoType
 from app.models.team import Team
+from app.models.notification import Notification, NotificationType
 from app.models.ticket import Location, StatusLog, Ticket, TicketFollower, TicketStatus
 from app.models.user import OTPCode, User, UserRole
 
@@ -34,4 +35,6 @@ __all__ = [
     "Feedback",
     "EscalationRequest",
     "EscalationStatus",
+    "Notification",
+    "NotificationType",
 ]

@@ -23,6 +23,8 @@ import {
   useTickets,
   useMyTickets,
   useAssignedTickets,
+  useFollowedTickets,
+  useAllUserTickets,
   useCategories,
 } from "@/lib/queries";
 import {
@@ -128,7 +130,7 @@ export default function TicketsPage() {
   // Filter state
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "">("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [viewFilter, setViewFilter] = useState<"all" | "my" | "assigned">("all");
+  const [viewFilter, setViewFilter] = useState<"all" | "my" | "assigned" | "followed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -137,7 +139,7 @@ export default function TicketsPage() {
   useEffect(() => {
     const status = searchParams.get("status") as TicketStatus | null;
     const category = searchParams.get("category");
-    const view = searchParams.get("view") as "all" | "my" | "assigned" | null;
+    const view = searchParams.get("view") as "all" | "my" | "assigned" | "followed" | null;
     const page = searchParams.get("page");
 
     if (status) setStatusFilter(status);
@@ -150,30 +152,56 @@ export default function TicketsPage() {
   const { data: categoriesData } = useCategories();
   const categories = categoriesData?.items ?? [];
 
+  // Check if user is support/manager (can see all tickets)
+  const isStaff = user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
+
   // Select the right query based on view filter
+  // For "all" view: staff users see all tickets, citizens see own + followed tickets
   const allTicketsQuery = useTickets({
     status_filter: statusFilter || undefined,
     category_id: categoryFilter || undefined,
     page: currentPage,
     page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "all" });
+  }, { enabled: viewFilter === "all" && isStaff });
+
+  const allUserTicketsQuery = useAllUserTickets({
+    status_filter: statusFilter || undefined,
+    category_id: categoryFilter || undefined,
+    page: currentPage,
+    page_size: PAGE_SIZE,
+  }, { enabled: viewFilter === "all" && !isStaff });
 
   const myTicketsQuery = useMyTickets({
+    status_filter: statusFilter || undefined,
+    category_id: categoryFilter || undefined,
     page: currentPage,
     page_size: PAGE_SIZE,
   }, { enabled: viewFilter === "my" });
 
   const assignedTicketsQuery = useAssignedTickets({
+    status_filter: statusFilter || undefined,
+    category_id: categoryFilter || undefined,
     page: currentPage,
     page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "assigned" && (user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) });
+  }, { enabled: viewFilter === "assigned" && isStaff });
+
+  const followedTicketsQuery = useFollowedTickets({
+    status_filter: statusFilter || undefined,
+    category_id: categoryFilter || undefined,
+    page: currentPage,
+    page_size: PAGE_SIZE,
+  }, { enabled: viewFilter === "followed" });
 
   // Get the active query
   const activeQuery = viewFilter === "my" 
     ? myTicketsQuery 
     : viewFilter === "assigned" 
       ? assignedTicketsQuery 
-      : allTicketsQuery;
+      : viewFilter === "followed"
+        ? followedTicketsQuery
+        : isStaff
+          ? allTicketsQuery
+          : allUserTicketsQuery;
 
   const tickets = activeQuery.data?.items ?? [];
   const totalTickets = activeQuery.data?.total ?? 0;
@@ -295,7 +323,7 @@ export default function TicketsPage() {
                       <Select
                         value={viewFilter}
                         onValueChange={(value: string) => {
-                          setViewFilter(value as "all" | "my" | "assigned");
+                          setViewFilter(value as "all" | "my" | "assigned" | "followed");
                           setCurrentPage(1);
                         }}
                       >
@@ -305,6 +333,7 @@ export default function TicketsPage() {
                         <SelectContent>
                           <SelectItem value="all">All Tickets</SelectItem>
                           <SelectItem value="my">My Reports</SelectItem>
+                          <SelectItem value="followed">Followed Tickets</SelectItem>
                           {(user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) && (
                             <SelectItem value="assigned">Assigned to Me</SelectItem>
                           )}

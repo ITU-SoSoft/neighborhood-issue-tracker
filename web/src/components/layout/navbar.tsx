@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Bell, Search, Shield, UserCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth/context";
@@ -7,6 +8,8 @@ import { useCommandPalette } from "@/components/command-palette";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { NotificationPanel } from "@/components/notifications/notification-panel";
+import { useUnreadNotificationCount } from "@/lib/queries/notifications";
 
 interface NavbarProps {
   title?: string;
@@ -16,6 +19,9 @@ interface NavbarProps {
 export function Navbar({ title, isStaff = false }: NavbarProps) {
   const { user } = useAuth();
   const { open: openCommandPalette } = useCommandPalette();
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  const { data: unreadData } = useUnreadNotificationCount();
+  const unreadCount = unreadData?.count ?? 0;
 
   return (
     <header
@@ -63,12 +69,21 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
           size="icon"
           className="relative text-muted-foreground"
           aria-label="Notifications"
+          onClick={() => setIsNotificationPanelOpen(true)}
         >
           <Bell className="h-5 w-5" aria-hidden="true" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive">
-            <span className="sr-only">You have new notifications</span>
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive">
+              <span className="sr-only">You have {unreadCount} new notifications</span>
+            </span>
+          )}
         </Button>
+
+        {/* Notification Panel */}
+        <NotificationPanel
+          isOpen={isNotificationPanelOpen}
+          onClose={() => setIsNotificationPanelOpen(false)}
+        />
 
         {/* Profile button - icon on desktop */}
         <Link href="/profile" className="hidden lg:block">

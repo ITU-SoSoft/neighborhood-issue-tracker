@@ -21,6 +21,8 @@ import {
   LoginResponse,
   MemberPerformanceResponse,
   NearbyTicket,
+  Notification,
+  NotificationListResponse,
   PhotoUploadResponse,
   PhotoType,
   QuarterlyReport,
@@ -383,10 +385,14 @@ export async function getTickets(params?: {
 }
 
 export async function getMyTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
   page?: number;
   page_size?: number;
 }): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
+  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.category_id) searchParams.set("category_id", params.category_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
     searchParams.set("page_size", params.page_size.toString());
@@ -396,10 +402,14 @@ export async function getMyTickets(params?: {
 }
 
 export async function getAssignedTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
   page?: number;
   page_size?: number;
 }): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
+  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.category_id) searchParams.set("category_id", params.category_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
     searchParams.set("page_size", params.page_size.toString());
@@ -407,6 +417,44 @@ export async function getAssignedTickets(params?: {
   const query = searchParams.toString();
   return apiFetch<TicketListResponse>(
     `/tickets/assigned${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getFollowedTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<TicketListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.category_id) searchParams.set("category_id", params.category_id);
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<TicketListResponse>(
+    `/tickets/followed${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getAllUserTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<TicketListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.category_id) searchParams.set("category_id", params.category_id);
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<TicketListResponse>(
+    `/tickets/all${query ? `?${query}` : ""}`,
   );
 }
 
@@ -676,5 +724,44 @@ export async function updateSavedAddress(
 export async function deleteSavedAddress(addressId: string): Promise<void> {
   return apiFetch<void>(`/addresses/${addressId}`, {
     method: "DELETE",
+  });
+}
+
+// ============================================================================
+// NOTIFICATIONS API
+// ============================================================================
+
+export async function getNotifications(params?: {
+  unread_only?: boolean;
+  page?: number;
+  page_size?: number;
+}): Promise<NotificationListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.unread_only) searchParams.set("unread_only", "true");
+  if (params?.page) searchParams.set("page", params.page.toString());
+  if (params?.page_size)
+    searchParams.set("page_size", params.page_size.toString());
+
+  const query = searchParams.toString();
+  return apiFetch<NotificationListResponse>(
+    `/notifications${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getUnreadNotificationCount(): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>("/notifications/unread-count");
+}
+
+export async function markNotificationAsRead(
+  notificationId: string,
+): Promise<Notification> {
+  return apiFetch<Notification>(`/notifications/${notificationId}/read`, {
+    method: "PATCH",
+  });
+}
+
+export async function markAllNotificationsAsRead(): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/notifications/read-all", {
+    method: "PATCH",
   });
 }

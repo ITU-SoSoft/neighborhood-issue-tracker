@@ -75,6 +75,9 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     saved_addresses: Mapped[list["SavedAddress"]] = relationship(
         "SavedAddress", back_populates="user", cascade="all, delete-orphan"
     )
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.phone_number} ({self.role.value})>"
@@ -117,3 +120,4 @@ from app.models.ticket import Ticket  # noqa: E402
 from app.models.comment import Comment  # noqa: E402
 from app.models.feedback import Feedback  # noqa: E402
 from app.models.address import SavedAddress  # noqa: E402
+from app.models.notification import Notification  # noqa: E402

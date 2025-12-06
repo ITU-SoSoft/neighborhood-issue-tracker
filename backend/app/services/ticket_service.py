@@ -96,6 +96,15 @@ class TicketService:
         await db.commit()
         await db.refresh(ticket)
 
+        # Send notification
+        from app.services.notification_service import notify_ticket_created
+
+        try:
+            await notify_ticket_created(db, ticket)
+        except Exception:
+            # Don't fail ticket creation if notification fails
+            pass
+
         # Load relationships
         result = await db.execute(
             select(Ticket)
@@ -223,6 +232,15 @@ class TicketService:
 
         await db.commit()
         await db.refresh(ticket)
+
+        # Send notification
+        from app.services.notification_service import notify_ticket_status_changed
+
+        try:
+            await notify_ticket_status_changed(db, ticket, old_status, new_status, current_user)
+        except Exception:
+            # Don't fail status update if notification fails
+            pass
 
         return ticket
 

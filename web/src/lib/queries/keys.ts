@@ -17,10 +17,30 @@ export const queryKeys = {
     }) => [...queryKeys.tickets.lists(), filters] as const,
     details: () => [...queryKeys.tickets.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.tickets.details(), id] as const,
-    my: (params?: { page?: number; page_size?: number }) =>
-      [...queryKeys.tickets.all, "my", params ?? {}] as const,
-    assigned: (params?: { page?: number; page_size?: number }) =>
-      [...queryKeys.tickets.all, "assigned", params ?? {}] as const,
+    my: (params?: {
+      status_filter?: TicketStatus;
+      category_id?: string;
+      page?: number;
+      page_size?: number;
+    }) => [...queryKeys.tickets.all, "my", params ?? {}] as const,
+    assigned: (params?: {
+      status_filter?: TicketStatus;
+      category_id?: string;
+      page?: number;
+      page_size?: number;
+    }) => [...queryKeys.tickets.all, "assigned", params ?? {}] as const,
+    followed: (params?: {
+      status_filter?: TicketStatus;
+      category_id?: string;
+      page?: number;
+      page_size?: number;
+    }) => [...queryKeys.tickets.all, "followed", params ?? {}] as const,
+    allUser: (params?: {
+      status_filter?: TicketStatus;
+      category_id?: string;
+      page?: number;
+      page_size?: number;
+    }) => [...queryKeys.tickets.all, "allUser", params ?? {}] as const,
     nearby: (params: {
       latitude: number;
       longitude: number;
@@ -112,5 +132,17 @@ export const queryKeys = {
     lists: () => [...queryKeys.addresses.all, "list"] as const,
     list: () => [...queryKeys.addresses.lists()] as const,
     detail: (id: string) => [...queryKeys.addresses.all, "detail", id] as const,
+  },
+
+  // Notifications
+  notifications: {
+    all: ["notifications"] as const,
+    lists: () => [...queryKeys.notifications.all, "list"] as const,
+    list: (params?: {
+      unread_only?: boolean;
+      page?: number;
+      page_size?: number;
+    }) => [...queryKeys.notifications.lists(), params ?? {}] as const,
+    unreadCount: () => [...queryKeys.notifications.all, "unreadCount"] as const,
   },
 } as const;

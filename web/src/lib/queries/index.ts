@@ -6,3 +6,4 @@ export * from "./users";
 export * from "./analytics";
 export * from "./escalations";
 export * from "./addresses";
+export * from "./notifications";

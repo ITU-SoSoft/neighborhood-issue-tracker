@@ -226,6 +226,35 @@ export interface NearbyTicket {
   follower_count: number;
 }
 
+// Notification types
+export enum NotificationType {
+  TICKET_CREATED = "ticket_created",
+  TICKET_STATUS_CHANGED = "ticket_status_changed",
+  TICKET_FOLLOWED = "ticket_followed",
+  COMMENT_ADDED = "comment_added",
+  TICKET_ASSIGNED = "ticket_assigned",
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  ticket_id: string | null;
+  notification_type: NotificationType;
+  title: string;
+  message: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationListResponse {
+  items: Notification[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export interface TicketListResponse {
   items: Ticket[];
   total: number;

@@ -3,7 +3,13 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
-from geoalchemy2.functions import ST_DWithin, ST_Distance, ST_MakePoint, ST_SetSRID
+from geoalchemy2.functions import (
+    ST_Distance,
+    ST_DWithin,
+    ST_MakePoint,
+    ST_SetSRID,
+    ST_Transform,
+)
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DatabaseSession
@@ -30,35 +36,60 @@ async def find_nearby_tickets(
     """Find tickets near a location.
 
     Used to detect potential duplicates when creating a new ticket.
+    Uses ST_Transform to convert to Web Mercator (3857) for meter-based distance calculation.
     """
-    # Create a PostGIS point for the search location
-    search_point = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
-
-    # Query for nearby tickets
+    # Create a PostGIS point for the search location (WGS84 - SRID 4326)
+    search_point_wgs84 = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
+    
+    # Transform to Web Mercator (SRID 3857) for meter-based distance calculation
+    # Web Mercator uses meters as units, so ST_Distance will return meters
+    search_point_mercator = ST_Transform(search_point_wgs84, 3857)
+    location_mercator = ST_Transform(Location.coordinates, 3857)
+    
+    # Calculate distance in meters using Web Mercator coordinates
+    distance_expr = ST_Distance(location_mercator, search_point_mercator)
+    
+    # Build base query
     query = (
         select(
             Ticket,
-            ST_Distance(Location.coordinates, search_point).label("distance"),
+            distance_expr.label("distance"),
         )
         .join(Location, Ticket.location_id == Location.id)
         .join(Category, Ticket.category_id == Category.id)
         .where(
             Ticket.deleted_at.is_(None),
             Ticket.status.in_([TicketStatus.NEW, TicketStatus.IN_PROGRESS]),
-            ST_DWithin(Location.coordinates, search_point, radius_meters),
         )
     )
 
     if category_id:
         query = query.where(Ticket.category_id == category_id)
 
-    query = query.order_by("distance").limit(10)
+    # Pre-filter using ST_DWithin in Web Mercator (meters) to reduce calculations
+    # Use a slightly larger radius (1.5x) to ensure we don't miss edge cases
+    expanded_radius = radius_meters * 1.5
+    
+    query = query.where(
+        ST_DWithin(
+            location_mercator,
+            search_point_mercator,
+            expanded_radius
+        )
+    )
+
+    # Order by distance to get closest tickets first
+    query = query.order_by(distance_expr).limit(50)
 
     result = await db.execute(query)
     rows = result.all()
 
     nearby = []
-    for ticket, distance in rows:
+    for ticket, distance_meters in rows:
+        # Filter by exact radius (distance is in meters from ST_Distance_Sphere)
+        if distance_meters is None or distance_meters > radius_meters:
+            continue
+
         # Load category name
         cat_result = await db.execute(
             select(Category.name).where(Category.id == ticket.category_id)
@@ -77,9 +108,13 @@ async def find_nearby_tickets(
                 title=ticket.title,
                 status=ticket.status,
                 category_name=category_name,
-                distance_meters=distance,
+                distance_meters=float(distance_meters),
                 follower_count=follower_count,
             )
         )
+
+        # Limit to 10 results
+        if len(nearby) >= 10:
+            break
 
     return nearby

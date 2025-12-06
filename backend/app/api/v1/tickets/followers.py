@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, DatabaseSession
 from app.core.exceptions import TicketNotFoundException
 from app.models.ticket import Ticket, TicketFollower
+from app.services.notification_service import notify_ticket_followed
 
 router = APIRouter()
 
@@ -47,6 +48,13 @@ async def follow_ticket(
     )
     db.add(follower)
     await db.commit()
+
+    # Send notification to ticket reporter
+    try:
+        await notify_ticket_followed(db, ticket, current_user)
+    except Exception:
+        # Don't fail follow if notification fails
+        pass
 
     return {"message": "Now following this ticket"}
 

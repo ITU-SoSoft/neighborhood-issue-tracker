@@ -43,7 +43,12 @@ export function useTicket(ticketId: string) {
   });
 }
 
-export function useMyTickets(params?: { page?: number; page_size?: number }, options?: QueryOptions) {
+export function useMyTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
+  page?: number;
+  page_size?: number;
+}, options?: QueryOptions) {
   return useQuery({
     queryKey: queryKeys.tickets.my(params),
     queryFn: () => api.getMyTickets(params),
@@ -52,12 +57,40 @@ export function useMyTickets(params?: { page?: number; page_size?: number }, opt
 }
 
 export function useAssignedTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
   page?: number;
   page_size?: number;
 }, options?: QueryOptions) {
   return useQuery({
     queryKey: queryKeys.tickets.assigned(params),
     queryFn: () => api.getAssignedTickets(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useFollowedTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
+  page?: number;
+  page_size?: number;
+}, options?: QueryOptions) {
+  return useQuery({
+    queryKey: queryKeys.tickets.followed(params),
+    queryFn: () => api.getFollowedTickets(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useAllUserTickets(params?: {
+  status_filter?: TicketStatus;
+  category_id?: string;
+  page?: number;
+  page_size?: number;
+}, options?: QueryOptions) {
+  return useQuery({
+    queryKey: queryKeys.tickets.allUser(params),
+    queryFn: () => api.getAllUserTickets(params),
     enabled: options?.enabled ?? true,
   });
 }
@@ -88,6 +121,9 @@ export function useCreateTicket() {
       // Invalidate all ticket lists
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.my() });
+      // Invalidate notifications as a new ticket creates a notification
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
   });
 }
@@ -113,6 +149,9 @@ export function useUpdateTicketStatus() {
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.assigned() });
       // Also invalidate analytics as status changes affect KPIs
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+      // Invalidate notifications as status change creates notifications
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
   });
 }
@@ -168,6 +207,11 @@ export function useFollowTicket() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticketId),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.followed() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.allUser() });
+      // Invalidate notifications as following a ticket creates a notification
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
   });
 }
@@ -181,6 +225,8 @@ export function useUnfollowTicket() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticketId),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.followed() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.allUser() });
     },
   });
 }
@@ -215,6 +261,9 @@ export function useCreateComment() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticketId),
       });
+      // Invalidate notifications as adding a comment may create notifications
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
   });
 }

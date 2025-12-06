@@ -10,6 +10,7 @@ from app.api.v1 import (
     comments,
     escalations,
     feedback,
+    notifications,
     teams,
     users,
 )
@@ -30,3 +31,6 @@ api_router.include_router(
     escalations.router, prefix="/escalations", tags=["Escalations"]
 )
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+api_router.include_router(
+    notifications.router, prefix="/notifications", tags=["Notifications"]
+)

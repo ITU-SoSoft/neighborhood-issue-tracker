@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -22,7 +22,8 @@ import {
 import { useCategories } from "@/lib/queries/categories";
 import { useCreateTicket, useUploadTicketPhoto } from "@/lib/queries/tickets";
 import { useSavedAddresses } from "@/lib/queries/addresses";
-import { PhotoType, LocationCreate, SavedAddress } from "@/lib/api/types";
+import { PhotoType, LocationCreate, SavedAddress, NearbyTicket } from "@/lib/api/types";
+import { getNearbyTickets } from "@/lib/api/client";
 import {
   fadeInUp,
   staggerContainer,
@@ -39,6 +40,8 @@ import {
   Upload,
   Home,
   Navigation,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
@@ -85,6 +88,10 @@ export default function CreateTicketPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [locationMode, setLocationMode] = useState<"map" | "saved">("map");
 
+  // Nearby tickets state
+  const [nearbyTickets, setNearbyTickets] = useState<NearbyTicket[]>([]);
+  const [isLoadingNearby, setIsLoadingNearby] = useState(false);
+
   // Validation error state
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -108,11 +115,44 @@ export default function CreateTicketPage() {
   };
 
   // Clean up photo previews on unmount
-  useState(() => {
+  useEffect(() => {
     return () => {
       photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
     };
-  });
+  }, [photos]);
+
+  // Fetch nearby tickets when location or category changes
+  useEffect(() => {
+    const fetchNearbyTickets = async () => {
+      if (!location || !location.latitude || !location.longitude) {
+        setNearbyTickets([]);
+        return;
+      }
+
+      setIsLoadingNearby(true);
+      try {
+        const tickets = await getNearbyTickets({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          radius_meters: 500,
+          category_id: categoryId || undefined,
+        });
+        setNearbyTickets(tickets);
+      } catch (error) {
+        console.error("Failed to fetch nearby tickets:", error);
+        setNearbyTickets([]);
+      } finally {
+        setIsLoadingNearby(false);
+      }
+    };
+
+    // Debounce the search to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      fetchNearbyTickets();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [location, categoryId]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -368,6 +408,85 @@ export default function CreateTicketPage() {
               </div>
             )}
           </div>
+
+          {/* Nearby Similar Tickets */}
+          {location && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <Label className="text-base font-semibold">
+                  Similar Issues Nearby
+                </Label>
+              </div>
+              
+              {isLoadingNearby ? (
+                <div className="flex items-center gap-2 py-4 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Checking for similar issues...</span>
+                </div>
+              ) : nearbyTickets.length > 0 ? (
+                <motion.div
+                  className="space-y-2"
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <p className="text-sm text-muted-foreground">
+                    We found {nearbyTickets.length} similar issue{nearbyTickets.length !== 1 ? "s" : ""} nearby. 
+                    You might want to check if your issue is already reported.
+                  </p>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {nearbyTickets.map((ticket) => (
+                      <motion.div
+                        key={ticket.id}
+                        variants={fadeInUp}
+                        className="group relative rounded-lg border border-border bg-card p-4 transition hover:border-primary/50 hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 space-y-1">
+                            <h4 className="font-medium text-sm leading-tight">
+                              {ticket.title}
+                            </h4>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {Math.round(ticket.distance_meters)}m away
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="capitalize">{ticket.status.replace("_", " ")}</span>
+                              </span>
+                              {ticket.follower_count > 0 && (
+                                <span>{ticket.follower_count} follower{ticket.follower_count !== 1 ? "s" : ""}</span>
+                              )}
+                            </div>
+                            <div className="text-xs">
+                              <span className="text-muted-foreground">Category: </span>
+                              <span className="font-medium">{ticket.category_name}</span>
+                            </div>
+                          </div>
+                          <Link href={`/tickets/${ticket.id}`}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 opacity-0 transition group-hover:opacity-100"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              <span className="sr-only">View ticket</span>
+                            </Button>
+                          </Link>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : location ? (
+                <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  No similar issues found nearby. You can proceed to create a new ticket.
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Photos */}
           <div className="space-y-2">
