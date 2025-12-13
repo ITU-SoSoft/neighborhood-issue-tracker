@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth/context";
@@ -282,15 +283,21 @@ function CitizenDashboard() {
 // ============================================================================
 
 function SupportDashboard() {
+  const [activeTab, setActiveTab] = useState<"overview" | "heatmap">("overview");
+
   const ticketsQuery = useAssignedTickets({ page_size: 5 });
-  const escalationsQuery = useEscalations({ status_filter: EscalationStatus.PENDING, page_size: 5 });
+  const escalationsQuery = useEscalations({
+    status_filter: EscalationStatus.PENDING,
+    page_size: 5,
+  });
   const kpisQuery = useDashboardKPIs(30);
 
   const assignedTickets = ticketsQuery.data?.items ?? [];
   const escalations = escalationsQuery.data?.items ?? [];
   const kpis = kpisQuery.data;
 
-  const isLoading = ticketsQuery.isLoading || escalationsQuery.isLoading || kpisQuery.isLoading;
+  const isLoading =
+    ticketsQuery.isLoading || escalationsQuery.isLoading || kpisQuery.isLoading;
 
   return (
     <motion.div
@@ -299,112 +306,213 @@ function SupportDashboard() {
       animate="visible"
       variants={staggerContainer}
     >
+      {/* Header + Tabs */}
       <motion.div variants={fadeInUp}>
-        <h1 className="text-2xl font-semibold text-foreground">Support Dashboard</h1>
-        <p className="text-muted-foreground">Manage assigned tickets and escalations</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Support Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage assigned tickets, escalations and neighborhood issues
+            </p>
+          </div>
+
+          {/* Overview / Heatmap toggle */}
+          <div className="inline-flex items-center rounded-full border bg-background p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab("overview")}
+              className={`rounded-full px-4 py-1 transition ${
+                activeTab === "overview"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("heatmap")}
+              className={`rounded-full px-4 py-1 transition ${
+                activeTab === "heatmap"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Heatmap
+            </button>
+          </div>
+        </div>
       </motion.div>
 
-      {/* KPI Cards */}
-      {isLoading ? (
-        <DashboardKPISkeleton />
-      ) : (
-        <motion.div
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-        >
-          <KPICard
-            title="Assigned"
-            value={assignedTickets.length}
-            icon={<TicketIcon className="h-5 w-5 text-blue-600" />}
-            iconBgClass="bg-blue-100"
-          />
-          <KPICard
-            title="Pending Escalations"
-            value={escalations.length}
-            icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
-            iconBgClass="bg-amber-100"
-          />
-          <KPICard
-            title="Resolution Rate"
-            value={kpis ? formatPercentage(kpis.resolution_rate, 0) : "-"}
-            icon={<TrendingUp className="h-5 w-5 text-green-600" />}
-            iconBgClass="bg-green-100"
-          />
-          <KPICard
-            title="Avg Rating"
-            value={formatRating(kpis?.average_rating ?? null)}
-            icon={<Star className="h-5 w-5 text-purple-600" />}
-            iconBgClass="bg-purple-100"
-          />
-        </motion.div>
-      )}
+      {activeTab === "overview" ? (
+        <>
+          {/* KPI Cards */}
+          {isLoading ? (
+            <DashboardKPISkeleton />
+          ) : (
+            <motion.div
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
+              <KPICard
+                title="Assigned"
+                value={assignedTickets.length}
+                icon={<TicketIcon className="h-5 w-5 text-blue-600" />}
+                iconBgClass="bg-blue-100"
+              />
+              <KPICard
+                title="Pending Escalations"
+                value={escalations.length}
+                icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
+                iconBgClass="bg-amber-100"
+              />
+              <KPICard
+                title="Resolution Rate"
+                value={kpis ? formatPercentage(kpis.resolution_rate, 0) : "-"}
+                icon={<TrendingUp className="h-5 w-5 text-green-600" />}
+                iconBgClass="bg-green-100"
+              />
+              <KPICard
+                title="Avg Rating"
+                value={formatRating(kpis?.average_rating ?? null)}
+                icon={<Star className="h-5 w-5 text-purple-600" />}
+                iconBgClass="bg-purple-100"
+              />
+            </motion.div>
+          )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Assigned Tickets */}
-        <TicketListCard
-          title="Assigned Tickets"
-          viewAllHref="/tickets?assigned=me"
-          tickets={assignedTickets}
-          isLoading={ticketsQuery.isLoading}
-          isError={ticketsQuery.isError}
-          refetch={ticketsQuery.refetch}
-        />
+          {/* Assigned tickets + escalations */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Assigned Tickets */}
+            <TicketListCard
+              title="Assigned Tickets"
+              viewAllHref="/tickets?assigned=me"
+              tickets={assignedTickets}
+              isLoading={ticketsQuery.isLoading}
+              isError={ticketsQuery.isError}
+              refetch={ticketsQuery.refetch}
+            />
 
-        {/* Pending Escalations */}
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeInUp}
-        >
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <CardTitle className="text-lg">Pending Escalations</CardTitle>
-              <Link href="/escalations" className="text-sm text-primary hover:text-primary/80">
-                View all
-              </Link>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {escalationsQuery.isLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <TicketCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : escalations.length === 0 ? (
-                <p className="py-4 text-center text-muted-foreground">No pending escalations</p>
-              ) : (
-                <motion.div
-                  className="space-y-3"
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  {escalations.map((escalation) => (
-                    <motion.div key={escalation.id} variants={staggerItem}>
-                      <Link
-                        href={`/escalations/${escalation.id}`}
-                        className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-foreground truncate">
-                            {escalation.ticket_title}
-                          </span>
-                          <Badge variant="warning">Pending</Badge>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          By {escalation.requester_name} • {formatDate(escalation.created_at)}
-                        </p>
-                      </Link>
+            {/* Pending Escalations */}
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={fadeInUp}
+            >
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                  <CardTitle className="text-lg">Pending Escalations</CardTitle>
+                  <Link
+                    href="/escalations"
+                    className="text-sm text-primary hover:text-primary/80"
+                  >
+                    View all
+                  </Link>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {escalationsQuery.isLoading ? (
+                    <div className="space-y-3">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <TicketCardSkeleton key={i} />
+                      ))}
+                    </div>
+                  ) : escalations.length === 0 ? (
+                    <p className="py-4 text-center text-muted-foreground">
+                      No pending escalations
+                    </p>
+                  ) : (
+                    <motion.div
+                      className="space-y-3"
+                      variants={staggerContainer}
+                      initial="hidden"
+                      animate="visible"
+                    >
+                      {escalations.map((escalation) => (
+                        <motion.div key={escalation.id} variants={staggerItem}>
+                          <Link
+                            href={`/escalations/${escalation.id}`}
+                            className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-foreground truncate">
+                                {escalation.ticket_title}
+                              </span>
+                              <Badge variant="warning">Pending</Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              By {escalation.requester_name} •{" "}
+                              {formatDate(escalation.created_at)}
+                            </p>
+                          </Link>
+                        </motion.div>
+                      ))}
                     </motion.div>
-                  ))}
-                </motion.div>
-              )}
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </>
+      ) : (
+        // Heatmap tab content – pure UI placeholder, analytics eklenebilir
+        <motion.div variants={fadeInUp}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Issue Density Heatmap</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="rounded-xl border border-dashed border-border bg-muted/40 p-8 text-center text-sm text-muted-foreground">
+                A map-based visualization of issue density by neighborhood will be
+                displayed here. Support staff can use this view to identify hotspots
+                and prioritize field teams.
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3 text-xs text-muted-foreground">
+                <div>
+                  <p className="font-medium text-foreground text-sm mb-2">
+                    Legend
+                  </p>
+                  <ul className="space-y-1">
+                    <li className="flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-sm bg-emerald-300" />
+                      Low issue density
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-sm bg-amber-300" />
+                      Medium issue density
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-sm bg-red-400" />
+                      High issue density
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground text-sm mb-2">
+                    Example districts
+                  </p>
+                  <ul className="space-y-1">
+                    <li>Pine Avenue – 12 open tickets</li>
+                    <li>Central Park – 8 open tickets</li>
+                    <li>Harbor Road – 5 open tickets</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground text-sm mb-2">
+                    Next steps
+                  </p>
+                  <p>
+                    This view will later be connected to the analytics service and
+                    map component to render real-time ticket density.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
-      </div>
+      )}
     </motion.div>
   );
 }
@@ -416,7 +524,10 @@ function SupportDashboard() {
 function ManagerDashboard() {
   const kpisQuery = useDashboardKPIs(30);
   const ticketsQuery = useMyTickets({ page_size: 5 });
-  const escalationsQuery = useEscalations({ status_filter: EscalationStatus.PENDING, page_size: 5 });
+  const escalationsQuery = useEscalations({
+    status_filter: EscalationStatus.PENDING,
+    page_size: 5,
+  });
 
   const kpis = kpisQuery.data;
   const recentTickets = ticketsQuery.data?.items ?? [];
@@ -437,7 +548,9 @@ function ManagerDashboard() {
       >
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Manager Dashboard</h1>
-          <p className="text-muted-foreground">Overview of system performance and metrics</p>
+          <p className="text-muted-foreground">
+            High-level overview of city-wide performance and workloads
+          </p>
         </div>
         <Link href="/analytics">
           <Button variant="outline">
@@ -447,7 +560,7 @@ function ManagerDashboard() {
         </Link>
       </motion.div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards – overall system metrics */}
       {isKPILoading ? (
         <DashboardKPISkeleton />
       ) : (
@@ -484,7 +597,7 @@ function ManagerDashboard() {
         </motion.div>
       )}
 
-      {/* Additional Stats */}
+      {/* Additional Stats – escalations, resolved, avg time */}
       {isKPILoading ? (
         <div className="grid gap-4 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -550,7 +663,10 @@ function ManagerDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <CardTitle className="text-lg">Pending Escalations</CardTitle>
-              <Link href="/escalations" className="text-sm text-primary hover:text-primary/80">
+              <Link
+                href="/escalations"
+                className="text-sm text-primary hover:text-primary/80"
+              >
                 View all
               </Link>
             </CardHeader>
@@ -562,7 +678,9 @@ function ManagerDashboard() {
                   ))}
                 </div>
               ) : pendingEscalations.length === 0 ? (
-                <p className="py-4 text-center text-muted-foreground">No pending escalations</p>
+                <p className="py-4 text-center text-muted-foreground">
+                  No pending escalations
+                </p>
               ) : (
                 <motion.div
                   className="space-y-3"
@@ -582,7 +700,9 @@ function ManagerDashboard() {
                           </span>
                           <Badge variant="warning">Pending</Badge>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{escalation.reason}</p>
+                        <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                          {escalation.reason}
+                        </p>
                       </Link>
                     </motion.div>
                   ))}
@@ -593,11 +713,50 @@ function ManagerDashboard() {
         </motion.div>
       </div>
 
-      {/* Quick Actions */}
-      <motion.div variants={fadeInUp}>
+      {/* Workload Snapshot & Quick Actions */}
+      <motion.div
+        className="grid gap-6 lg:grid-cols-[1.4fr,1fr]"
+        variants={fadeInUp}
+      >
+        {/* Workload Snapshot */}
         <Card>
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Workload Snapshot
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              High-level distribution of open tickets across support teams. This
+              helps managers balance workloads and identify overloaded teams.
+            </p>
+            <div className="space-y-3 text-xs text-muted-foreground">
+              {[
+                { team: "Central Support Team", percent: 60, tickets: 42 },
+                { team: "North District Team", percent: 25, tickets: 18 },
+                { team: "South District Team", percent: 15, tickets: 11 },
+              ].map((row) => (
+                <div key={row.team}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-foreground">{row.team}</span>
+                    <span>{row.tickets} open</span>
+                  </div>
+                  <div className="mt-1 h-2 rounded-full bg-muted">
+                    <div
+                      className="h-2 rounded-full bg-primary"
+                      style={{ width: `${row.percent}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Quick Actions
+            </h2>
             <div className="flex flex-wrap gap-3">
               <Link href="/analytics">
                 <Button variant="outline">
