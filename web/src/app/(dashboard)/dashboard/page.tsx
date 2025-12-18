@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import {
   useDashboardKPIs,
   useEscalations,
 } from "@/lib/queries";
+import { useHeatmap } from "@/lib/queries/analytics";
 import {
   Ticket,
   TicketStatus,
@@ -47,7 +49,21 @@ import {
   TrendingUp,
   Star,
   Users,
+  Loader2,
 } from "lucide-react";
+
+// Dynamically import the heatmap component to avoid SSR issues with Leaflet
+const HeatmapVisualization = dynamic(
+  () => import("@/components/map/heatmap-visualization").then((mod) => ({ default: mod.HeatmapVisualization })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[400px] rounded-xl bg-muted flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 
 // ============================================================================
 // SHARED COMPONENTS
