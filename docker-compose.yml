@@ -107,9 +107,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Mount source code for hot reload in development
-      - ./backend/app:/app/app:ro
-      - ./backend/main.py:/app/main.py:ro
+      # Mount source code for auto hot reload
+      - ./backend/app:/app/app
+      - ./backend/main.py:/app/main.py
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     networks:
       - sosoft-network
@@ -127,12 +127,16 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       # API URL for server-side requests (container-to-container)
       NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1"
+      # Enable hot reload for Windows/Docker
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
     ports:
       - "3000:3000"
     volumes:
       # Mount source code for hot reload
-      - ./web/src:/app/src:ro
-      - ./web/public:/app/public:ro
+      - ./web/src:/app/src
+      - ./web/public:/app/public
       # Exclude node_modules from mount
       - /app/node_modules
       - /app/.next

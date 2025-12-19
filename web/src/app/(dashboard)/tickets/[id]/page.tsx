@@ -116,7 +116,11 @@ export default function TicketDetailPage({
 
   // TanStack Query hooks
   const { data: ticket, isLoading, error, refetch } = useTicket(id);
-  const { data: supportUsersData } = useUsers({ role: UserRole.SUPPORT });
+  // Only fetch support users if current user is MANAGER (only managers can assign tickets)
+  const { data: supportUsersData } = useUsers(
+    { role: UserRole.SUPPORT },
+    { enabled: user?.role === UserRole.MANAGER }
+  );
   const supportUsers = supportUsersData?.items ?? [];
 
   // Mutations
@@ -260,8 +264,7 @@ export default function TicketDetailPage({
   // Permission checks
   const canUpdateStatus =
     user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
-  const canAssign =
-    user?.role === UserRole.MANAGER || user?.role === UserRole.SUPPORT;
+  const canAssign = user?.role === UserRole.MANAGER; // Only managers can assign tickets
   const canGiveFeedback =
     ticket?.status === TicketStatus.RESOLVED &&
     !ticket.has_feedback &&

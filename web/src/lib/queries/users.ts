@@ -14,10 +14,15 @@ interface UserListParams {
   page_size?: number;
 }
 
-export function useUsers(params: UserListParams = {}) {
+interface QueryOptions {
+  enabled?: boolean;
+}
+
+export function useUsers(params: UserListParams = {}, options?: QueryOptions) {
   return useQuery({
     queryKey: queryKeys.users.list(params),
     queryFn: () => api.getUsers(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

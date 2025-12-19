@@ -157,6 +157,10 @@ main() {
     echo "    Manager:  manager@sosoft.com / manager123!"
     echo "    Support:  support@sosoft.com / support123!"
     echo ""
+    log_info "Development mode:"
+    echo "    Frontend:  Auto hot reload enabled (saves = browser updates)"
+    echo "    Backend:   Auto hot reload enabled (saves = server restarts)"
+    echo ""
     echo "Press Ctrl+C to stop all services"
     echo ""
     

@@ -177,12 +177,16 @@ function getStatusVariant(status: TicketStatus) {
 
 export function CommandPalette() {
   const { isOpen, close } = useCommandPalette();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const router = useRouter();
   const [search, setSearch] = useState("");
 
-  // Fetch recent tickets for search
-  const { data: ticketsData } = useTickets({ page_size: 10 });
+  // Only fetch tickets if user is SUPPORT or MANAGER (backend requires these roles)
+  const isStaff = user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
+  const { data: ticketsData } = useTickets(
+    { page_size: 10 },
+    { enabled: isAuthenticated && isStaff }
+  );
 
   // Navigation items based on user role
   const navigationItems = useMemo(() => {
