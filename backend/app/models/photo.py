@@ -15,8 +15,8 @@ from app.models.base import UUIDMixin
 class PhotoType(str, enum.Enum):
     """Photo type enumeration."""
 
-    REPORT = "report"  # Uploaded by citizen when reporting
-    PROOF = "proof"  # Uploaded by support as proof of resolution
+    REPORT = "REPORT"  # Uploaded by citizen when reporting
+    PROOF = "PROOF"  # Uploaded by support as proof of resolution
 
 
 class Photo(Base, UUIDMixin):

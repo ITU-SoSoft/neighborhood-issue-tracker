@@ -25,11 +25,11 @@ from app.models.base import SoftDeleteMixin, TimestampMixin, UUIDMixin
 class TicketStatus(str, enum.Enum):
     """Ticket status enumeration."""
 
-    NEW = "new"
-    IN_PROGRESS = "in_progress"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
-    ESCALATED = "escalated"
+    NEW = "NEW"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
+    ESCALATED = "ESCALATED"
 
 
 class Location(Base, UUIDMixin):

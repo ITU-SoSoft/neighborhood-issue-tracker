@@ -15,9 +15,9 @@ from app.models.base import SoftDeleteMixin, TimestampMixin, UUIDMixin
 class UserRole(str, enum.Enum):
     """User role enumeration."""
 
-    CITIZEN = "citizen"
-    SUPPORT = "support"
-    MANAGER = "manager"
+    CITIZEN = "CITIZEN"
+    SUPPORT = "SUPPORT"
+    MANAGER = "MANAGER"
 
 
 class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):

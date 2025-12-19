@@ -15,9 +15,9 @@ from app.models.base import UUIDMixin
 class EscalationStatus(str, enum.Enum):
     """Escalation status enumeration."""
 
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class EscalationRequest(Base, UUIDMixin):

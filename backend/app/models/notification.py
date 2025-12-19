@@ -15,11 +15,11 @@ from app.models.base import UUIDMixin, TimestampMixin
 class NotificationType(str, enum.Enum):
     """Notification type enumeration."""
 
-    TICKET_CREATED = "ticket_created"
-    TICKET_STATUS_CHANGED = "ticket_status_changed"
-    TICKET_FOLLOWED = "ticket_followed"
-    COMMENT_ADDED = "comment_added"
-    TICKET_ASSIGNED = "ticket_assigned"
+    TICKET_CREATED = "TICKET_CREATED"
+    TICKET_STATUS_CHANGED = "TICKET_STATUS_CHANGED"
+    TICKET_FOLLOWED = "TICKET_FOLLOWED"
+    COMMENT_ADDED = "COMMENT_ADDED"
+    TICKET_ASSIGNED = "TICKET_ASSIGNED"
 
 
 class Notification(Base, UUIDMixin, TimestampMixin):
