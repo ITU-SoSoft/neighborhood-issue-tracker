@@ -40,7 +40,6 @@ import {
   useSubmitFeedback,
 } from "@/lib/queries/tickets";
 import { useCreateEscalation } from "@/lib/queries/escalations";
-import { useUsers } from "@/lib/queries/users";
 import { TicketStatus, UserRole, Comment as TicketComment } from "@/lib/api/types";
 import {
   formatRelativeTime,
@@ -72,7 +71,6 @@ import {
   Star,
   Image as ImageIcon,
   Lock,
-  UserPlus,
 } from "lucide-react";
 
 // Dynamically import the map component
@@ -116,16 +114,9 @@ export default function TicketDetailPage({
 
   // TanStack Query hooks
   const { data: ticket, isLoading, error, refetch } = useTicket(id);
-  // Only fetch support users if current user is MANAGER (only managers can assign tickets)
-  const { data: supportUsersData } = useUsers(
-    { role: UserRole.SUPPORT },
-    { enabled: user?.role === UserRole.MANAGER }
-  );
-  const supportUsers = supportUsersData?.items ?? [];
 
   // Mutations
   const updateStatusMutation = useUpdateTicketStatus();
-  const assignMutation = useAssignTicket();
   const followMutation = useFollowTicket();
   const unfollowMutation = useUnfollowTicket();
   const createCommentMutation = useCreateComment();
@@ -147,9 +138,6 @@ export default function TicketDetailPage({
 
   const [showEscalationModal, setShowEscalationModal] = useState(false);
   const [escalationReason, setEscalationReason] = useState("");
-
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedAssignee, setSelectedAssignee] = useState("");
 
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
@@ -245,26 +233,9 @@ export default function TicketDetailPage({
     }
   };
 
-  const handleAssign = async () => {
-    if (!selectedAssignee || !ticket) return;
-
-    try {
-      await assignMutation.mutateAsync({
-        ticketId: ticket.id,
-        data: { assignee_id: selectedAssignee },
-      });
-      setShowAssignModal(false);
-      setSelectedAssignee("");
-      toast.success("Ticket assigned");
-    } catch (err) {
-      toast.error("Failed to assign ticket");
-    }
-  };
-
   // Permission checks
   const canUpdateStatus =
     user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
-  const canAssign = user?.role === UserRole.MANAGER; // Only managers can assign tickets
   const canGiveFeedback =
     ticket?.status === TicketStatus.RESOLVED &&
     !ticket.has_feedback &&
@@ -344,12 +315,6 @@ export default function TicketDetailPage({
           {canUpdateStatus && (
             <Button variant="outline" size="sm" onClick={() => setShowStatusModal(true)}>
               Update Status
-            </Button>
-          )}
-          {canAssign && (
-            <Button variant="outline" size="sm" onClick={() => setShowAssignModal(true)}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Assign
             </Button>
           )}
         </div>
@@ -537,10 +502,10 @@ export default function TicketDetailPage({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase">Assignee</dt>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase">Assigned Team</dt>
                   <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
-                    <UserIcon className="h-4 w-4 text-muted-foreground" />
-                    {ticket.assignee_name || "Unassigned"}
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    {ticket.team_name || "Unassigned"}
                   </dd>
                 </div>
                 <div>
@@ -767,47 +732,6 @@ export default function TicketDetailPage({
             >
               {createEscalationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Request
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Assign Dialog */}
-      <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Ticket</DialogTitle>
-            <DialogDescription>
-              Select a support agent to handle this ticket
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Assign to</Label>
-              <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a support agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {supportUsers.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAssignModal(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAssign} 
-              disabled={!selectedAssignee || assignMutation.isPending}
-            >
-              {assignMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Assign
             </Button>
           </DialogFooter>
         </DialogContent>

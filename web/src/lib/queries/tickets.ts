@@ -18,7 +18,7 @@ import {
 interface TicketListParams {
   status_filter?: TicketStatus;
   category_id?: string;
-  assignee_id?: string;
+  team_id?: string;
   page?: number;
   page_size?: number;
 }

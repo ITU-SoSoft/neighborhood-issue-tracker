@@ -2,28 +2,28 @@
 
 // Enums
 export enum UserRole {
-  CITIZEN = "citizen",
-  SUPPORT = "support",
-  MANAGER = "manager",
+  CITIZEN = "CITIZEN",
+  SUPPORT = "SUPPORT",
+  MANAGER = "MANAGER",
 }
 
 export enum TicketStatus {
-  NEW = "new",
-  IN_PROGRESS = "in_progress",
-  RESOLVED = "resolved",
-  CLOSED = "closed",
-  ESCALATED = "escalated",
+  NEW = "NEW",
+  IN_PROGRESS = "IN_PROGRESS",
+  RESOLVED = "RESOLVED",
+  CLOSED = "CLOSED",
+  ESCALATED = "ESCALATED",
 }
 
 export enum PhotoType {
-  REPORT = "report",
-  PROOF = "proof",
+  REPORT = "REPORT",
+  PROOF = "PROOF",
 }
 
 export enum EscalationStatus {
-  PENDING = "pending",
-  APPROVED = "approved",
-  REJECTED = "rejected",
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
 }
 
 // User types
@@ -127,10 +127,10 @@ export interface Location {
 }
 
 export interface LocationCreate {
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   address?: string;
-  district?: string;
+  district_id?: string;
   city?: string;
 }
 
@@ -199,8 +199,8 @@ export interface Ticket {
   location: Location;
   reporter_id: string;
   reporter_name: string | null;
-  assignee_id: string | null;
-  assignee_name: string | null;
+  team_id: string | null;
+  team_name: string | null;
   resolved_at: string | null;
   photo_count: number;
   comment_count: number;
@@ -228,11 +228,11 @@ export interface NearbyTicket {
 
 // Notification types
 export enum NotificationType {
-  TICKET_CREATED = "ticket_created",
-  TICKET_STATUS_CHANGED = "ticket_status_changed",
-  TICKET_FOLLOWED = "ticket_followed",
-  COMMENT_ADDED = "comment_added",
-  TICKET_ASSIGNED = "ticket_assigned",
+  TICKET_CREATED = "TICKET_CREATED",
+  TICKET_STATUS_CHANGED = "TICKET_STATUS_CHANGED",
+  TICKET_FOLLOWED = "TICKET_FOLLOWED",
+  COMMENT_ADDED = "COMMENT_ADDED",
+  TICKET_ASSIGNED = "TICKET_ASSIGNED",
 }
 
 export interface Notification {
@@ -275,7 +275,7 @@ export interface TicketStatusUpdate {
 }
 
 export interface TicketAssignUpdate {
-  assignee_id: string;
+  team_id: string;
 }
 
 // Escalation types

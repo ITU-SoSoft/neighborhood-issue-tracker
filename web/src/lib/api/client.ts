@@ -367,7 +367,7 @@ export async function createTicket(data: TicketCreate): Promise<Ticket> {
 export async function getTickets(params?: {
   status_filter?: TicketStatus;
   category_id?: string;
-  assignee_id?: string;
+  team_id?: string;
   page?: number;
   page_size?: number;
 }): Promise<TicketListResponse> {
@@ -375,7 +375,7 @@ export async function getTickets(params?: {
   if (params?.status_filter)
     searchParams.set("status_filter", params.status_filter);
   if (params?.category_id) searchParams.set("category_id", params.category_id);
-  if (params?.assignee_id) searchParams.set("assignee_id", params.assignee_id);
+  if (params?.team_id) searchParams.set("team_id", params.team_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
     searchParams.set("page_size", params.page_size.toString());
