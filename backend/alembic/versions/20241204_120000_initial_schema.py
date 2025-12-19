@@ -170,25 +170,13 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    # Create spatial index on coordinates (using raw SQL for IF NOT EXISTS)
-    op.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_locations_coordinates 
-        ON locations USING gist (coordinates)
-        """
+    # Create spatial index on coordinates
+    op.create_index(
+        "idx_locations_coordinates",
+        "locations",
+        ["coordinates"],
+        postgresql_using="gist",
     )
-    
-    # === SEED INITIAL DATA ===
-    # Insert default categories
-    op.execute("""
-        INSERT INTO categories (id, name, description, is_active, created_at, updated_at) VALUES
-        (gen_random_uuid(), 'Infrastructure', 'Road damage, sidewalk issues, building problems', true, now(), now()),
-        (gen_random_uuid(), 'Traffic', 'Traffic signals, road signs, pedestrian crossings', true, now(), now()),
-        (gen_random_uuid(), 'Lighting', 'Street lights, park lighting, public area illumination', true, now(), now()),
-        (gen_random_uuid(), 'Waste Management', 'Garbage collection, recycling, illegal dumping', true, now(), now()),
-        (gen_random_uuid(), 'Parks', 'Park maintenance, playgrounds, green spaces', true, now(), now()),
-        (gen_random_uuid(), 'Other', 'General neighborhood issues not in other categories', true, now(), now());
-    """)
 
     # Create tickets table
     op.create_table(

@@ -9,7 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.config import settings
-from app.database import engine
+from app.database import create_tables, engine
+from app.scripts.seed import seed_categories
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +21,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Sets up resources on startup and cleans up on shutdown.
     """
-    # Startup
-    # NOTE: Database schema and initial data are managed by Alembic migrations.
-    # Run `alembic upgrade head` before starting the app.
-    
+    # Startup: Try to create tables and seed data if in development mode
+    if settings.debug:
+        try:
+            await create_tables()
+            logger.info("Database tables created/verified")
+            # Seed default categories
+            await seed_categories()
+            logger.info("Default categories seeded")
+        except Exception as e:
+            logger.warning(f"Could not create tables (DB may not be available): {e}")
+
     yield
 
     # Shutdown: Dispose engine
