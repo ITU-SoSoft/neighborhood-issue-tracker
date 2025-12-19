@@ -17,14 +17,10 @@ class Team(Base, UUIDMixin, TimestampMixin):
 
     # Relationships
     members: Mapped[list["User"]] = relationship("User", back_populates="team")
-    service_areas: Mapped[list["ServiceArea"]] = relationship(
-        "ServiceArea", back_populates="team", cascade="all, delete-orphan"
-    )
 
     def __repr__(self) -> str:
         return f"<Team {self.name}>"
 
 
-# Forward references
-from app.models.service_area import ServiceArea  # noqa: E402, F401
+# Forward reference
 from app.models.user import User  # noqa: E402, F401
