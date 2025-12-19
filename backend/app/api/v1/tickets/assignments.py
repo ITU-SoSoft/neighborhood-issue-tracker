@@ -50,6 +50,7 @@ async def list_my_tickets(
         query.options(
             joinedload(Ticket.category),
             joinedload(Ticket.location),
+            joinedload(Ticket.assigned_team),
             selectinload(Ticket.photos),
             selectinload(Ticket.comments),
             selectinload(Ticket.followers),
@@ -83,9 +84,9 @@ async def list_assigned_tickets(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> TicketListResponse:
-    """List tickets assigned to the current support user."""
+    """List tickets assigned to the current support user's team."""
     query = select(Ticket).where(
-        Ticket.assignee_id == current_user.id,
+        Ticket.team_id == current_user.team_id,
         Ticket.deleted_at.is_(None),
     )
 
@@ -105,6 +106,7 @@ async def list_assigned_tickets(
             joinedload(Ticket.category),
             joinedload(Ticket.location),
             joinedload(Ticket.reporter),
+            joinedload(Ticket.assigned_team),
             selectinload(Ticket.photos),
             selectinload(Ticket.comments),
             selectinload(Ticket.followers),
@@ -176,6 +178,7 @@ async def list_followed_tickets(
             joinedload(Ticket.category),
             joinedload(Ticket.location),
             joinedload(Ticket.reporter),
+            joinedload(Ticket.assigned_team),
             selectinload(Ticket.photos),
             selectinload(Ticket.comments),
             selectinload(Ticket.followers),
@@ -249,6 +252,7 @@ async def list_all_user_tickets(
             joinedload(Ticket.category),
             joinedload(Ticket.location),
             joinedload(Ticket.reporter),
+            joinedload(Ticket.assigned_team),
             selectinload(Ticket.photos),
             selectinload(Ticket.comments),
             selectinload(Ticket.followers),
@@ -280,11 +284,11 @@ async def assign_ticket(
     current_user: ManagerUser,
     db: DatabaseSession,
 ) -> TicketResponse:
-    """Assign a ticket to a support member (manager only)."""
+    """Assign a ticket to a team (manager only)."""
     ticket = await get_ticket_by_id(db, ticket_id)
 
     if ticket is None:
         raise TicketNotFoundException()
 
-    ticket = await ticket_service.assign_ticket(db, ticket, request.assignee_id)
+    ticket = await ticket_service.assign_ticket(db, ticket, request.team_id)
     return build_ticket_response(ticket, current_user)

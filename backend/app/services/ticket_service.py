@@ -11,13 +11,16 @@ from app.core.exceptions import (
     CategoryNotFoundException,
     ForbiddenException,
     InvalidStatusTransitionException,
+    NotFoundException,
     TicketNotFoundException,
 )
 from app.models.category import Category
+from app.models.district import District
 from app.models.ticket import Location, StatusLog, Ticket, TicketFollower, TicketStatus
 from app.models.user import User, UserRole
 from app.schemas.ticket import TicketCreate, TicketUpdate
 from app.services.ticket_query_service import VALID_TRANSITIONS
+from app.services.team_assignment_service import TeamAssignmentService
 
 
 class TicketService:
@@ -53,17 +56,49 @@ class TicketService:
         if category is None:
             raise CategoryNotFoundException()
 
+        # Handle location creation based on input type
+        district_name = None
+        city = request.location.city
+        
+        if request.location.district_id:
+            # Get district details from database
+            district_result = await db.execute(
+                select(District).where(District.id == request.location.district_id)
+            )
+            district_obj = district_result.scalar_one_or_none()
+            if not district_obj:
+                raise NotFoundException(f"District with id {request.location.district_id} not found")
+            
+            district_name = district_obj.name
+            city = district_obj.city
+            # Use default coordinates for district center (approximate)
+            latitude = 41.0082  # Istanbul center
+            longitude = 28.9784
+        else:
+            # Use provided GPS coordinates
+            latitude = request.location.latitude
+            longitude = request.location.longitude
+            
         # Create location with PostGIS point
         location = Location(
-            latitude=request.location.latitude,
-            longitude=request.location.longitude,
+            latitude=latitude,
+            longitude=longitude,
             address=request.location.address,
-            district=request.location.district,
-            city=request.location.city,
-            coordinates=f"POINT({request.location.longitude} {request.location.latitude})",
+            district=district_name,
+            city=city,
+            coordinates=f"POINT({longitude} {latitude})",
         )
         db.add(location)
         await db.flush()
+
+        # Find matching team for automatic assignment
+        assignment_service = TeamAssignmentService()
+        assigned_team = await assignment_service.find_matching_team(
+            session=db,
+            category_id=request.category_id,
+            district=district_name,
+            city=city,
+        )
 
         # Create ticket
         ticket = Ticket(
@@ -72,6 +107,7 @@ class TicketService:
             category_id=request.category_id,
             location_id=location.id,
             reporter_id=current_user.id,
+            team_id=assigned_team.id if assigned_team else None,
             status=TicketStatus.NEW,
         )
         db.add(ticket)
@@ -94,7 +130,25 @@ class TicketService:
         db.add(status_log)
 
         await db.commit()
-        await db.refresh(ticket)
+        
+        # Reload ticket with all relationships to avoid lazy loading issues
+        from sqlalchemy.orm import selectinload, joinedload
+        from app.models.comment import Comment
+        
+        result = await db.execute(
+            select(Ticket)
+            .where(Ticket.id == ticket.id)
+            .options(
+                joinedload(Ticket.category),
+                joinedload(Ticket.location),
+                joinedload(Ticket.reporter),
+                joinedload(Ticket.assigned_team),
+                selectinload(Ticket.photos),
+                selectinload(Ticket.comments).joinedload(Comment.user),
+                selectinload(Ticket.followers),
+            )
+        )
+        ticket = result.scalar_one()
 
         # Send notification
         from app.services.notification_service import notify_ticket_created
@@ -112,6 +166,7 @@ class TicketService:
                 joinedload(Ticket.category),
                 joinedload(Ticket.location),
                 joinedload(Ticket.reporter),
+                joinedload(Ticket.assigned_team),
                 selectinload(Ticket.photos),
                 selectinload(Ticket.comments),
                 selectinload(Ticket.followers),
@@ -248,35 +303,33 @@ class TicketService:
         self,
         db: AsyncSession,
         ticket: Ticket,
-        assignee_id: UUID,
+        team_id: UUID,
     ) -> Ticket:
-        """Assign a ticket to a support member.
+        """Assign a ticket to a team.
 
         Args:
             db: Database session.
             ticket: The ticket to assign.
-            assignee_id: The user ID to assign the ticket to.
+            team_id: The team ID to assign the ticket to.
 
         Returns:
             The updated ticket.
 
         Raises:
-            ForbiddenException: If the assignee is not a valid support/manager user.
+            NotFoundException: If the team doesn't exist.
         """
-        # Verify assignee exists and is support/manager
+        # Verify team exists
+        from app.models.team import Team
+        
         result = await db.execute(
-            select(User).where(
-                User.id == assignee_id,
-                User.deleted_at.is_(None),
-                User.role.in_([UserRole.SUPPORT, UserRole.MANAGER]),
-            )
+            select(Team).where(Team.id == team_id)
         )
-        assignee = result.scalar_one_or_none()
+        team = result.scalar_one_or_none()
 
-        if assignee is None:
-            raise ForbiddenException(detail="Invalid assignee")
+        if team is None:
+            raise NotFoundException(f"Team with id {team_id} not found")
 
-        ticket.assignee_id = assignee_id
+        ticket.team_id = team_id
 
         await db.commit()
         await db.refresh(ticket)

@@ -88,10 +88,11 @@ class Ticket(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    assignee_id: Mapped[uuid.UUID | None] = mapped_column(
+    team_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("teams.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     resolved_at: Mapped[datetime | None] = mapped_column(
@@ -112,9 +113,9 @@ class Ticket(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         foreign_keys=[reporter_id],
         back_populates="reported_tickets",
     )
-    assignee: Mapped["User | None"] = relationship(
-        "User",
-        foreign_keys=[assignee_id],
+    assigned_team: Mapped["Team | None"] = relationship(
+        "Team",
+        foreign_keys=[team_id],
         back_populates="assigned_tickets",
     )
     photos: Mapped[list["Photo"]] = relationship(
@@ -198,6 +199,7 @@ class StatusLog(Base, UUIDMixin):
 # Forward references
 from app.models.category import Category  # noqa: E402, F401
 from app.models.user import User  # noqa: E402, F401
+from app.models.team import Team  # noqa: E402, F401
 from app.models.photo import Photo  # noqa: E402, F401
 from app.models.comment import Comment  # noqa: E402, F401
 from app.models.feedback import Feedback  # noqa: E402, F401

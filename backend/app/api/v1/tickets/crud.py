@@ -51,13 +51,13 @@ async def list_tickets(
     db: DatabaseSession,
     status_filter: TicketStatus | None = None,
     category_id: UUID | None = None,
-    assignee_id: UUID | None = None,
+    team_id: UUID | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> TicketListResponse:
     """List all tickets (support/manager only).
 
-    Supports filtering by status, category, and assignee.
+    Supports filtering by status, category, and team.
     """
     query = select(Ticket).where(Ticket.deleted_at.is_(None))
 
@@ -65,8 +65,8 @@ async def list_tickets(
         query = query.where(Ticket.status == status_filter)
     if category_id:
         query = query.where(Ticket.category_id == category_id)
-    if assignee_id:
-        query = query.where(Ticket.assignee_id == assignee_id)
+    if team_id:
+        query = query.where(Ticket.team_id == team_id)
 
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
@@ -86,8 +86,8 @@ async def list_tickets(
         query = query.where(Ticket.status == status_filter)
     if category_id:
         query = query.where(Ticket.category_id == category_id)
-    if assignee_id:
-        query = query.where(Ticket.assignee_id == assignee_id)
+    if team_id:
+        query = query.where(Ticket.team_id == team_id)
 
     result = await db.execute(query)
     tickets = result.unique().scalars().all()

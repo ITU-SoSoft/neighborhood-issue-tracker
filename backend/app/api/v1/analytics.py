@@ -263,7 +263,7 @@ async def get_team_performance(
         total_assigned_result = await db.execute(
             select(func.count(Ticket.id)).where(
                 and_(
-                    Ticket.assignee_id.in_(member_ids),
+                    Ticket.team_id == team.id,
                     Ticket.created_at >= start_date,
                     Ticket.deleted_at.is_(None),
                 )
@@ -275,7 +275,7 @@ async def get_team_performance(
         total_resolved_result = await db.execute(
             select(func.count(Ticket.id)).where(
                 and_(
-                    Ticket.assignee_id.in_(member_ids),
+                    Ticket.team_id == team.id,
                     Ticket.created_at >= start_date,
                     Ticket.deleted_at.is_(None),
                     Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.CLOSED]),
@@ -297,7 +297,7 @@ async def get_team_performance(
                 )
             ).where(
                 and_(
-                    Ticket.assignee_id.in_(member_ids),
+                    Ticket.team_id == team.id,
                     Ticket.created_at >= start_date,
                     Ticket.deleted_at.is_(None),
                     Ticket.resolved_at.is_not(None),
@@ -312,7 +312,7 @@ async def get_team_performance(
                 Feedback.ticket_id.in_(
                     select(Ticket.id).where(
                         and_(
-                            Ticket.assignee_id.in_(member_ids),
+                            Ticket.team_id == team.id,
                             Ticket.created_at >= start_date,
                             Ticket.deleted_at.is_(None),
                         )
@@ -389,7 +389,7 @@ async def get_team_member_performance(
         total_assigned_result = await db.execute(
             select(func.count(Ticket.id)).where(
                 and_(
-                    Ticket.assignee_id == member.id,
+                    Ticket.team_id == member.team_id,
                     Ticket.created_at >= start_date,
                     Ticket.deleted_at.is_(None),
                 )
@@ -401,7 +401,7 @@ async def get_team_member_performance(
         total_resolved_result = await db.execute(
             select(func.count(Ticket.id)).where(
                 and_(
-                    Ticket.assignee_id == member.id,
+                    Ticket.team_id == member.team_id,
                     Ticket.created_at >= start_date,
                     Ticket.deleted_at.is_(None),
                     Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.CLOSED]),
@@ -423,7 +423,7 @@ async def get_team_member_performance(
                 )
             ).where(
                 and_(
-                    Ticket.assignee_id == member.id,
+                    Ticket.team_id == member.team_id,
                     Ticket.created_at >= start_date,
                     Ticket.deleted_at.is_(None),
                     Ticket.resolved_at.is_not(None),
@@ -438,7 +438,7 @@ async def get_team_member_performance(
                 Feedback.ticket_id.in_(
                     select(Ticket.id).where(
                         and_(
-                            Ticket.assignee_id == member.id,
+                            Ticket.team_id == member.team_id,
                             Ticket.created_at >= start_date,
                             Ticket.deleted_at.is_(None),
                         )

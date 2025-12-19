@@ -63,11 +63,6 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         foreign_keys="Ticket.reporter_id",
         back_populates="reporter",
     )
-    assigned_tickets: Mapped[list["Ticket"]] = relationship(
-        "Ticket",
-        foreign_keys="Ticket.assignee_id",
-        back_populates="assignee",
-    )
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="user")
     feedbacks: Mapped[list["Feedback"]] = relationship(
         "Feedback", back_populates="user"

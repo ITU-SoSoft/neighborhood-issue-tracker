@@ -10,13 +10,29 @@ from app.schemas.base import BaseSchema, TimestampSchema
 
 
 class LocationCreate(BaseSchema):
-    """Schema for creating a location."""
+    """Schema for creating a location.
+    
+    Either provide GPS coordinates (latitude/longitude) OR district_id.
+    """
 
-    latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
-    longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
+    latitude: float | None = Field(default=None, ge=-90, le=90, description="Latitude coordinate")
+    longitude: float | None = Field(default=None, ge=-180, le=180, description="Longitude coordinate")
     address: str | None = Field(default=None, max_length=500)
-    district: str | None = Field(default=None, max_length=100)
+    district_id: UUID | None = Field(default=None, description="District ID for location")
     city: str = Field(default="Istanbul", max_length=100)
+    
+    @field_validator("district_id")
+    @classmethod
+    def validate_location(cls, v, info):
+        """Validate that either GPS coordinates or district_id is provided."""
+        data = info.data
+        has_gps = data.get("latitude") is not None and data.get("longitude") is not None
+        has_district = v is not None
+        
+        if not has_gps and not has_district:
+            raise ValueError("Either provide GPS coordinates (latitude & longitude) or district_id")
+        
+        return v
 
 
 class LocationResponse(BaseSchema):
@@ -61,9 +77,9 @@ class TicketStatusUpdate(BaseSchema):
 
 
 class TicketAssignUpdate(BaseSchema):
-    """Schema for assigning a ticket to a support member."""
+    """Schema for assigning a ticket to a team."""
 
-    assignee_id: UUID
+    team_id: UUID
 
 
 class TicketResponse(TimestampSchema):
@@ -78,8 +94,8 @@ class TicketResponse(TimestampSchema):
     location: LocationResponse
     reporter_id: UUID
     reporter_name: str | None = None
-    assignee_id: UUID | None = None
-    assignee_name: str | None = None
+    team_id: UUID | None = None
+    team_name: str | None = None
     resolved_at: datetime | None = None
     photo_count: int = 0
     comment_count: int = 0

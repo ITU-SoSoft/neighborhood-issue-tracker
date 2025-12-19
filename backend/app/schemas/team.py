@@ -1,64 +1,85 @@
-"""Team schemas for request/response validation."""
+"""Team schemas."""
 
-import uuid
-from datetime import datetime
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
-
-class TeamBase(BaseModel):
-    """Base schema for team data."""
-
-    name: str = Field(..., min_length=1, max_length=100)
-    description: str | None = Field(None, max_length=500)
+from app.schemas.base import BaseSchema, TimestampSchema
 
 
-class TeamCreate(TeamBase):
+class TeamCreate(BaseSchema):
     """Schema for creating a team."""
 
-    pass
+    name: str = Field(..., min_length=3, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
 
 
-class TeamUpdate(BaseModel):
+class TeamUpdate(BaseSchema):
     """Schema for updating a team."""
 
-    name: str | None = Field(None, min_length=1, max_length=100)
-    description: str | None = Field(None, max_length=500)
+    name: str | None = Field(default=None, min_length=3, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
 
 
-class TeamResponse(TeamBase):
-    """Schema for team response."""
+class TeamResponse(TimestampSchema):
+    """Team response schema."""
 
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class TeamListResponse(BaseModel):
-    """Schema for team list response."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
+    id: UUID
     name: str
     description: str | None
     member_count: int = 0
+    active_ticket_count: int = 0
 
 
-class TeamMemberResponse(BaseModel):
-    """Schema for team member in team response."""
+class TeamDistrictCreate(BaseSchema):
+    """Schema for assigning district to team."""
 
-    model_config = ConfigDict(from_attributes=True)
+    district_id: UUID
 
-    id: uuid.UUID
-    name: str
-    phone_number: str
-    role: str
+
+class TeamDistrictResponse(BaseSchema):
+    """Team district response schema."""
+
+    team_id: UUID
+    district_id: UUID
+    district_name: str
+    city: str
+
+
+class TeamCategoryCreate(BaseSchema):
+    """Schema for assigning category to team."""
+
+    category_id: UUID
+
+
+class TeamCategoryResponse(BaseSchema):
+    """Team category response schema."""
+
+    team_id: UUID
+    category_id: UUID
+    category_name: str
 
 
 class TeamDetailResponse(TeamResponse):
-    """Schema for detailed team response with members."""
+    """Detailed team response with assignments."""
 
-    members: list[TeamMemberResponse] = []
+    districts: list[TeamDistrictResponse] = []
+    categories: list[TeamCategoryResponse] = []
+
+
+class TeamMemberResponse(BaseSchema):
+    """Team member response schema."""
+
+    id: UUID
+    name: str
+    email: str
+    role: str
+
+
+class TeamListResponse(BaseSchema):
+    """Response for listing teams."""
+
+    items: list[TeamResponse]
+    total: int
+    page: int = 1
+    page_size: int = 20
