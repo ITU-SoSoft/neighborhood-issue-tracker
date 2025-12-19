@@ -18,6 +18,10 @@ class UserRole(str, enum.Enum):
     CITIZEN = "citizen"
     SUPPORT = "support"
     MANAGER = "manager"
+    
+    # Use lowercase values to match PostgreSQL enum
+    def __str__(self):
+        return self.value
 
 
 class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):

@@ -18,10 +18,14 @@ class Category(Base, UUIDMixin, TimestampMixin):
 
     # Relationships
     tickets: Mapped[list["Ticket"]] = relationship("Ticket", back_populates="category")
+    service_areas: Mapped[list["ServiceArea"]] = relationship(
+        "ServiceArea", back_populates="category", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Category {self.name}>"
 
 
-# Forward reference
+# Forward references
+from app.models.service_area import ServiceArea  # noqa: E402, F401
 from app.models.ticket import Ticket  # noqa: E402, F401
