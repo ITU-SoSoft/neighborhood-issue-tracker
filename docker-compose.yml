@@ -110,6 +110,7 @@ services:
       # Mount source code for auto hot reload
       - ./backend/app:/app/app
       - ./backend/main.py:/app/main.py
+      - ./backend/alembic/versions:/app/alembic/versions
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     networks:
       - sosoft-network

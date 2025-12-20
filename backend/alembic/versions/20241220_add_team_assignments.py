@@ -1,7 +1,7 @@
 """Add team-based assignment system.
 
-Revision ID: 003_team_assignments
-Revises: 002_add_password_auth
+Revision ID: 20241220_add_team_assignments
+Revises: 20241206_add_saved_addresses
 Create Date: 2024-12-20 00:00:00.000000
 
 """
@@ -13,8 +13,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "003_team_assignments"
-down_revision: Union[str, None] = "002_add_password_auth"
+revision: str = "20241220_add_team_assignments"
+down_revision: Union[str, None] = "20241206_add_saved_addresses"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
