@@ -334,6 +334,96 @@ export default function TicketDetailPage({
             </Card>
           </motion.div>
 
+          {/* Activity Log */}
+          {ticket.status_logs && ticket.status_logs.length > 0 && (
+            <motion.div variants={staggerItem}>
+              <Card className="p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Activity Log
+                </h2>
+                <div className="space-y-4">
+                  {ticket.status_logs.map((log, index) => {
+                    // Convert string status to TicketStatus enum
+                    const stringToStatus = (status: string | null): TicketStatus | null => {
+                      if (!status) return null;
+                      return status as TicketStatus;
+                    };
+
+                    const oldStatus = stringToStatus(log.old_status);
+                    const newStatus = stringToStatus(log.new_status);
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="flex gap-4 pb-4 border-b last:border-b-0 last:pb-0"
+                      >
+                        <div className="flex-shrink-0">
+                          <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-foreground flex items-center gap-2 flex-wrap">
+                                {log.old_status ? (
+                                  <>
+                                    Status changed from{" "}
+                                    {oldStatus ? (
+                                      <Badge variant={getStatusVariant(oldStatus)} className="flex items-center gap-1">
+                                        {getStatusIcon(oldStatus)}
+                                        {getStatusLabel(oldStatus)}
+                                      </Badge>
+                                    ) : (
+                                      <span className="font-semibold">{log.old_status}</span>
+                                    )}{" "}
+                                    to{" "}
+                                    {newStatus ? (
+                                      <Badge variant={getStatusVariant(newStatus)} className="flex items-center gap-1">
+                                        {getStatusIcon(newStatus)}
+                                        {getStatusLabel(newStatus)}
+                                      </Badge>
+                                    ) : (
+                                      <span className="font-semibold">{log.new_status}</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    Ticket created with status{" "}
+                                    {newStatus ? (
+                                      <Badge variant={getStatusVariant(newStatus)} className="flex items-center gap-1">
+                                        {getStatusIcon(newStatus)}
+                                        {getStatusLabel(newStatus)}
+                                      </Badge>
+                                    ) : (
+                                      <span className="font-semibold">{log.new_status}</span>
+                                    )}
+                                  </>
+                                )}
+                              </p>
+                              {log.changed_by_name && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  by {log.changed_by_name}
+                                </p>
+                              )}
+                              {log.comment && (
+                                <p className="text-sm text-muted-foreground mt-2 italic">
+                                  "{log.comment}"
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex-shrink-0 text-xs text-muted-foreground">
+                              {formatRelativeTime(log.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
           {/* Photos */}
           {ticket.photos.length > 0 && (
             <motion.div variants={staggerItem}>
@@ -552,46 +642,48 @@ export default function TicketDetailPage({
             </Card>
           </motion.div>
 
-          {/* Actions */}
-          <motion.div variants={staggerItem}>
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
-              <div className="space-y-3">
-                {canGiveFeedback && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => setShowFeedbackModal(true)}
-                  >
-                    <Star className="mr-2 h-4 w-4" />
-                    Leave Feedback
-                  </Button>
-                )}
-                {canEscalate && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-amber-600 hover:bg-amber-50"
-                    onClick={() => setShowEscalationModal(true)}
-                  >
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    Request Escalation
-                  </Button>
-                )}
-                {ticket.has_feedback && (
-                  <p className="text-sm text-green-600 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Feedback submitted
-                  </p>
-                )}
-                {ticket.has_escalation && (
-                  <p className="text-sm text-amber-600 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    Escalation requested
-                  </p>
-                )}
-              </div>
-            </Card>
-          </motion.div>
+          {/* Actions - Only visible for non-Citizen users */}
+          {user?.role !== UserRole.CITIZEN && (
+            <motion.div variants={staggerItem}>
+              <Card className="p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
+                <div className="space-y-3">
+                  {canGiveFeedback && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => setShowFeedbackModal(true)}
+                    >
+                      <Star className="mr-2 h-4 w-4" />
+                      Leave Feedback
+                    </Button>
+                  )}
+                  {canEscalate && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-amber-600 hover:bg-amber-50"
+                      onClick={() => setShowEscalationModal(true)}
+                    >
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Request Escalation
+                    </Button>
+                  )}
+                  {ticket.has_feedback && (
+                    <p className="text-sm text-green-600 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Feedback submitted
+                    </p>
+                  )}
+                  {ticket.has_escalation && (
+                    <p className="text-sm text-amber-600 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Escalation requested
+                    </p>
+                  )}
+                </div>
+              </Card>
+            </motion.div>
+          )}
         </motion.div>
       </div>
 

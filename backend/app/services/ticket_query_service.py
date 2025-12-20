@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.comment import Comment
-from app.models.ticket import Ticket, TicketStatus
+from app.models.ticket import StatusLog, Ticket, TicketStatus
 from app.models.user import User, UserRole
 from app.schemas.comment import CommentResponse
-from app.schemas.ticket import TicketDetailResponse, TicketResponse
+from app.schemas.ticket import StatusLogResponse, TicketDetailResponse, TicketResponse
 
 
 # Valid status transitions - business rule
@@ -74,6 +74,9 @@ def build_ticket_detail_response(
     if current_user.role == UserRole.CITIZEN:
         comments = [c for c in comments if not c.is_internal]
 
+    # Sort comments by created_at descending (most recent first)
+    comments = sorted(comments, key=lambda c: c.created_at, reverse=True)
+
     # Build CommentResponse objects with user_name from relationship
     comment_responses = [
         CommentResponse(
@@ -86,6 +89,21 @@ def build_ticket_detail_response(
             created_at=c.created_at,
         )
         for c in comments
+    ]
+
+    # Build StatusLogResponse objects with changed_by_name from relationship
+    status_log_responses = [
+        StatusLogResponse(
+            id=log.id,
+            ticket_id=log.ticket_id,
+            old_status=log.old_status,
+            new_status=log.new_status,
+            changed_by_id=log.changed_by_id,
+            changed_by_name=log.changed_by.name if log.changed_by else None,
+            comment=log.comment,
+            created_at=log.created_at,
+        )
+        for log in sorted(ticket.status_logs, key=lambda x: x.created_at, reverse=True)
     ]
 
     return TicketDetailResponse(
@@ -108,6 +126,7 @@ def build_ticket_detail_response(
         follower_count=len(ticket.followers),
         photos=ticket.photos,
         comments=comment_responses,
+        status_logs=status_log_responses,
         has_feedback=ticket.feedback is not None,
         has_escalation=ticket.escalation is not None,
         is_following=is_following,
@@ -143,6 +162,7 @@ async def get_ticket_by_id(
             selectinload(Ticket.photos),
             selectinload(Ticket.comments).joinedload(Comment.user),
             selectinload(Ticket.followers),
+            selectinload(Ticket.status_logs).joinedload(StatusLog.changed_by),
             selectinload(Ticket.feedback),
             selectinload(Ticket.escalation),
         )
@@ -155,6 +175,7 @@ async def get_ticket_by_id(
             selectinload(Ticket.photos),
             selectinload(Ticket.comments).joinedload(Comment.user),
             selectinload(Ticket.followers),
+            selectinload(Ticket.status_logs).joinedload(StatusLog.changed_by),
         )
 
     result = await db.execute(query)

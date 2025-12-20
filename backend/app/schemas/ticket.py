@@ -82,6 +82,19 @@ class TicketAssignUpdate(BaseSchema):
     team_id: UUID
 
 
+class StatusLogResponse(BaseSchema):
+    """Status log response schema."""
+
+    id: UUID
+    ticket_id: UUID
+    old_status: str | None
+    new_status: str
+    changed_by_id: UUID | None
+    changed_by_name: str | None = None
+    comment: str | None
+    created_at: datetime
+
+
 class TicketResponse(TimestampSchema):
     """Ticket response schema."""
 
@@ -116,6 +129,7 @@ class TicketDetailResponse(TicketResponse):
 
     photos: list["PhotoResponse"] = []
     comments: list["CommentResponse"] = []
+    status_logs: list[StatusLogResponse] = []
     has_feedback: bool = False
     has_escalation: bool = False
     is_following: bool = False

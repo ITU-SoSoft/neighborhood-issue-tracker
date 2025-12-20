@@ -209,9 +209,21 @@ export interface Ticket {
   updated_at: string;
 }
 
+export interface StatusLog {
+  id: string;
+  ticket_id: string;
+  old_status: string | null;
+  new_status: string;
+  changed_by_id: string | null;
+  changed_by_name: string | null;
+  comment: string | null;
+  created_at: string;
+}
+
 export interface TicketDetail extends Ticket {
   photos: Photo[];
   comments: Comment[];
+  status_logs: StatusLog[];
   has_feedback: boolean;
   has_escalation: boolean;
   is_following: boolean;
