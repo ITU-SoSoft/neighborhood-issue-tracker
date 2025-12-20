@@ -1,7 +1,6 @@
 """Team schemas."""
 
 from uuid import UUID
-
 from pydantic import Field
 
 from app.schemas.base import BaseSchema, TimestampSchema
@@ -60,24 +59,25 @@ class TeamCategoryResponse(BaseSchema):
     category_name: str
 
 
-class TeamDetailResponse(TeamResponse):
-    """Detailed team response with assignments."""
-
-    districts: list[TeamDistrictResponse] = []
-    categories: list[TeamCategoryResponse] = []
-
-
 class TeamMemberResponse(BaseSchema):
     """Team member response schema."""
 
     id: UUID
     name: str
-    email: str
+    email: str | None = None
     role: str
 
 
+class TeamDetailResponse(TeamResponse):
+    """Detailed team response with assignments and members."""
+
+    members: list[TeamMemberResponse] = []
+    districts: list[TeamDistrictResponse] = []
+    categories: list[TeamCategoryResponse] = []
+
+
 class TeamListResponse(BaseSchema):
-    """Response for listing teams."""
+    """Response for listing teams (paginated wrapper)."""
 
     items: list[TeamResponse]
     total: int

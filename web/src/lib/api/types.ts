@@ -479,3 +479,43 @@ export interface TokenResponse {
 export interface APIError {
   detail: string;
 }
+
+export type TeamResponse = {
+  id: string;
+  name: string;
+  description: string | null;
+  member_count: number;
+  active_ticket_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TeamMemberResponse = {
+  id: string;
+  name: string;
+  email?: string | null;
+  role: string;
+};
+
+export type TeamDetailResponse = TeamResponse & {
+  members: TeamMemberResponse[];
+  districts: any[];
+  categories: any[];
+};
+
+export type TeamListResponse = {
+  items: TeamResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
+export type TeamCreate = {
+  name: string;
+  description?: string | null;
+};
+
+export type TeamUpdate = {
+  name?: string | null;
+  description?: string | null;
+};

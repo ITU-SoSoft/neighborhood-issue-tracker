@@ -1,4 +1,9 @@
 import {
+  TeamCreate,
+  TeamDetailResponse,
+  TeamListResponse,
+  TeamResponse,
+  TeamUpdate,
   APIError,
   Category,
   CategoryCreate,
@@ -763,5 +768,58 @@ export async function markNotificationAsRead(
 export async function markAllNotificationsAsRead(): Promise<{ message: string }> {
   return apiFetch<{ message: string }>("/notifications/read-all", {
     method: "PATCH",
+  });
+}
+
+// ============================================================================
+// TEAMS API
+// ============================================================================
+
+export async function getTeams(): Promise<TeamListResponse> {
+  return apiFetch<TeamListResponse>("/teams");
+}
+
+export async function getTeamById(teamId: string): Promise<TeamDetailResponse> {
+  return apiFetch<TeamDetailResponse>(`/teams/${teamId}`);
+}
+
+export async function createTeam(data: TeamCreate): Promise<TeamResponse> {
+  return apiFetch<TeamResponse>("/teams", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateTeam(
+  teamId: string,
+  data: TeamUpdate,
+): Promise<TeamResponse> {
+  return apiFetch<TeamResponse>(`/teams/${teamId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTeam(teamId: string): Promise<void> {
+  return apiFetch<void>(`/teams/${teamId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function addTeamMember(
+  teamId: string,
+  userId: string,
+): Promise<TeamDetailResponse> {
+  return apiFetch<TeamDetailResponse>(`/teams/${teamId}/members/${userId}`, {
+    method: "POST",
+  });
+}
+
+export async function removeTeamMember(
+  teamId: string,
+  userId: string,
+): Promise<void> {
+  return apiFetch<void>(`/teams/${teamId}/members/${userId}`, {
+    method: "DELETE",
   });
 }

@@ -38,6 +38,19 @@ async def _get_team_with_members(db: AsyncSession, team_id: uuid.UUID) -> Team |
     return result.scalar_one_or_none()
 
 
+def _to_team_response(team: Team, member_count: int = 0, active_ticket_count: int = 0) -> TeamResponse:
+    """Helper: convert Team ORM object to TeamResponse."""
+    return TeamResponse(
+        id=team.id,
+        name=team.name,
+        description=team.description,
+        created_at=team.created_at,
+        updated_at=team.updated_at,
+        member_count=member_count,
+        active_ticket_count=active_ticket_count,
+    )
+
+
 def _to_team_detail_response(team: Team) -> TeamDetailResponse:
     """Helper: convert Team ORM object to TeamDetailResponse."""
     return TeamDetailResponse(
@@ -46,29 +59,32 @@ def _to_team_detail_response(team: Team) -> TeamDetailResponse:
         description=team.description,
         created_at=team.created_at,
         updated_at=team.updated_at,
+        member_count=len([m for m in team.members if m.deleted_at is None]),
+        active_ticket_count=0,  # Workload kısmında hesaplarız
         members=[
             TeamMemberResponse(
                 id=member.id,
                 name=member.name,
-                phone_number=member.phone_number,
+                email=member.email,
                 role=member.role.value,
             )
             for member in team.members
             if member.deleted_at is None
         ],
+        districts=[],   # Şimdilik boş; istersen sonraki adımda ekleriz
+        categories=[],  # Şimdilik boş; istersen sonraki adımda ekleriz
     )
 
 
-@router.get("", response_model=list[TeamListResponse])
+@router.get("", response_model=TeamListResponse)
 async def list_teams(
     db: DatabaseSession,
     _: ManagerUser,
-) -> list[TeamListResponse]:
-    """List all teams with member count.
+) -> TeamListResponse:
+    """List all teams with member count (non-deleted members).
 
     Only accessible by managers.
     """
-    # Count only active (non-soft-deleted) members
     stmt = (
         select(Team, func.count(User.id).label("member_count"))
         .outerjoin(User, (User.team_id == Team.id) & (User.deleted_at.is_(None)))
@@ -78,15 +94,17 @@ async def list_teams(
     result = await db.execute(stmt)
     rows = result.all()
 
-    return [
-        TeamListResponse(
-            id=team.id,
-            name=team.name,
-            description=team.description,
-            member_count=member_count,
-        )
+    items: list[TeamResponse] = [
+        _to_team_response(team, member_count=member_count, active_ticket_count=0)
         for team, member_count in rows
     ]
+
+    return TeamListResponse(
+        items=items,
+        total=len(items),
+        page=1,
+        page_size=20,
+    )
 
 
 @router.get("/{team_id}", response_model=TeamDetailResponse)
@@ -128,7 +146,7 @@ async def create_team(
     await db.commit()
     await db.refresh(team)
 
-    return TeamResponse.model_validate(team)
+    return _to_team_response(team, member_count=0, active_ticket_count=0)
 
 
 @router.put("/{team_id}", response_model=TeamResponse)
@@ -158,7 +176,14 @@ async def update_team(
     await db.commit()
     await db.refresh(team)
 
-    return TeamResponse.model_validate(team)
+    # member_count'i güncel sayalım
+    result = await db.execute(
+        select(func.count(User.id))
+        .where((User.team_id == team.id) & (User.deleted_at.is_(None)))
+    )
+    member_count = int(result.scalar() or 0)
+
+    return _to_team_response(team, member_count=member_count, active_ticket_count=0)
 
 
 @router.delete("/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -171,17 +196,14 @@ async def delete_team(
 
     Only accessible by managers.
 
-    Note: Members will have team_id set to NULL before deleting the team
-    (safer than relying only on FK ondelete settings).
+    Note: Members will have team_id set to NULL before deleting the team.
     """
     team = await db.get(Team, team_id)
     if not team:
         raise NotFoundException(detail="Team not found")
 
     # Set team_id = NULL for all users in this team
-    await db.execute(
-        update(User).where(User.team_id == team_id).values(team_id=None)
-    )
+    await db.execute(update(User).where(User.team_id == team_id).values(team_id=None))
     await db.commit()
 
     await db.delete(team)
@@ -207,18 +229,18 @@ async def add_team_member(
     if not user or user.deleted_at is not None:
         raise NotFoundException(detail="User not found")
 
-    # Optional: if user is already in this team, just return current team detail
     if user.team_id == team_id:
         team_full = await _get_team_with_members(db, team_id)
-        # team_full is guaranteed to exist since we checked above
         return _to_team_detail_response(team_full)  # type: ignore[arg-type]
 
     user.team_id = team_id
     await db.commit()
 
-    # IMPORTANT: reload team with members after commit so response is up-to-date
     team_full = await _get_team_with_members(db, team_id)
-    return _to_team_detail_response(team_full)  # type: ignore[arg-type]
+    if not team_full:
+        raise NotFoundException(detail="Team not found")
+
+    return _to_team_detail_response(team_full)
 
 
 @router.delete("/{team_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
