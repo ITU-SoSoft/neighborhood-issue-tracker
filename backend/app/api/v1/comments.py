@@ -49,7 +49,7 @@ async def list_comments(
     if current_user.role == UserRole.CITIZEN:
         query = query.where(Comment.is_internal == False)  # noqa: E712
 
-    query = query.order_by(Comment.created_at.asc())
+    query = query.order_by(Comment.created_at.desc())  # Most recent first
 
     result = await db.execute(query)
     comments = result.scalars().all()
