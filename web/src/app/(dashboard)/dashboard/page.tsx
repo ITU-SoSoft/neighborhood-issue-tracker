@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import {
   useDashboardKPIs,
   useEscalations,
 } from "@/lib/queries";
+import { useHeatmap } from "@/lib/queries/analytics";
 import {
   Ticket,
   TicketStatus,
@@ -47,7 +49,21 @@ import {
   TrendingUp,
   Star,
   Users,
+  Loader2,
 } from "lucide-react";
+
+// Dynamically import the heatmap component to avoid SSR issues with Leaflet
+const HeatmapVisualization = dynamic(
+  () => import("@/components/map/heatmap-visualization").then((mod) => ({ default: mod.HeatmapVisualization })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[400px] rounded-xl bg-muted flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 
 // ============================================================================
 // SHARED COMPONENTS
@@ -291,10 +307,12 @@ function SupportDashboard() {
     page_size: 5,
   });
   const kpisQuery = useDashboardKPIs(30);
+  const heatmapQuery = useHeatmap({ days: 30, status: TicketStatus.IN_PROGRESS });
 
   const assignedTickets = ticketsQuery.data?.items ?? [];
   const escalations = escalationsQuery.data?.items ?? [];
   const kpis = kpisQuery.data;
+  const heatmapData = heatmapQuery.data;
 
   const isLoading =
     ticketsQuery.isLoading || escalationsQuery.isLoading || kpisQuery.isLoading;
@@ -456,59 +474,85 @@ function SupportDashboard() {
           </div>
         </>
       ) : (
-        // Heatmap tab content – pure UI placeholder, analytics eklenebilir
+        // Heatmap tab content – Real-time issue density visualization
         <motion.div variants={fadeInUp}>
           <Card>
             <CardHeader>
               <CardTitle>Issue Density Heatmap</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Geographic visualization of in-progress tickets (last 30 days)
+              </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="rounded-xl border border-dashed border-border bg-muted/40 p-8 text-center text-sm text-muted-foreground">
-                A map-based visualization of issue density by neighborhood will be
-                displayed here. Support staff can use this view to identify hotspots
-                and prioritize field teams.
-              </div>
+            <CardContent className="space-y-4">
+              {heatmapQuery.isLoading ? (
+                <div className="h-[400px] rounded-xl bg-muted flex items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : heatmapQuery.isError ? (
+                <ErrorState
+                  title="Failed to load heatmap"
+                  message="Could not load heatmap data. Please try again."
+                  onRetry={heatmapQuery.refetch}
+                />
+              ) : !heatmapData || heatmapData.points.length === 0 ? (
+                <div className="h-[400px] rounded-xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center p-8 text-center">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground">
+                    No in-progress tickets found in the last 30 days.
+                    <br />
+                    The heatmap will appear once tickets are reported.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <HeatmapVisualization
+                    points={heatmapData.points}
+                    height="400px"
+                  />
 
-              <div className="grid gap-4 md:grid-cols-3 text-xs text-muted-foreground">
-                <div>
-                  <p className="font-medium text-foreground text-sm mb-2">
-                    Legend
-                  </p>
-                  <ul className="space-y-1">
-                    <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm bg-emerald-300" />
-                      Low issue density
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm bg-amber-300" />
-                      Medium issue density
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-sm bg-red-400" />
-                      High issue density
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-medium text-foreground text-sm mb-2">
-                    Example districts
-                  </p>
-                  <ul className="space-y-1">
-                    <li>Pine Avenue – 12 open tickets</li>
-                    <li>Central Park – 8 open tickets</li>
-                    <li>Harbor Road – 5 open tickets</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-medium text-foreground text-sm mb-2">
-                    Next steps
-                  </p>
-                  <p>
-                    This view will later be connected to the analytics service and
-                    map component to render real-time ticket density.
-                  </p>
-                </div>
-              </div>
+                  <div className="grid gap-4 md:grid-cols-3 text-xs">
+                    <div>
+                      <p className="font-medium text-foreground text-sm mb-2">
+                        Legend
+                      </p>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li className="flex items-center gap-2">
+                          <span className="h-3 w-3 rounded-sm bg-blue-500" />
+                          Low density
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="h-3 w-3 rounded-sm bg-yellow-500" />
+                          Medium density
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="h-3 w-3 rounded-sm bg-red-500" />
+                          High density
+                        </li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm mb-2">
+                        Statistics
+                      </p>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>Total hotspots: {heatmapData.points.length}</li>
+                        <li>Total tickets: {heatmapData.total_tickets}</li>
+                        <li>Max at one location: {heatmapData.max_count}</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm mb-2">
+                        How to use
+                      </p>
+                      <p className="text-muted-foreground">
+                        Zoom in to see individual hotspots. Darker red areas
+                        indicate higher concentrations of in-progress tickets
+                        requiring attention.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -528,10 +572,12 @@ function ManagerDashboard() {
     status_filter: EscalationStatus.PENDING,
     page_size: 5,
   });
+  const heatmapQuery = useHeatmap({ days: 30, status: TicketStatus.IN_PROGRESS });
 
   const kpis = kpisQuery.data;
   const recentTickets = ticketsQuery.data?.items ?? [];
   const pendingEscalations = escalationsQuery.data?.items ?? [];
+  const heatmapData = heatmapQuery.data;
 
   const isKPILoading = kpisQuery.isLoading;
 
@@ -783,6 +829,89 @@ function ManagerDashboard() {
                 </Button>
               </Link>
             </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Issue Density Heatmap */}
+      <motion.div variants={fadeInUp}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Issue Density Heatmap</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Geographic visualization of in-progress tickets (last 30 days)
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {heatmapQuery.isLoading ? (
+              <div className="h-[400px] rounded-xl bg-muted flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : heatmapQuery.isError ? (
+              <ErrorState
+                title="Failed to load heatmap"
+                message="Could not load heatmap data. Please try again."
+                onRetry={heatmapQuery.refetch}
+              />
+            ) : !heatmapData || heatmapData.points.length === 0 ? (
+              <div className="h-[400px] rounded-xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center p-8 text-center">
+                <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-sm text-muted-foreground">
+                  No in-progress tickets found in the last 30 days.
+                  <br />
+                  The heatmap will appear once tickets are reported.
+                </p>
+              </div>
+            ) : (
+              <>
+                <HeatmapVisualization
+                  points={heatmapData.points}
+                  height="450px"
+                />
+
+                <div className="grid gap-4 md:grid-cols-3 text-xs">
+                  <div>
+                    <p className="font-medium text-foreground text-sm mb-2">
+                      Legend
+                    </p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm bg-blue-500" />
+                        Low density
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm bg-yellow-500" />
+                        Medium density
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-3 w-3 rounded-sm bg-red-500" />
+                        High density
+                      </li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground text-sm mb-2">
+                      Statistics
+                    </p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li>Total hotspots: {heatmapData.points.length}</li>
+                      <li>Total tickets: {heatmapData.total_tickets}</li>
+                      <li>Max at one location: {heatmapData.max_count}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground text-sm mb-2">
+                      Use Cases
+                    </p>
+                    <p className="text-muted-foreground">
+                      Identify problem areas requiring additional resources.
+                      Zoom and pan to explore specific neighborhoods and
+                      coordinate field team deployment.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </motion.div>
