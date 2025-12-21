@@ -21,89 +21,106 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add team assignment tables and modify tickets to use team_id instead of assignee_id."""
-    
-    # Create districts table
-    op.create_table(
-        "districts",
-        sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column("name", sa.String(length=100), nullable=False),
-        sa.Column("city", sa.String(length=100), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("name", "city", name="uq_district_name_city"),
-    )
-    
-    # Add index for faster lookups
-    op.create_index("ix_districts_name_city", "districts", ["name", "city"])
-    
-    # Create team_categories junction table
-    op.create_table(
-        "team_categories",
-        sa.Column("team_id", sa.UUID(), nullable=False),
-        sa.Column("category_id", sa.UUID(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.ForeignKeyConstraint(["team_id"], ["teams.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("team_id", "category_id"),
-    )
+    from sqlalchemy import inspect
 
-    # Create team_districts junction table (for location-based assignment)
-    op.create_table(
-        "team_districts",
-        sa.Column("team_id", sa.UUID(), nullable=False),
-        sa.Column("district_id", sa.UUID(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.ForeignKeyConstraint(["team_id"], ["teams.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["district_id"], ["districts.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("team_id", "district_id"),
-    )
-    
-    # Add index for faster lookups
-    op.create_index("ix_team_districts_district_id", "team_districts", ["district_id"])
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_tables = inspector.get_table_names()
 
-    # Add team_id to tickets table
-    op.add_column(
-        "tickets",
-        sa.Column("team_id", sa.UUID(), nullable=True),
-    )
-    
-    # Add foreign key constraint
-    op.create_foreign_key(
-        "fk_tickets_team_id",
-        "tickets",
-        "teams",
-        ["team_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    
-    # Add index on team_id
-    op.create_index("ix_tickets_team_id", "tickets", ["team_id"])
+    # Create districts table if not exists
+    if "districts" not in existing_tables:
+        op.create_table(
+            "districts",
+            sa.Column("id", sa.UUID(), nullable=False),
+            sa.Column("name", sa.String(length=100), nullable=False),
+            sa.Column("city", sa.String(length=100), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("name", "city", name="uq_district_name_city"),
+        )
 
-    # Drop assignee_id column and its relationships
-    op.drop_constraint("tickets_assignee_id_fkey", "tickets", type_="foreignkey")
-    op.drop_column("tickets", "assignee_id")
+        # Add index for faster lookups
+        op.create_index("ix_districts_name_city", "districts", ["name", "city"])
+
+    # Create team_categories junction table if not exists
+    if "team_categories" not in existing_tables:
+        op.create_table(
+            "team_categories",
+            sa.Column("team_id", sa.UUID(), nullable=False),
+            sa.Column("category_id", sa.UUID(), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+            sa.ForeignKeyConstraint(["team_id"], ["teams.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
+            sa.PrimaryKeyConstraint("team_id", "category_id"),
+        )
+
+    # Create team_districts junction table if not exists
+    if "team_districts" not in existing_tables:
+        op.create_table(
+            "team_districts",
+            sa.Column("team_id", sa.UUID(), nullable=False),
+            sa.Column("district_id", sa.UUID(), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+            sa.ForeignKeyConstraint(["team_id"], ["teams.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["district_id"], ["districts.id"], ondelete="CASCADE"),
+            sa.PrimaryKeyConstraint("team_id", "district_id"),
+        )
+
+        # Add index for faster lookups
+        op.create_index("ix_team_districts_district_id", "team_districts", ["district_id"])
+
+    # Check if team_id column exists in tickets table
+    tickets_columns = [col['name'] for col in inspector.get_columns('tickets')]
+
+    # Add team_id to tickets table if not exists
+    if "team_id" not in tickets_columns:
+        op.add_column(
+            "tickets",
+            sa.Column("team_id", sa.UUID(), nullable=True),
+        )
+
+        # Add foreign key constraint
+        op.create_foreign_key(
+            "fk_tickets_team_id",
+            "tickets",
+            "teams",
+            ["team_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+
+        # Add index on team_id
+        op.create_index("ix_tickets_team_id", "tickets", ["team_id"])
+
+    # Drop assignee_id column and its relationships if it exists
+    if "assignee_id" in tickets_columns:
+        # Check if foreign key exists
+        fk_constraints = [fk['name'] for fk in inspector.get_foreign_keys('tickets')]
+        if "tickets_assignee_id_fkey" in fk_constraints:
+            op.drop_constraint("tickets_assignee_id_fkey", "tickets", type_="foreignkey")
+
+        op.drop_column("tickets", "assignee_id")
 
 
 def downgrade() -> None:
