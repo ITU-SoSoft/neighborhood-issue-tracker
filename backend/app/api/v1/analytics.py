@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, case, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import DatabaseSession, ManagerUser
+from app.api.deps import DatabaseSession, ManagerUser, SupportUser
 from app.models.category import Category
 from app.models.feedback import Feedback
 from app.models.team import Team
@@ -32,14 +32,14 @@ router = APIRouter()
 @router.get("/dashboard", response_model=DashboardKPIs)
 async def get_dashboard_kpis(
     db: DatabaseSession,
-    current_user: ManagerUser,
+    current_user: SupportUser,
     days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> DashboardKPIs:
     """Get dashboard key performance indicators.
 
     Args:
         db: Database session.
-        current_user: The authenticated manager user.
+        current_user: The authenticated support or manager user.
         days: Number of days to look back for statistics.
 
     Returns:
@@ -139,7 +139,7 @@ async def get_dashboard_kpis(
 @router.get("/heatmap", response_model=HeatmapResponse)
 async def get_ticket_heatmap(
     db: DatabaseSession,
-    current_user: ManagerUser,
+    current_user: SupportUser,
     days: Annotated[int, Query(ge=1, le=365)] = 30,
     category_id: UUID | None = None,
     status: TicketStatus | None = None,
@@ -148,7 +148,7 @@ async def get_ticket_heatmap(
 
     Args:
         db: Database session.
-        current_user: The authenticated manager user.
+        current_user: The authenticated support or manager user.
         days: Number of days to look back.
         category_id: Optional category filter.
         status: Optional status filter.
