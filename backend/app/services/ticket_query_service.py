@@ -130,7 +130,11 @@ def build_ticket_detail_response(
         status_logs=status_log_responses,
         has_feedback=ticket.feedback is not None,
         has_escalation=len(ticket.escalations) > 0,
-        has_pending_escalation=any(e.status == EscalationStatus.PENDING for e in ticket.escalations),
+        can_escalate=(
+            ticket.team_id is not None
+            and not any(e.status == EscalationStatus.PENDING for e in ticket.escalations)
+            and not any(e.status == EscalationStatus.APPROVED for e in ticket.escalations)
+        ),
         is_following=is_following,
     )
 

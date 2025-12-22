@@ -132,7 +132,7 @@ class TicketDetailResponse(TicketResponse):
     status_logs: list[StatusLogResponse] = []
     has_feedback: bool = False
     has_escalation: bool = False
-    has_pending_escalation: bool = False
+    can_escalate: bool = False
     is_following: bool = False
 
 
