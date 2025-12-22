@@ -8,6 +8,13 @@ import { useAuth } from "@/lib/auth/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DashboardKPISkeleton, TicketCardSkeleton } from "@/components/shared/skeletons";
 import { EmptyTickets } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -17,7 +24,7 @@ import {
   useDashboardKPIs,
   useEscalations,
 } from "@/lib/queries";
-import { useHeatmap } from "@/lib/queries/analytics";
+import { useHeatmap, useCategoryStats, useTeamPerformance, useNeighborhoodStats } from "@/lib/queries/analytics";
 import {
   Ticket,
   TicketStatus,
@@ -51,6 +58,19 @@ import {
   Users,
   Loader2,
 } from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 
 // Dynamically import the heatmap component to avoid SSR issues with Leaflet
 const HeatmapVisualization = dynamic(
@@ -339,22 +359,20 @@ function SupportDashboard() {
             <button
               type="button"
               onClick={() => setActiveTab("overview")}
-              className={`rounded-full px-4 py-1 transition ${
-                activeTab === "overview"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`rounded-full px-4 py-1 transition ${activeTab === "overview"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               Overview
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("heatmap")}
-              className={`rounded-full px-4 py-1 transition ${
-                activeTab === "heatmap"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`rounded-full px-4 py-1 transition ${activeTab === "heatmap"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               Heatmap
             </button>
@@ -388,7 +406,7 @@ function SupportDashboard() {
               />
               <KPICard
                 title="Resolution Rate"
-                value={kpis ? formatPercentage(kpis.resolution_rate, 0) : "-"}
+                value={kpis ? formatPercentage(kpis.resolution_rate, 2) : "-"}
                 icon={<TrendingUp className="h-5 w-5 text-green-600" />}
                 iconBgClass="bg-green-100"
               />
@@ -566,18 +584,26 @@ function SupportDashboard() {
 // ============================================================================
 
 function ManagerDashboard() {
-  const kpisQuery = useDashboardKPIs(30);
+  const [days, setDays] = useState(30);
+
+  const kpisQuery = useDashboardKPIs(days);
   const ticketsQuery = useMyTickets({ page_size: 5 });
   const escalationsQuery = useEscalations({
     status_filter: EscalationStatus.PENDING,
     page_size: 5,
   });
-  const heatmapQuery = useHeatmap({ days: 30, status: TicketStatus.IN_PROGRESS });
+  const heatmapQuery = useHeatmap({ days, status: TicketStatus.IN_PROGRESS });
+  const categoryStatsQuery = useCategoryStats(days);
+  const teamPerformanceQuery = useTeamPerformance(days);
+  const neighborhoodStatsQuery = useNeighborhoodStats(days, 5);
 
   const kpis = kpisQuery.data;
   const recentTickets = ticketsQuery.data?.items ?? [];
   const pendingEscalations = escalationsQuery.data?.items ?? [];
   const heatmapData = heatmapQuery.data;
+  const categoryData = categoryStatsQuery.data?.items ?? [];
+  const teamData = teamPerformanceQuery.data?.teams ?? [];
+  const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   const isKPILoading = kpisQuery.isLoading;
 
@@ -598,12 +624,28 @@ function ManagerDashboard() {
             High-level overview of city-wide performance and workloads
           </p>
         </div>
-        <Link href="/analytics">
-          <Button variant="outline">
-            <TrendingUp className="mr-2 h-4 w-4" />
-            View Analytics
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Select
+            value={days.toString()}
+            onValueChange={(value) => setDays(parseInt(value, 10))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+              <SelectItem value="365">Last year</SelectItem>
+            </SelectContent>
+          </Select>
+          <Link href="/analytics">
+            <Button variant="outline">
+              <TrendingUp className="mr-2 h-4 w-4" />
+              View Analytics
+            </Button>
+          </Link>
+        </div>
       </motion.div>
 
       {/* KPI Cards – overall system metrics */}
@@ -630,7 +672,7 @@ function ManagerDashboard() {
           />
           <KPICard
             title="Resolution Rate"
-            value={kpis ? formatPercentage(kpis.resolution_rate, 0) : "-"}
+            value={kpis ? formatPercentage(kpis.resolution_rate, 2) : "-"}
             icon={<TrendingUp className="h-5 w-5 text-green-600" />}
             iconBgClass="bg-green-100"
           />
@@ -688,6 +730,64 @@ function ManagerDashboard() {
         </motion.div>
       )}
 
+      {/* Pending Escalations - Full Width */}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeInUp}
+      >
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardTitle className="text-lg">Pending Escalations</CardTitle>
+            <Link
+              href="/escalations"
+              className="text-sm text-primary hover:text-primary/80"
+            >
+              View all
+            </Link>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {escalationsQuery.isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <TicketCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : pendingEscalations.length === 0 ? (
+              <p className="py-4 text-center text-muted-foreground">
+                No pending escalations
+              </p>
+            ) : (
+              <motion.div
+                className="space-y-3"
+                variants={staggerContainer}
+                initial="hidden"
+                animate="visible"
+              >
+                {pendingEscalations.map((escalation) => (
+                  <motion.div key={escalation.id} variants={staggerItem}>
+                    <Link
+                      href={`/escalations/${escalation.id}`}
+                      className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-foreground truncate">
+                          {escalation.ticket_title}
+                        </span>
+                        <Badge variant="warning">Pending</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                        {escalation.reason}
+                      </p>
+                    </Link>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Tickets */}
         <TicketListCard
@@ -700,63 +800,160 @@ function ManagerDashboard() {
           showCategory
         />
 
-        {/* Pending Escalations */}
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeInUp}
-        >
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <CardTitle className="text-lg">Pending Escalations</CardTitle>
-              <Link
-                href="/escalations"
-                className="text-sm text-primary hover:text-primary/80"
-              >
-                View all
-              </Link>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {escalationsQuery.isLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <TicketCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : pendingEscalations.length === 0 ? (
-                <p className="py-4 text-center text-muted-foreground">
-                  No pending escalations
-                </p>
-              ) : (
-                <motion.div
-                  className="space-y-3"
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                >
-                  {pendingEscalations.map((escalation) => (
-                    <motion.div key={escalation.id} variants={staggerItem}>
-                      <Link
-                        href={`/escalations/${escalation.id}`}
-                        className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-foreground truncate">
-                            {escalation.ticket_title}
-                          </span>
-                          <Badge variant="warning">Pending</Badge>
+        {/* Category Distribution Pie Charts */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Total Tickets */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={fadeInUp}
+          >
+            <Card className="h-full">
+              <CardHeader className="p-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TicketIcon className="h-4 w-4" />
+                  Total Tickets
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">By Category</p>
+              </CardHeader>
+              <CardContent className="p-2">
+                {categoryStatsQuery.isLoading ? (
+                  <div className="h-[200px] flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : categoryStatsQuery.isError ? (
+                  <ErrorState
+                    title="Error"
+                    message="Failed"
+                    onRetry={categoryStatsQuery.refetch}
+                  />
+                ) : categoryStatsQuery.data?.items.length === 0 ? (
+                  <div className="h-[200px] flex items-center justify-center">
+                    <p className="text-xs text-muted-foreground">No data</p>
+                  </div>
+                ) : (
+                  <div className="h-[200px] relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryStatsQuery.data.items}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={60}
+                          paddingAngle={5}
+                          dataKey="total_tickets"
+                          nameKey="category_name"
+                          label={({ name }) => name}
+                          labelLine={false}
+                        >
+                          {categoryStatsQuery.data.items.map((entry: any, index: number) => {
+                            const colorMap: Record<string, string> = {
+                              'Infrastructure': '#0088FE',
+                              'Traffic': '#00C49F',
+                              'Lighting': '#FFBB28',
+                              'Waste Management': '#FF8042',
+                              'Parks': '#8884d8',
+                              'Other': '#82ca9d',
+                            };
+                            return (
+                              <Cell key={`cell-${index}`} fill={colorMap[entry.category_name] || '#999999'} />
+                            );
+                          })}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <div className="text-xl font-normal text-foreground">
+                          {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.total_tickets, 0)}
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
-                          {escalation.reason}
-                        </p>
-                      </Link>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
+                        <div className="text-[10px] text-muted-foreground">Total</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Open Tickets */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={fadeInUp}
+          >
+            <Card className="h-full">
+              <CardHeader className="p-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TicketIcon className="h-4 w-4" />
+                  Open Tickets
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">By Category</p>
+              </CardHeader>
+              <CardContent className="p-2">
+                {categoryStatsQuery.isLoading ? (
+                  <div className="h-[200px] flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : categoryStatsQuery.isError ? (
+                  <ErrorState
+                    title="Error"
+                    message="Failed"
+                    onRetry={categoryStatsQuery.refetch}
+                  />
+                ) : categoryStatsQuery.data?.items.length === 0 ? (
+                  <div className="h-[200px] flex items-center justify-center">
+                    <p className="text-xs text-muted-foreground">No data</p>
+                  </div>
+                ) : (
+                  <div className="h-[200px] relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryStatsQuery.data.items}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={60}
+                          paddingAngle={5}
+                          dataKey="open_tickets"
+                          nameKey="category_name"
+                          label={({ name }) => name}
+                          labelLine={false}
+                        >
+                          {categoryStatsQuery.data.items.map((entry: any, index: number) => {
+                            const colorMap: Record<string, string> = {
+                              'Infrastructure': '#0088FE',
+                              'Traffic': '#00C49F',
+                              'Lighting': '#FFBB28',
+                              'Waste Management': '#FF8042',
+                              'Parks': '#8884d8',
+                              'Other': '#82ca9d',
+                            };
+                            return (
+                              <Cell key={`cell-${index}`} fill={colorMap[entry.category_name] || '#999999'} />
+                            );
+                          })}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <div className="text-xl font-normal text-foreground">
+                          {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.open_tickets, 0)}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">Open</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       </div>
 
       {/* Workload Snapshot & Quick Actions */}
@@ -831,6 +1028,15 @@ function ManagerDashboard() {
             </div>
           </CardContent>
         </Card>
+      </motion.div>
+
+
+
+      {/* Feedback Analytics - Category & Team Performance */}
+      <motion.div className="space-y-6" variants={fadeInUp}>
+
+
+
       </motion.div>
 
       {/* Issue Density Heatmap */}
@@ -915,7 +1121,81 @@ function ManagerDashboard() {
           </CardContent>
         </Card>
       </motion.div>
-    </motion.div>
+
+      {/* Top 5 Problematic Neighborhoods */}
+      <motion.div variants={fadeInUp}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 Problematic Districts</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Districts with most tickets and category breakdown
+            </p>
+          </CardHeader>
+          <CardContent>
+            {neighborhoodStatsQuery.isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : neighborhoodStatsQuery.isError ? (
+              <ErrorState
+                title="Failed to Load"
+                message="Could not load district statistics."
+                onRetry={neighborhoodStatsQuery.refetch}
+              />
+            ) : neighborhoodData.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-sm text-muted-foreground">No district data found</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {neighborhoodData.map((neighborhood: any, index: number) => (
+                  <div
+                    key={neighborhood.district}
+                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold
+                            ${index === 0 ? 'bg-red-100 text-red-700' :
+                            index === 1 ? 'bg-orange-100 text-orange-700' :
+                              'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {index + 1}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-foreground text-lg">
+                            {neighborhood.district}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {neighborhood.total_tickets} total tickets
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {neighborhood.category_breakdown.map((cat: any) => (
+                        <div
+                          key={cat.category_name}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md text-xs"
+                        >
+                          <span className="font-medium text-foreground">
+                            {cat.category_name}:
+                          </span>
+                          <span className="text-muted-foreground">
+                            {cat.ticket_count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div >
   );
 }
 

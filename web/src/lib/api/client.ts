@@ -53,6 +53,7 @@ import {
   VerifyOTPRequest,
   VerifyOTPResponse,
   CategoryStatsResponse,
+  NeighborhoodStatsResponse,
 } from "./types";
 
 const API_BASE_URL =
@@ -669,6 +670,13 @@ export async function getCategoryStats(
   days = 30,
 ): Promise<CategoryStatsResponse> {
   return apiFetch<CategoryStatsResponse>(`/analytics/categories?days=${days}`);
+}
+
+export async function getNeighborhoodStats(
+  days = 30,
+  limit = 5,
+): Promise<NeighborhoodStatsResponse> {
+  return apiFetch<NeighborhoodStatsResponse>(`/analytics/neighborhoods?days=${days}&limit=${limit}`);
 }
 
 export async function getFeedbackTrends(

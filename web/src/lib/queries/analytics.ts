@@ -52,6 +52,14 @@ export function useCategoryStats(days = 30) {
   });
 }
 
+export function useNeighborhoodStats(days = 30, limit = 5) {
+  return useQuery({
+    queryKey: ['neighborhood-stats', days, limit],
+    queryFn: () => api.getNeighborhoodStats(days, limit),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useFeedbackTrends(days = 30) {
   return useQuery({
     queryKey: queryKeys.analytics.feedbackTrends(days),

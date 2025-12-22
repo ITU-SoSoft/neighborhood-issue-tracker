@@ -20,6 +20,8 @@ import {
   useDashboardKPIs,
   useCategoryStats,
   useFeedbackTrends,
+  useTeamPerformance,
+  useNeighborhoodStats,
 } from "@/lib/queries/analytics";
 import { UserRole } from "@/lib/api/types";
 import { formatPercentage, formatRating, formatDuration } from "@/lib/utils";
@@ -39,7 +41,21 @@ import {
   Star,
   Ticket,
   MessageSquare,
+  Loader2,
 } from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 
 const timeRangeOptions = [
   { value: "7", label: "Last 7 days" },
@@ -98,15 +114,15 @@ function CategoryStatsTable({
   isLoading,
 }: {
   data:
-    | {
-        category_id: string;
-        category_name: string;
-        total_tickets: number;
-        open_tickets: number;
-        resolved_tickets: number;
-        average_rating: number | null;
-      }[]
-    | undefined;
+  | {
+    category_id: string;
+    category_name: string;
+    total_tickets: number;
+    open_tickets: number;
+    resolved_tickets: number;
+    average_rating: number | null;
+  }[]
+  | undefined;
   isLoading: boolean;
 }) {
   if (isLoading) {
@@ -143,7 +159,6 @@ function CategoryStatsTable({
             <th className="pb-3 font-medium text-right">Total</th>
             <th className="pb-3 font-medium text-right">Open</th>
             <th className="pb-3 font-medium text-right">Resolved</th>
-            <th className="pb-3 font-medium text-right">Avg Rating</th>
           </tr>
         </thead>
         <tbody>
@@ -156,16 +171,6 @@ function CategoryStatsTable({
               </td>
               <td className="py-3 text-right">
                 <Badge variant="success">{category.resolved_tickets}</Badge>
-              </td>
-              <td className="py-3 text-right">
-                {category.average_rating !== null ? (
-                  <span className="flex items-center justify-end gap-1">
-                    <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                    {category.average_rating.toFixed(1)}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
               </td>
             </tr>
           ))}
@@ -180,14 +185,14 @@ function FeedbackTrendsSection({
   isLoading,
 }: {
   data:
-    | {
-        category_id: string;
-        category_name: string;
-        total_feedbacks: number;
-        average_rating: number;
-        rating_distribution: Record<number, number>;
-      }[]
-    | undefined;
+  | {
+    category_id: string;
+    category_name: string;
+    total_feedbacks: number;
+    average_rating: number;
+    rating_distribution: Record<number, number>;
+  }[]
+  | undefined;
   isLoading: boolean;
 }) {
   if (isLoading) {
@@ -265,8 +270,12 @@ export default function AnalyticsPage() {
   const kpisQuery = useDashboardKPIs(days);
   const categoryStatsQuery = useCategoryStats(days);
   const feedbackTrendsQuery = useFeedbackTrends(days);
+  const teamPerformanceQuery = useTeamPerformance(days);
+  const neighborhoodStatsQuery = useNeighborhoodStats(days, 5);
 
   const kpis = kpisQuery.data;
+  const teamData = teamPerformanceQuery.data?.teams ?? [];
+  const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   // Access check - Manager only
   if (user && user.role !== UserRole.MANAGER) {
@@ -342,7 +351,7 @@ export default function AnalyticsPage() {
         />
         <KPICard
           title="Resolution Rate"
-          value={kpis ? formatPercentage(kpis.resolution_rate, 0) : "-"}
+          value={kpis ? formatPercentage(kpis.resolution_rate, 2) : "-"}
           icon={<TrendingUp className="h-5 w-5 text-green-600" />}
           iconBgClass="bg-green-100"
           isLoading={kpisQuery.isLoading}
@@ -414,30 +423,399 @@ export default function AnalyticsPage() {
           </Card>
         </motion.div>
 
-        {/* Feedback Trends */}
+        {/* Feedback Trends (Moved from bottom) */}
         <motion.div variants={staggerItem}>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
-                Feedback by Category
+                Feedback Trends
               </CardTitle>
             </CardHeader>
             <CardContent>
               {feedbackTrendsQuery.isError ? (
                 <ErrorState
-                  title="Failed to load"
+                  title="Failed to Load"
                   message="Could not load feedback trends."
                   onRetry={feedbackTrendsQuery.refetch}
                 />
+              ) : !feedbackTrendsQuery.data?.items ? (
+                <div className="h-[300px] flex items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
               ) : (
-                <FeedbackTrendsSection
-                  data={feedbackTrendsQuery.data?.items}
-                  isLoading={feedbackTrendsQuery.isLoading}
-                />
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={feedbackTrendsQuery.data.items} margin={{ top: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="category_name"
+                        stroke="#888888"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        stroke="#888888"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        domain={[0, 5]}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          borderColor: 'hsl(var(--border))',
+                        }}
+                        formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Rating']}
+                      />
+                      <Bar
+                        dataKey="average_rating"
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                        name="Average Rating"
+                        label={{
+                          position: 'top',
+                          fill: 'hsl(var(--foreground))',
+                          fontSize: 12,
+                          formatter: (value: any) => Number(value).toFixed(1)
+                        }}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* Pie Charts - Category Distribution */}
+        <motion.div className="grid gap-6 lg:grid-cols-2" variants={fadeInUp}>
+          {/* Total Tickets by Category */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Total Tickets (By Category)</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Distribution of tickets by category
+              </p>
+            </CardHeader>
+            <CardContent>
+              {categoryStatsQuery.isLoading ? (
+                <div className="h-[300px] flex items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : categoryStatsQuery.isError ? (
+                <ErrorState
+                  title="Failed to Load"
+                  message="Could not load category statistics."
+                  onRetry={categoryStatsQuery.refetch}
+                />
+              ) : !categoryStatsQuery.data?.items || categoryStatsQuery.data.items.length === 0 ? (
+                <div className="h-[300px] flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground">No data</p>
+                </div>
+              ) : (
+                <div className="h-[300px] relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryStatsQuery.data.items}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        dataKey="total_tickets"
+                        nameKey="category_name"
+                        label={({ name }) => name}
+                      >
+                        {categoryStatsQuery.data.items.map((entry: any, index: number) => {
+                          const colorMap: Record<string, string> = {
+                            'Infrastructure': '#0088FE',
+                            'Traffic': '#00C49F',
+                            'Lighting': '#FFBB28',
+                            'Waste Management': '#FF8042',
+                            'Parks': '#8884d8',
+                            'Other': '#82ca9d',
+                          };
+                          return (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={colorMap[entry.category_name] || '#999999'}
+                            />
+                          );
+                        })}
+                      </Pie>
+                      <Tooltip />
+                      <Legend formatter={(value, entry: any) => entry.payload?.category_name} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center">
+                      <div className="text-2xl font-normal text-foreground">
+                        {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.total_tickets, 0)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Total</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Open Tickets by Category */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Open Tickets (By Category)</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Open tickets requiring attention
+              </p>
+            </CardHeader>
+            <CardContent>
+              {categoryStatsQuery.isLoading ? (
+                <div className="h-[300px] flex items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : categoryStatsQuery.isError ? (
+                <ErrorState
+                  title="Failed to Load"
+                  message="Could not load category statistics."
+                  onRetry={categoryStatsQuery.refetch}
+                />
+              ) : !categoryStatsQuery.data?.items || categoryStatsQuery.data.items.length === 0 ? (
+                <div className="h-[300px] flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground">No data</p>
+                </div>
+              ) : (
+                <div className="h-[300px] relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryStatsQuery.data.items}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        dataKey="open_tickets"
+                        nameKey="category_name"
+                        label={({ name }) => name}
+                      >
+                        {categoryStatsQuery.data.items.map((entry: any, index: number) => {
+                          const colorMap: Record<string, string> = {
+                            'Infrastructure': '#0088FE',
+                            'Traffic': '#00C49F',
+                            'Lighting': '#FFBB28',
+                            'Waste Management': '#FF8042',
+                            'Parks': '#8884d8',
+                            'Other': '#82ca9d',
+                          };
+                          return (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={colorMap[entry.category_name] || '#999999'}
+                            />
+                          );
+                        })}
+                      </Pie>
+                      <Tooltip />
+                      <Legend formatter={(value, entry: any) => entry.payload?.category_name} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center">
+                      <div className="text-2xl font-normal text-foreground">
+                        {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.open_tickets, 0)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Open</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+
+
+        {/* Top 5 Problematic Neighborhoods */}
+        <motion.div variants={staggerItem}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Top 5 Problematic Districts</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Districts with most tickets and category breakdown
+              </p>
+            </CardHeader>
+            <CardContent>
+              {neighborhoodStatsQuery.isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : neighborhoodStatsQuery.isError ? (
+                <ErrorState
+                  title="Failed to Load"
+                  message="Could not load district statistics."
+                  onRetry={neighborhoodStatsQuery.refetch}
+                />
+              ) : neighborhoodData.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-sm text-muted-foreground">No district data found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {neighborhoodData.map((neighborhood: any, index: number) => (
+                    <div
+                      key={neighborhood.district}
+                      className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold
+                            ${index === 0 ? 'bg-red-100 text-red-700' :
+                              index === 1 ? 'bg-orange-100 text-orange-700' :
+                                'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-foreground text-lg">
+                              {neighborhood.district}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {neighborhood.total_tickets} total tickets
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {neighborhood.category_breakdown.map((cat: any) => (
+                          <div
+                            key={cat.category_name}
+                            className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md text-xs"
+                          >
+                            <span className="font-medium text-foreground">
+                              {cat.category_name}:
+                            </span>
+                            <span className="text-muted-foreground">
+                              {cat.ticket_count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Team Performance */}
+        <motion.div variants={staggerItem}>
+          <div className="grid gap-6">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Team Performance</h2>
+              <p className="text-sm text-muted-foreground">
+                Resolution rates and citizen satisfaction
+              </p>
+            </div>
+
+            {teamPerformanceQuery.isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : teamPerformanceQuery.isError ? (
+              <ErrorState
+                title="Failed to Load"
+                message="Could not load team performance data."
+                onRetry={teamPerformanceQuery.refetch}
+              />
+            ) : !teamData || teamData.length === 0 ? (
+              <div className="flex items-center justify-center py-12 border rounded-lg bg-muted/10">
+                <p className="text-sm text-muted-foreground">No team data found</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {teamData.map((team: any) => {
+                  const resolutionRate = team.resolution_rate || 0;
+                  const rating = team.average_rating || 0;
+
+                  return (
+                    <motion.div
+                      key={team.team_id}
+                      variants={staggerItem}
+                      whileHover={cardHover}
+                      whileTap={cardTap}
+                    >
+                      <Card className="h-full">
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            <div className="flex items-start justify-between">
+                              <h3 className="font-semibold text-foreground line-clamp-2">
+                                {((name) => {
+                                  const map: Record<string, string> = {
+                                    'Bakırköy Elektrik Takımı': 'Bakırköy Electricity Team',
+                                    'Kadıköy Trafik Takımı': 'Kadıköy Traffic Team',
+                                    'Beşiktaş Temizlik Takımı': 'Beşiktaş Waste Management Team',
+                                    'Şişli Park Takımı': 'Şişli Parks Team',
+                                    'İstanbul Genel Altyapı': 'Istanbul General Infrastructure',
+                                    'Avrupa Yakası Trafik': 'European Side Traffic'
+                                  };
+                                  return map[name] || name;
+                                })(team.team_name)}
+                              </h3>
+                            </div>
+
+                            <div className="text-center py-4 bg-muted/50 rounded-lg">
+                              <div className="text-4xl font-bold text-foreground">
+                                {resolutionRate.toFixed(1)}%
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Resolution Rate
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Citizen Rating</span>
+                              <div className="flex items-center gap-1 font-medium">
+                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                {rating > 0 ? rating.toFixed(1) : 'N/A'}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t">
+                              <div>
+                                <p className="text-muted-foreground">Assigned</p>
+                                <p className="font-medium text-lg">{team.assigned_tickets}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Resolved</p>
+                                <p className="font-medium text-lg text-green-600">{team.resolved_tickets}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Avg. Time</p>
+                                <p className="font-medium">
+                                  {team.average_resolution_time
+                                    ? `${Math.round(team.average_resolution_time)}h`
+                                    : 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Members</p>
+                                <p className="font-medium">{team.member_count}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
     </motion.div>

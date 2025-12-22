@@ -387,6 +387,21 @@ export interface CategoryStatsResponse {
   items: CategoryStats[];
 }
 
+export interface NeighborhoodCategoryBreakdown {
+  category_name: string;
+  ticket_count: number;
+}
+
+export interface NeighborhoodStats {
+  district: string;
+  total_tickets: number;
+  category_breakdown: NeighborhoodCategoryBreakdown[];
+}
+
+export interface NeighborhoodStatsResponse {
+  items: NeighborhoodStats[];
+}
+
 export interface FeedbackTrend {
   category_id: string;
   category_name: string;

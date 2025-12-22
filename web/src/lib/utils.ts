@@ -201,7 +201,7 @@ export function getInitials(name: string | null | undefined): string {
 export function formatPhoneNumber(phone: string): string {
   // Remove all non-digits
   const digits = phone.replace(/\D/g, "");
-  
+
   // Format as (XXX) XXX-XXXX for US numbers
   if (digits.length === 10) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
@@ -209,7 +209,7 @@ export function formatPhoneNumber(phone: string): string {
   if (digits.length === 11 && digits.startsWith("1")) {
     return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
   }
-  
+
   // Return original if format doesn't match
   return phone;
 }
@@ -226,10 +226,11 @@ export function formatNumber(num: number): string {
 }
 
 /**
- * Format a percentage (e.g., 0.856 -> "85.6%")
+ * Format a percentage value that is already in percentage format (e.g., 85.6 -> "85.6%")
+ * Note: Backend returns values in percentage format (0-100 range), not decimal (0-1 range)
  */
 export function formatPercentage(value: number, decimals: number = 1): string {
-  return `${(value * 100).toFixed(decimals)}%`;
+  return `${value.toFixed(decimals)}%`;
 }
 
 /**
@@ -237,23 +238,23 @@ export function formatPercentage(value: number, decimals: number = 1): string {
  */
 export function formatDuration(hours: number | null): string {
   if (hours === null) return "N/A";
-  
+
   if (hours < 1) {
     const minutes = Math.round(hours * 60);
     return `${minutes}m`;
   }
-  
+
   if (hours < 24) {
     return `${Math.round(hours)}h`;
   }
-  
+
   const days = Math.floor(hours / 24);
   const remainingHours = Math.round(hours % 24);
-  
+
   if (remainingHours === 0) {
     return `${days}d`;
   }
-  
+
   return `${days}d ${remainingHours}h`;
 }
 
