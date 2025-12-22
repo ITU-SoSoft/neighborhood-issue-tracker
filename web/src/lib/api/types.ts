@@ -51,6 +51,15 @@ export interface UserUpdate {
   phone_number?: string;
 }
 
+export interface UserCreateRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone_number: string;
+  role?: UserRole;
+  team_id?: string;
+}
+
 // Saved Address types
 export interface SavedAddress {
   id: string;

@@ -6,9 +6,15 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DatabaseSession, ManagerUser
-from app.core.exceptions import ForbiddenException, UserNotFoundException
+from app.core.exceptions import (
+    BadRequestException,
+    ForbiddenException,
+    UserNotFoundException,
+)
+from app.core.security import hash_password
 from app.models.user import User, UserRole
 from app.schemas.user import (
+    UserCreateRequest,
     UserListResponse,
     UserResponse,
     UserRoleUpdate,
@@ -16,6 +22,62 @@ from app.schemas.user import (
 )
 
 router = APIRouter()
+
+
+@router.post(
+    "/",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_user(
+    request: UserCreateRequest,
+    current_user: ManagerUser,
+    db: DatabaseSession,
+) -> UserResponse:
+    """Create a new user (manager only).
+
+    Used to create support staff and managers.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Creating user: {request.email}, phone: {request.phone_number}, role: {request.role}")
+    
+    # Check if email already exists
+    existing_email = await db.execute(
+        select(User).where(User.email == request.email, User.deleted_at.is_(None))
+    )
+    if existing_email.scalar_one_or_none():
+        raise BadRequestException(detail="Email is already registered")
+
+    # Check if phone number already exists
+    existing_phone = await db.execute(
+        select(User).where(
+            User.phone_number == request.phone_number, User.deleted_at.is_(None)
+        )
+    )
+    if existing_phone.scalar_one_or_none():
+        raise BadRequestException(detail="Phone number is already registered")
+
+    # Hash password
+    hashed_password = hash_password(request.password)
+
+    # Create user
+    new_user = User(
+        name=request.name,
+        email=request.email,
+        phone_number=request.phone_number,
+        password_hash=hashed_password,
+        role=request.role,
+        team_id=request.team_id,
+        is_verified=True,  # Staff users are pre-verified
+        is_active=True,
+    )
+
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+
+    return UserResponse.model_validate(new_user)
 
 
 @router.get(
@@ -26,20 +88,29 @@ router = APIRouter()
 async def list_users(
     current_user: ManagerUser,
     db: DatabaseSession,
-    role: UserRole | None = None,
-    team_id: UUID | None = None,
+    role: str | None = Query(default=None),
+    team_id: UUID | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> UserListResponse:
     """List all users (manager only).
 
     Supports filtering by role and team.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Listing users: role={role}, team_id={team_id}, page={page}, page_size={page_size}")
+    
     # Build query
     query = select(User).where(User.deleted_at.is_(None))
 
     if role:
-        query = query.where(User.role == role)
+        try:
+            role_enum = UserRole(role)
+            query = query.where(User.role == role_enum)
+        except ValueError:
+            from app.core.exceptions import BadRequestException
+            raise BadRequestException(detail=f"Invalid role: {role}")
     if team_id:
         query = query.where(User.team_id == team_id)
 

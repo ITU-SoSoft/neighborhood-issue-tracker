@@ -46,6 +46,7 @@ import {
   TicketStatusUpdate,
   TokenResponse,
   User,
+  UserCreateRequest,
   UserListResponse,
   UserRole,
   UserRoleUpdate,
@@ -296,11 +297,18 @@ export async function getUsers(params?: {
     searchParams.set("page_size", params.page_size.toString());
 
   const query = searchParams.toString();
-  return apiFetch<UserListResponse>(`/users${query ? `?${query}` : ""}`);
+  return apiFetch<UserListResponse>(`/users/${query ? `?${query}` : ""}`);
 }
 
 export async function getUserById(userId: string): Promise<User> {
   return apiFetch<User>(`/users/${userId}`);
+}
+
+export async function createUser(data: UserCreateRequest): Promise<User> {
+  return apiFetch<User>("/users/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function updateUser(

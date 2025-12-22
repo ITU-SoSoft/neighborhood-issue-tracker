@@ -1,7 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 import * as api from "@/lib/api/client";
-import { UserRole, UserUpdate, UserRoleUpdate } from "@/lib/api/types";
+import {
+  UserRole,
+  UserUpdate,
+  UserRoleUpdate,
+  UserCreateRequest,
+} from "@/lib/api/types";
 
 // ============================================================================
 // USER QUERIES
@@ -84,6 +89,17 @@ export function useDeleteUser() {
 
   return useMutation({
     mutationFn: (userId: string) => api.deleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
+    },
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UserCreateRequest) => api.createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
     },

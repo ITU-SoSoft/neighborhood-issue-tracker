@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   useAddTeamMember,
   useCreateTeam,
@@ -10,7 +11,12 @@ import {
   useTeams,
   useTeamPerformance,
 } from "@/lib/queries";
-import { useUsers } from "@/lib/queries/users";
+import {
+  useUsers,
+  useCreateUser,
+  useUpdateUserRole,
+  useDeleteUser,
+} from "@/lib/queries/users";
 import { UserRole } from "@/lib/api/types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +61,9 @@ export default function TeamsPage() {
   // hangi team expanded?
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
 
+  // Create user form state
+  const [showCreateUserForm, setShowCreateUserForm] = useState(false);
+
   const teams = normalizeTeams(teamsQuery.data as AnyTeamListResponse);
 
   // team_id -> open ticket count map (analytics'ten)
@@ -91,6 +100,37 @@ export default function TeamsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Create User Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Create Support Staff</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateUserForm(!showCreateUserForm)}
+          >
+            {showCreateUserForm ? "Hide Form" : "New Staff"}
+          </Button>
+        </CardHeader>
+
+        {showCreateUserForm && (
+          <CardContent>
+            <CreateUserForm onSuccess={() => setShowCreateUserForm(false)} />
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Staff Management Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage Support Staff</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StaffManagementPanel teams={teams} />
+        </CardContent>
+      </Card>
+
+      {/* Teams Section */}
       <Card>
         <CardHeader>
           <CardTitle>Manage Teams</CardTitle>
@@ -235,6 +275,279 @@ function TeamRow(props: {
           <TeamMembersPanel teamId={props.teamId} />
         </div>
       )}
+    </div>
+  );
+}
+
+function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
+  const createUserMut = useCreateUser();
+  const teamsQuery = useTeams();
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("+90");
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+
+  const teams = normalizeTeams(teamsQuery.data as AnyTeamListResponse);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!name.trim() || !email.trim() || !password.trim() || phoneNumber.length !== 13) {
+      toast.error("Please fill all required fields correctly");
+      return;
+    }
+
+    try {
+      console.log("Creating user with data:", {
+        name: name.trim(),
+        email: email.trim(),
+        phone_number: phoneNumber,
+        role: UserRole.SUPPORT,
+        team_id: selectedTeamId || undefined,
+      });
+
+      await createUserMut.mutateAsync({
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim(),
+        phone_number: phoneNumber,
+        role: UserRole.SUPPORT,
+        team_id: selectedTeamId || undefined,
+      });
+
+      toast.success(`Support staff ${name} created successfully!`);
+      
+      // Reset form
+      setName("");
+      setEmail("");
+      setPassword("");
+      setPhoneNumber("+90");
+      setSelectedTeamId("");
+      
+      onSuccess();
+    } catch (error: any) {
+      console.error("Failed to create user:", error);
+      const errorMessage = error?.message || error?.detail || "Failed to create user";
+      toast.error(errorMessage);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Full Name <span className="text-destructive">*</span>
+          </label>
+          <input
+            type="text"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            placeholder="Ahmet Yılmaz"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Email <span className="text-destructive">*</span>
+          </label>
+          <input
+            type="email"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            placeholder="ahmet@sosoft.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Phone Number <span className="text-destructive">*</span>
+          </label>
+          <input
+            type="tel"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            placeholder="+905551234567"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            pattern="^\+90[0-9]{10}$"
+            required
+          />
+          <p className="text-xs text-muted-foreground">Format: +90XXXXXXXXXX</p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">
+            Password <span className="text-destructive">*</span>
+          </label>
+          <input
+            type="password"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            placeholder="Min 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            required
+          />
+        </div>
+
+        <div className="space-y-2 sm:col-span-2">
+          <label className="text-sm font-medium text-foreground">
+            Assign to Team (optional)
+          </label>
+          <select
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            value={selectedTeamId}
+            onChange={(e) => setSelectedTeamId(e.target.value)}
+          >
+            <option value="">No team (assign later)</option>
+            {teams.map((t: any) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSuccess}
+          disabled={createUserMut.isPending}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={createUserMut.isPending}>
+          {createUserMut.isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Create Staff
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function StaffManagementPanel({ teams }: { teams: any[] }) {
+  const supportUsersQuery = useUsers({ role: UserRole.SUPPORT, page_size: 200 });
+  const updateRoleMut = useUpdateUserRole();
+  const deleteUserMut = useDeleteUser();
+
+  const supportUsers = supportUsersQuery.data?.items ?? [];
+
+  async function handleTeamChange(userId: string, newTeamId: string | null, userName: string) {
+    try {
+      await updateRoleMut.mutateAsync({
+        userId,
+        data: {
+          role: UserRole.SUPPORT,
+          team_id: newTeamId || undefined,
+        },
+      });
+      toast.success(`Updated ${userName}'s team`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update team");
+    }
+  }
+
+  async function handleDeleteUser(userId: string, userName: string) {
+    if (!confirm(`Are you sure you want to delete ${userName}?`)) {
+      return;
+    }
+
+    try {
+      await deleteUserMut.mutateAsync(userId);
+      toast.success(`Deleted ${userName}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete user");
+    }
+  }
+
+  if (supportUsersQuery.isLoading) {
+    return <div className="space-y-2">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="h-16 w-full rounded-lg bg-muted animate-pulse" />
+      ))}
+    </div>;
+  }
+
+  if (supportUsersQuery.isError) {
+    return (
+      <ErrorState
+        title="Failed to load staff"
+        message="Please try again."
+        onRetry={supportUsersQuery.refetch}
+      />
+    );
+  }
+
+  if (supportUsers.length === 0) {
+    return <p className="text-sm text-muted-foreground">No support staff yet.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {supportUsers.map((user: any) => {
+        const currentTeam = teams.find((t) => t.id === user.team_id);
+        
+        return (
+          <div
+            key={user.id}
+            className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-foreground truncate">{user.name}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {user.email} • {user.phone_number}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm min-w-[200px]"
+                value={user.team_id || ""}
+                onChange={(e) => handleTeamChange(user.id, e.target.value || null, user.name)}
+                disabled={updateRoleMut.isPending}
+              >
+                <option value="">No team</option>
+                {teams.map((t: any) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDeleteUser(user.id, user.name)}
+                disabled={deleteUserMut.isPending}
+              >
+                {deleteUserMut.isPending && deleteUserMut.variables === user.id ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Delete
+              </Button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
