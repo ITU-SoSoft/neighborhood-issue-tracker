@@ -16,6 +16,7 @@ from app.core.exceptions import (
 )
 from app.models.escalation import EscalationRequest, EscalationStatus
 from app.models.ticket import StatusLog, Ticket, TicketStatus
+from app.models.user import UserRole
 from app.schemas.escalation import (
     EscalationCreate,
     EscalationListResponse,
@@ -65,6 +66,14 @@ async def create_escalation(
 
     if ticket is None:
         raise TicketNotFoundException()
+
+    # Check if ticket is assigned to a team
+    if ticket.team_id is None:
+        raise ForbiddenException(detail="Cannot escalate unassigned tickets")
+
+    # Check if support user belongs to the ticket's team
+    if ticket.team_id != current_user.team_id:
+        raise ForbiddenException(detail="You can only escalate tickets assigned to your team")
 
     # Check if escalation already exists
     if ticket.escalation is not None:
@@ -116,14 +125,23 @@ async def create_escalation(
     status_code=status.HTTP_200_OK,
 )
 async def list_escalations(
-    current_user: ManagerUser,
+    current_user: SupportUser,
     db: DatabaseSession,
     status_filter: EscalationStatus | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> EscalationListResponse:
-    """List all escalation requests (manager only)."""
-    query = select(EscalationRequest)
+    """List escalation requests (support sees own team, managers see all)."""
+    # Build base query with join to Ticket for team filtering
+    query = select(EscalationRequest).join(Ticket)
+
+    # Role-based filtering: support users only see their team's escalations
+    if current_user.role == UserRole.SUPPORT:
+        if current_user.team_id is None:
+            # Support user without team can't see any escalations
+            return EscalationListResponse(items=[], total=0)
+        query = query.where(Ticket.team_id == current_user.team_id)
+    # Managers see all escalations (no additional filter)
 
     if status_filter:
         query = query.where(EscalationRequest.status == status_filter)
