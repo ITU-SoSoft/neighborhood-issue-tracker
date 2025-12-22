@@ -122,8 +122,8 @@ export function HeatmapVisualization({
   return (
     <div
       ref={containerRef}
-      className={`w-full rounded-xl overflow-hidden border border-border ${className}`}
-      style={{ height }}
+      className={`w-full rounded-xl overflow-hidden border border-border relative ${className}`}
+      style={{ height, zIndex: 1 }}
     />
   );
 }
