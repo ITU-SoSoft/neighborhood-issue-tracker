@@ -22,8 +22,13 @@ from app.schemas.analytics import (
     HeatmapResponse,
     MemberPerformance,
     MemberPerformanceResponse,
+    NeighborhoodCategoryBreakdown,
+    NeighborhoodStats,
+    NeighborhoodStatsResponse,
     TeamPerformance,
     TeamPerformanceResponse,
+    FeedbackTrend,
+    FeedbackTrendsResponse,
 )
 
 router = APIRouter()
@@ -91,6 +96,7 @@ async def get_dashboard_kpis(
     if total_tickets > 0:
         resolution_rate = ((resolved_tickets + closed_tickets) / total_tickets) * 100
 
+
     # Average rating
     avg_rating_result = await db.execute(
         select(func.avg(Feedback.rating)).where(
@@ -128,7 +134,7 @@ async def get_dashboard_kpis(
         resolved_tickets=resolved_tickets,
         closed_tickets=closed_tickets,
         escalated_tickets=escalated_tickets,
-        resolution_rate=round(resolution_rate, 2),
+        resolution_rate=round(resolution_rate, 4),
         average_rating=round(average_rating, 2) if average_rating else None,
         average_resolution_hours=(
             round(average_resolution_hours, 2) if average_resolution_hours else None
@@ -233,16 +239,12 @@ async def get_team_performance(
 
     for team in teams:
         # Get team member IDs
-        members_result = await db.execute(
-            select(User.id).where(
-                and_(
-                    User.team_id == team.id,
-                    User.deleted_at.is_(None),
-                )
-            )
-        )
+        members_query = select(User.id).where(User.team_id == team.id)
+        members_result = await db.execute(members_query)
         member_ids = [row[0] for row in members_result.all()]
         member_count = len(member_ids)
+        
+        print(f"DEBUG: Team {team.name} ({team.id}) - Members: {member_count} - IDs: {member_ids}")
 
         if not member_ids:
             team_performances.append(
@@ -563,4 +565,190 @@ async def get_category_statistics(
             )
         )
 
-    return CategoryStatsResponse(categories=category_stats)
+    return CategoryStatsResponse(items=category_stats)
+
+
+@router.get("/neighborhoods", response_model=NeighborhoodStatsResponse)
+async def get_neighborhood_statistics(
+    db: DatabaseSession,
+    current_user: ManagerUser,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+    limit: Annotated[int, Query(ge=1, le=20)] = 5,
+) -> NeighborhoodStatsResponse:
+    """Get top problematic neighborhoods with category breakdowns.
+    
+    Returns the neighborhoods with the most tickets, along with a breakdown
+    of tickets by category for each neighborhood.
+    Extracts district from address field (e.g., Beyoğlu, Beşiktaş, Kadıköy).
+    """
+    try:
+        from datetime import datetime, timedelta
+        from sqlalchemy import select
+        from app.models.ticket import Ticket, Location, Category
+
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+        # Common Istanbul districts to look for in addresses
+        ISTANBUL_DISTRICTS = [
+            "Beyoğlu", "Beşiktaş", "Kadıköy", "Üsküdar", "Şişli", "Fatih",
+            "Bakırköy", "Sarıyer", "Maltepe", "Pendik", "Kartal", "Ataşehir",
+            "Ümraniye", "Kağıthane", "Eyüp", "Gaziosmanpaşa", "Esenler",
+            "Bahçelievler", "Güngören", "Zeytinburnu", "Bayrampaşa", "Sultangazi",
+            "Arnavutköy", "Başakşehir", "Küçükçekmece", "Büyükçekmece", "Çatalca",
+            "Silivri", "Şile", "Beykoz", "Çekmeköy", "Sultanbeyli", "Sancaktepe",
+            "Esenyurt", "Avcılar", "Bağcılar", "Tuzla", "Adalar"
+        ]
+
+        # Get all tickets with locations (ASYNC)
+        result = await db.execute(
+            select(
+                Location.address,
+                Location.district,
+                Category.name,
+                Ticket.id
+            )
+            .join(Ticket, Ticket.location_id == Location.id)
+            .join(Category, Ticket.category_id == Category.id)
+            .where(Ticket.created_at >= cutoff_date)
+        )
+        tickets_data = result.all()
+
+        # Extract districts and count
+        district_category_counts: dict[tuple[str, str], int] = {}
+        
+        for address, district_field, category_name, ticket_id in tickets_data:
+            found_district = None
+            
+            # First try the district field
+            if district_field:
+                found_district = district_field.strip()
+            # Then try to extract from address
+            elif address:
+                for district in ISTANBUL_DISTRICTS:
+                    if district in address:
+                        found_district = district
+                        break
+            
+            if found_district:
+                key = (found_district, category_name)
+                district_category_counts[key] = district_category_counts.get(key, 0) + 1
+
+        # Organize data by district
+        neighborhood_data: dict[str, dict] = {}
+        for (district, category_name), count in district_category_counts.items():
+            if district not in neighborhood_data:
+                neighborhood_data[district] = {
+                    "total_tickets": 0,
+                    "categories": []
+                }
+            neighborhood_data[district]["total_tickets"] += count
+            neighborhood_data[district]["categories"].append({
+                "category_name": category_name,
+                "ticket_count": count
+            })
+
+        # Sort by total tickets and take top N
+        sorted_neighborhoods = sorted(
+            neighborhood_data.items(),
+            key=lambda x: x[1]["total_tickets"],
+            reverse=True
+        )[:limit]
+
+        # Build response
+        neighborhood_stats = []
+        for district, data in sorted_neighborhoods:
+            neighborhood_stats.append(
+                NeighborhoodStats(
+                    district=district,
+                    total_tickets=data["total_tickets"],
+                    category_breakdown=[
+                        NeighborhoodCategoryBreakdown(**cat)
+                        for cat in data["categories"]
+                    ]
+                )
+            )
+
+        return NeighborhoodStatsResponse(items=neighborhood_stats)
+    
+    except Exception as e:
+        # Log the error and return empty response
+        print(f"Error in get_neighborhood_statistics: {e}")
+        import traceback
+        traceback.print_exc()
+        return NeighborhoodStatsResponse(items=[])
+
+
+@router.get("/feedback-trends", response_model=FeedbackTrendsResponse)
+async def get_feedback_trends(
+    db: DatabaseSession,
+    current_user: ManagerUser,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+) -> FeedbackTrendsResponse:
+    """Get feedback trends by category.
+
+    Args:
+        db: Database session.
+        current_user: The authenticated manager user.
+        days: Number of days to look back.
+
+    Returns:
+        Feedback trends including average rating and distribution.
+    """
+    from app.models.feedback import Feedback
+    
+    start_date = datetime.utcnow() - timedelta(days=days)
+
+    # Get all categories
+    categories_result = await db.execute(
+        select(Category).where(Category.is_active == True)
+    )
+    categories = categories_result.scalars().all()
+
+    trends = []
+
+    for category in categories:
+        # Get feedbacks for this category within date range
+        # Join Feedback -> Ticket -> Category
+        feedbacks_query = (
+            select(Feedback)
+            .join(Ticket, Feedback.ticket_id == Ticket.id)
+            .where(
+                and_(
+                    Ticket.category_id == category.id,
+                    Feedback.created_at >= start_date,
+                    Ticket.deleted_at.is_(None),
+                )
+            )
+        )
+        
+        result = await db.execute(feedbacks_query)
+        feedbacks = result.scalars().all()
+
+        if not feedbacks:
+            continue
+
+        total_feedbacks = len(feedbacks)
+        avg_rating = sum(f.rating for f in feedbacks) / total_feedbacks
+        
+        # Calculate distribution
+        distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for f in feedbacks:
+            if f.rating in distribution:
+                distribution[f.rating] += 1
+        
+        trends.append(
+            FeedbackTrend(
+                category_id=category.id,
+                category_name=category.name,
+                total_feedbacks=total_feedbacks,
+                average_rating=round(avg_rating, 2),
+                rating_distribution=distribution,
+            )
+        )
+
+    # Sort by average rating desc
+    trends.sort(key=lambda x: x.average_rating, reverse=True)
+
+    return FeedbackTrendsResponse(items=trends)
+
+

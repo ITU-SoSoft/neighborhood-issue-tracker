@@ -88,7 +88,45 @@ class CategoryStats(BaseSchema):
     average_rating: float | None
 
 
+
 class CategoryStatsResponse(BaseSchema):
     """Response for category statistics."""
 
-    categories: list[CategoryStats]
+    items: list[CategoryStats]
+
+
+class NeighborhoodCategoryBreakdown(BaseSchema):
+    """Category breakdown for a neighborhood."""
+
+    category_name: str
+    ticket_count: int
+
+
+class NeighborhoodStats(BaseSchema):
+    """Statistics for a single neighborhood."""
+
+    district: str
+    total_tickets: int
+    category_breakdown: list[NeighborhoodCategoryBreakdown]
+
+
+class NeighborhoodStatsResponse(BaseSchema):
+    """Response for neighborhood statistics."""
+
+    items: list[NeighborhoodStats]
+
+
+class FeedbackTrend(BaseSchema):
+    """Feedback trend data for a category."""
+
+    category_id: UUID
+    category_name: str
+    total_feedbacks: int
+    average_rating: float
+    rating_distribution: dict[int, int]
+
+
+class FeedbackTrendsResponse(BaseSchema):
+    """Response for feedback trends."""
+
+    items: list[FeedbackTrend]
