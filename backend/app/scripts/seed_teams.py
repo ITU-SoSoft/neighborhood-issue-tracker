@@ -19,32 +19,32 @@ logger = logging.getLogger(__name__)
 # Sample teams for Istanbul
 SAMPLE_TEAMS = [
     {
-        "name": "Bakırköy Elektrik Takımı",
-        "description": "Bakırköy bölgesi elektrik altyapısı sorunları",
+        "name": "Bakırköy Electricity Team",
+        "description": "Bakırköy region electricity infrastructure issues",
         "districts": [{"district": "Bakırköy", "city": "Istanbul"}],
         "categories": ["Lighting", "Infrastructure"],
     },
     {
-        "name": "Kadıköy Trafik Takımı",
-        "description": "Kadıköy bölgesi trafik ve yol sorunları",
+        "name": "Kadıköy Traffic Team",
+        "description": "Kadıköy region traffic and road issues",
         "districts": [{"district": "Kadıköy", "city": "Istanbul"}],
         "categories": ["Traffic", "Infrastructure"],
     },
     {
-        "name": "Beşiktaş Temizlik Takımı",
-        "description": "Beşiktaş bölgesi atık yönetimi",
+        "name": "Beşiktaş Waste Management Team",
+        "description": "Beşiktaş region waste management",
         "districts": [{"district": "Beşiktaş", "city": "Istanbul"}],
         "categories": ["Waste Management"],
     },
     {
-        "name": "Şişli Park Takımı",
-        "description": "Şişli bölgesi park ve yeşil alan bakımı",
+        "name": "Şişli Parks Team",
+        "description": "Şişli region parks and green area maintenance",
         "districts": [{"district": "Şişli", "city": "Istanbul"}],
         "categories": ["Parks"],
     },
     {
-        "name": "İstanbul Genel Altyapı",
-        "description": "Tüm İstanbul için genel altyapı sorunları",
+        "name": "Istanbul General Infrastructure",
+        "description": "General infrastructure issues for all of Istanbul",
         "districts": [
             {"district": "Fatih", "city": "Istanbul"},
             {"district": "Beyoğlu", "city": "Istanbul"},
@@ -53,8 +53,8 @@ SAMPLE_TEAMS = [
         "categories": ["Infrastructure", "Lighting"],
     },
     {
-        "name": "Avrupa Yakası Trafik",
-        "description": "Avrupa yakası trafik yönetimi",
+        "name": "European Side Traffic",
+        "description": "European side traffic management",
         "districts": [
             {"district": "Bakırköy", "city": "Istanbul"},
             {"district": "Beşiktaş", "city": "Istanbul"},
