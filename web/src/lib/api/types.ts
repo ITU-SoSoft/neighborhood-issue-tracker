@@ -90,6 +90,73 @@ export interface UserRoleUpdate {
   team_id?: string;
 }
 
+// ============================================================================
+// ✅ TEAM TYPES (ADDED)
+// ============================================================================
+
+/**
+ * Member object returned in Team detail response.
+ * Backend: TeamMemberResponse
+ */
+export interface TeamMemberResponse {
+  id: string;
+  name: string;
+  phone_number: string;
+  /**
+   * Backend returns role.value (string). We keep it compatible with UserRole.
+   */
+  role: UserRole | string;
+}
+
+/**
+ * For list page (/teams): TeamListResponse
+ */
+export interface TeamListResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  member_count: number;
+}
+
+/**
+ * Basic team response after create/update: TeamResponse
+ */
+export interface TeamResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Detailed team response including members: TeamDetailResponse
+ */
+export interface TeamDetailResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  members: TeamMemberResponse[];
+}
+
+/**
+ * Create payload: TeamCreate
+ */
+export interface TeamCreate {
+  name: string;
+  description?: string | null;
+}
+
+/**
+ * Update payload: TeamUpdate
+ */
+export interface TeamUpdate {
+  name?: string;
+  description?: string | null;
+}
+
 // Category types
 export interface Category {
   id: string;
