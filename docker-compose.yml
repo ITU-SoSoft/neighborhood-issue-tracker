@@ -64,7 +64,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: sosoft-backend
     depends_on:
       postgres:
@@ -104,6 +104,9 @@ services:
       
       # CORS
       CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+      
+      # Test database (for running pytest inside container)
+      TEST_DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/sosoft_test"
     ports:
       - "8000:8000"
     volumes:
@@ -111,6 +114,8 @@ services:
       - ./backend/app:/app/app
       - ./backend/main.py:/app/main.py
       - ./backend/alembic/versions:/app/alembic/versions
+      # Mount tests for running pytest
+      - ./backend/tests:/app/tests
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     networks:
       - sosoft-network
