@@ -28,30 +28,41 @@ def upgrade() -> None:
 
     # Create enums
     userrole_enum = postgresql.ENUM(
-        "citizen", "support", "manager", name="userrole", create_type=False
+        "CITIZEN", "SUPPORT", "MANAGER", name="userrole", create_type=False
     )
     userrole_enum.create(op.get_bind(), checkfirst=True)
 
     ticketstatus_enum = postgresql.ENUM(
-        "new",
-        "in_progress",
-        "resolved",
-        "closed",
-        "escalated",
+        "NEW",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "CLOSED",
+        "ESCALATED",
         name="ticketstatus",
         create_type=False,
     )
     ticketstatus_enum.create(op.get_bind(), checkfirst=True)
 
     phototype_enum = postgresql.ENUM(
-        "report", "proof", name="phototype", create_type=False
+        "REPORT", "PROOF", name="phototype", create_type=False
     )
     phototype_enum.create(op.get_bind(), checkfirst=True)
 
     escalationstatus_enum = postgresql.ENUM(
-        "pending", "approved", "rejected", name="escalationstatus", create_type=False
+        "PENDING", "APPROVED", "REJECTED", name="escalationstatus", create_type=False
     )
     escalationstatus_enum.create(op.get_bind(), checkfirst=True)
+
+    notificationtype_enum = postgresql.ENUM(
+        "TICKET_CREATED",
+        "TICKET_STATUS_CHANGED",
+        "TICKET_FOLLOWED",
+        "COMMENT_ADDED",
+        "TICKET_ASSIGNED",
+        name="notificationtype",
+        create_type=False,
+    )
+    notificationtype_enum.create(op.get_bind(), checkfirst=True)
 
     # Create teams table
     op.create_table(
@@ -170,13 +181,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    # Create spatial index on coordinates
-    op.create_index(
-        "idx_locations_coordinates",
-        "locations",
-        ["coordinates"],
-        postgresql_using="gist",
-    )
+    # Note: GeoAlchemy2 automatically creates spatial index for Geometry columns
 
     # Create tickets table
     op.create_table(
@@ -348,9 +353,46 @@ def upgrade() -> None:
         sa.UniqueConstraint("ticket_id"),
     )
 
+    # Create notifications table
+    op.create_table(
+        "notifications",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("ticket_id", sa.UUID(), nullable=True),
+        sa.Column(
+            "notification_type",
+            notificationtype_enum,
+            nullable=False,
+        ),
+        sa.Column("title", sa.String(length=200), nullable=False),
+        sa.Column("message", sa.Text(), nullable=False),
+        sa.Column("is_read", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("read_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["ticket_id"], ["tickets.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_notifications_user_id"), "notifications", ["user_id"])
+    op.create_index(op.f("ix_notifications_is_read"), "notifications", ["is_read"])
+
 
 def downgrade() -> None:
     """Drop all tables in reverse order."""
+    op.drop_index(op.f("ix_notifications_is_read"), table_name="notifications")
+    op.drop_index(op.f("ix_notifications_user_id"), table_name="notifications")
+    op.drop_table("notifications")
     op.drop_table("escalation_requests")
     op.drop_table("feedbacks")
     op.drop_table("comments")
@@ -370,6 +412,7 @@ def downgrade() -> None:
     op.drop_table("teams")
 
     # Drop enums
+    op.execute("DROP TYPE IF EXISTS notificationtype")
     op.execute("DROP TYPE IF EXISTS escalationstatus")
     op.execute("DROP TYPE IF EXISTS phototype")
     op.execute("DROP TYPE IF EXISTS ticketstatus")
