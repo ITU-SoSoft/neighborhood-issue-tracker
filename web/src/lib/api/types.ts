@@ -226,6 +226,7 @@ export interface TicketDetail extends Ticket {
   status_logs: StatusLog[];
   has_feedback: boolean;
   has_escalation: boolean;
+  can_escalate: boolean;
   is_following: boolean;
 }
 

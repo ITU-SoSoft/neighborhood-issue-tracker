@@ -28,8 +28,8 @@ class EscalationRequest(Base, UUIDMixin):
     ticket_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tickets.id", ondelete="CASCADE"),
-        unique=True,  # One escalation per ticket
         nullable=False,
+        index=True,  # Index for faster lookups by ticket
     )
     requester_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -59,7 +59,7 @@ class EscalationRequest(Base, UUIDMixin):
     )
 
     # Relationships
-    ticket: Mapped["Ticket"] = relationship("Ticket", back_populates="escalation")
+    ticket: Mapped["Ticket"] = relationship("Ticket", back_populates="escalations")
     requester: Mapped["User | None"] = relationship("User", foreign_keys=[requester_id])
     reviewer: Mapped["User | None"] = relationship("User", foreign_keys=[reviewer_id])
 

@@ -242,8 +242,7 @@ export default function TicketDetailPage({
     ticket.reporter_id === user?.id;
   const canEscalate =
     (user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) &&
-    ticket?.status !== TicketStatus.ESCALATED &&
-    !ticket?.has_escalation;
+    ticket?.can_escalate;
 
   // Loading state
   if (isLoading) {
@@ -674,10 +673,10 @@ export default function TicketDetailPage({
                       Feedback submitted
                     </p>
                   )}
-                  {ticket.has_escalation && (
+                  {!ticket.can_escalate && ticket.has_escalation && (
                     <p className="text-sm text-amber-600 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
-                      Escalation requested
+                      Can't escalate
                     </p>
                   )}
                 </div>

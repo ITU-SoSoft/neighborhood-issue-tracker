@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.comment import Comment
+from app.models.escalation import EscalationStatus
 from app.models.ticket import StatusLog, Ticket, TicketStatus
 from app.models.user import User, UserRole
 from app.schemas.comment import CommentResponse
@@ -128,7 +129,12 @@ def build_ticket_detail_response(
         comments=comment_responses,
         status_logs=status_log_responses,
         has_feedback=ticket.feedback is not None,
-        has_escalation=ticket.escalation is not None,
+        has_escalation=len(ticket.escalations) > 0,
+        can_escalate=(
+            ticket.team_id is not None
+            and not any(e.status == EscalationStatus.PENDING for e in ticket.escalations)
+            and not any(e.status == EscalationStatus.APPROVED for e in ticket.escalations)
+        ),
         is_following=is_following,
     )
 
@@ -164,7 +170,7 @@ async def get_ticket_by_id(
             selectinload(Ticket.followers),
             selectinload(Ticket.status_logs).joinedload(StatusLog.changed_by),
             selectinload(Ticket.feedback),
-            selectinload(Ticket.escalation),
+            selectinload(Ticket.escalations),
         )
     else:
         query = query.options(
