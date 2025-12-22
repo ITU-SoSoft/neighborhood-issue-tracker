@@ -89,6 +89,24 @@ const HeatmapVisualization = dynamic(
 // SHARED COMPONENTS
 // ============================================================================
 
+/**
+ * Get time range label from days count
+ */
+function getTimeRangeLabel(days: number): string {
+  switch (days) {
+    case 7:
+      return "last 7 days";
+    case 30:
+      return "last 30 days";
+    case 90:
+      return "last 90 days";
+    case 365:
+      return "last year";
+    default:
+      return `last ${days} days`;
+  }
+}
+
 interface KPICardProps {
   title: string;
   value: string | number;
@@ -319,20 +337,18 @@ function CitizenDashboard() {
 // ============================================================================
 
 function SupportDashboard() {
-  const [activeTab, setActiveTab] = useState<"overview" | "heatmap">("overview");
+  const [days, setDays] = useState(30);
 
   const ticketsQuery = useAssignedTickets({ page_size: 5 });
   const escalationsQuery = useEscalations({
     status_filter: EscalationStatus.PENDING,
     page_size: 5,
   });
-  const kpisQuery = useDashboardKPIs(30);
-  const heatmapQuery = useHeatmap({ days: 30, status: TicketStatus.IN_PROGRESS });
+  const kpisQuery = useDashboardKPIs(days);
 
   const assignedTickets = ticketsQuery.data?.items ?? [];
   const escalations = escalationsQuery.data?.items ?? [];
   const kpis = kpisQuery.data;
-  const heatmapData = heatmapQuery.data;
 
   const isLoading =
     ticketsQuery.isLoading || escalationsQuery.isLoading || kpisQuery.isLoading;
@@ -344,44 +360,36 @@ function SupportDashboard() {
       animate="visible"
       variants={staggerContainer}
     >
-      {/* Header + Tabs */}
+      {/* Header */}
       <motion.div variants={fadeInUp}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Support Dashboard</h1>
             <p className="text-muted-foreground">
-              Manage assigned tickets, escalations and neighborhood issues
+              Manage assigned tickets and escalations
             </p>
           </div>
 
-          {/* Overview / Heatmap toggle */}
-          <div className="inline-flex items-center rounded-full border bg-background p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setActiveTab("overview")}
-              className={`rounded-full px-4 py-1 transition ${activeTab === "overview"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
-            >
-              Overview
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("heatmap")}
-              className={`rounded-full px-4 py-1 transition ${activeTab === "heatmap"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
-            >
-              Heatmap
-            </button>
-          </div>
+          {/* Time filter */}
+          <Select
+            value={days.toString()}
+            onValueChange={(value) => setDays(parseInt(value, 10))}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+              <SelectItem value="365">Last year</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </motion.div>
 
-      {activeTab === "overview" ? (
-        <>
+      {/* Content */}
+      <>
           {/* KPI Cards */}
           {isLoading ? (
             <DashboardKPISkeleton />
@@ -491,90 +499,6 @@ function SupportDashboard() {
             </motion.div>
           </div>
         </>
-      ) : (
-        // Heatmap tab content – Real-time issue density visualization
-        <motion.div variants={fadeInUp}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Issue Density Heatmap</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Geographic visualization of in-progress tickets (last 30 days)
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {heatmapQuery.isLoading ? (
-                <div className="h-[400px] rounded-xl bg-muted flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : heatmapQuery.isError ? (
-                <ErrorState
-                  title="Failed to load heatmap"
-                  message="Could not load heatmap data. Please try again."
-                  onRetry={heatmapQuery.refetch}
-                />
-              ) : !heatmapData || heatmapData.points.length === 0 ? (
-                <div className="h-[400px] rounded-xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center p-8 text-center">
-                  <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-sm text-muted-foreground">
-                    No in-progress tickets found in the last 30 days.
-                    <br />
-                    The heatmap will appear once tickets are reported.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <HeatmapVisualization
-                    points={heatmapData.points}
-                    height="400px"
-                  />
-
-                  <div className="grid gap-4 md:grid-cols-3 text-xs">
-                    <div>
-                      <p className="font-medium text-foreground text-sm mb-2">
-                        Legend
-                      </p>
-                      <ul className="space-y-1 text-muted-foreground">
-                        <li className="flex items-center gap-2">
-                          <span className="h-3 w-3 rounded-sm bg-blue-500" />
-                          Low density
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="h-3 w-3 rounded-sm bg-yellow-500" />
-                          Medium density
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="h-3 w-3 rounded-sm bg-red-500" />
-                          High density
-                        </li>
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground text-sm mb-2">
-                        Statistics
-                      </p>
-                      <ul className="space-y-1 text-muted-foreground">
-                        <li>Total hotspots: {heatmapData.points.length}</li>
-                        <li>Total tickets: {heatmapData.total_tickets}</li>
-                        <li>Max at one location: {heatmapData.max_count}</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground text-sm mb-2">
-                        How to use
-                      </p>
-                      <p className="text-muted-foreground">
-                        Zoom in to see individual hotspots. Darker red areas
-                        indicate higher concentrations of in-progress tickets
-                        requiring attention.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
     </motion.div>
   );
 }
@@ -585,6 +509,7 @@ function SupportDashboard() {
 
 function ManagerDashboard() {
   const [days, setDays] = useState(30);
+  const [heatmapFilter, setHeatmapFilter] = useState<"all" | "in_progress">("all");
 
   const kpisQuery = useDashboardKPIs(days);
   const ticketsQuery = useMyTickets({ page_size: 5 });
@@ -592,7 +517,10 @@ function ManagerDashboard() {
     status_filter: EscalationStatus.PENDING,
     page_size: 5,
   });
-  const heatmapQuery = useHeatmap({ days, status: TicketStatus.IN_PROGRESS });
+  const heatmapQuery = useHeatmap({
+    days,
+    status: heatmapFilter === "in_progress" ? TicketStatus.IN_PROGRESS : undefined
+  });
   const categoryStatsQuery = useCategoryStats(days);
   const teamPerformanceQuery = useTeamPerformance(days);
   const neighborhoodStatsQuery = useNeighborhoodStats(days, 5);
@@ -1043,10 +971,26 @@ function ManagerDashboard() {
       <motion.div variants={fadeInUp}>
         <Card>
           <CardHeader>
-            <CardTitle>Issue Density Heatmap</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Geographic visualization of in-progress tickets (last 30 days)
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Issue Density Heatmap</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Geographic visualization of reported issues ({getTimeRangeLabel(days)})
+                </p>
+              </div>
+              <Select
+                value={heatmapFilter}
+                onValueChange={(value) => setHeatmapFilter(value as "all" | "in_progress")}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[1000]">
+                  <SelectItem value="all">All Created</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {heatmapQuery.isLoading ? (
@@ -1063,9 +1007,9 @@ function ManagerDashboard() {
               <div className="h-[400px] rounded-xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center p-8 text-center">
                 <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-sm text-muted-foreground">
-                  No in-progress tickets found in the last 30 days.
+                  No {heatmapFilter === "in_progress" ? "in-progress" : ""} tickets found in the {getTimeRangeLabel(days)}.
                   <br />
-                  The heatmap will appear once tickets are reported.
+                  The heatmap will appear once issues are reported.
                 </p>
               </div>
             ) : (
@@ -1100,7 +1044,7 @@ function ManagerDashboard() {
                       Statistics
                     </p>
                     <ul className="space-y-1 text-muted-foreground">
-                      <li>Total hotspots: {heatmapData.points.length}</li>
+                      <li>Unique locations: {heatmapData.points.length}</li>
                       <li>Total tickets: {heatmapData.total_tickets}</li>
                       <li>Max at one location: {heatmapData.max_count}</li>
                     </ul>
