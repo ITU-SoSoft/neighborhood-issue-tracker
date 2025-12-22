@@ -169,188 +169,218 @@ async def seed_tickets() -> None:
     # 3. Create Logs & Data
     count = 0
     logger.info(f"Generating {NUM_TICKETS} tickets...")
-    
-    esc_count = 0
-    for i in range(NUM_TICKETS):
-        reporter = random.choice(citizens)
-        category = random.choice(categories)
-        district_info = random.choice(ISTANBUL_DISTRICTS)
-        
-        # Date simulation with higher density in recent days
-        rand_date = random.random()
-        if rand_date < 0.40: # 40% in last 7 days
-            days_ago = random.randint(0, 7)
-        elif rand_date < 0.80: # 40% in last 8-30 days
-            days_ago = random.randint(8, 30)
-        else: # 20% in last 31-90 days
-            days_ago = random.randint(31, DAYS_HISTORY)
-        
-        created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
 
-        # Assign Team Logic (Simple matching)
-        assigned_team = None
-        candidates = []
-        for team in teams:
-            # Check category match
-            cat_match = any(tc.category_id == category.id for tc in team.team_categories)
-            # Check district match
-            dist_match = any(
-                td.district.name == district_info["name"] 
-                for td in team.team_districts
-                if td.district # Ensure district is loaded and not None
+    # Pre-create some common locations (hotspots) to simulate real-world clustering
+    location_pool = []
+
+    async with async_session_maker() as session:
+        # Create ~50 common locations across all districts
+        logger.info("Creating common location hotspots...")
+        for _ in range(50):
+            district_info = random.choice(ISTANBUL_DISTRICTS)
+            lat = district_info["lat"] + random.uniform(-0.005, 0.005)
+            lon = district_info["lon"] + random.uniform(-0.005, 0.005)
+            location = Location(
+                latitude=lat,
+                longitude=lon,
+                address=f"{district_info['name']} District, Istanbul",
+                district=district_info['name'],
+                city="Istanbul",
+                coordinates=f"POINT({lon} {lat})",
             )
-            
-            if cat_match and dist_match:
-                candidates.append(team)
-        
-        # Fallback: just category match
-        if not candidates:
-            candidates = [t for t in teams if any(tc.category_id == category.id for tc in t.team_categories)]
-        
-        # Fallback: any team
-        if not candidates:
-            candidates = teams
-        
-        assigned_team = random.choice(candidates)
+            session.add(location)
+            location_pool.append((location, district_info['name']))
 
-        # Location
-        lat = district_info["lat"] + random.uniform(-0.005, 0.005)
-        lon = district_info["lon"] + random.uniform(-0.005, 0.005)
-        location = Location(
-            latitude=lat,
-            longitude=lon,
-            address=f"{district_info['name']} District, Istanbul",
-            district=district_info['name'],
-            city="Istanbul",
-            coordinates=f"POINT({lon} {lat})",
-        )
-        session.add(location)
         await session.flush()
+        logger.info(f"Created {len(location_pool)} common locations")
 
-        if rand_val < 0.15:
-            status = TicketStatus.NEW
-        elif rand_val < 0.4:
-            status = TicketStatus.IN_PROGRESS
-        elif rand_val < 0.55:
-            status = TicketStatus.ESCALATED
-        else:
-            status = TicketStatus.RESOLVED # Mostly resolved for data density
+        for i in range(NUM_TICKETS):
+            reporter = random.choice(citizens)
+            category = random.choice(categories)
+            district_info = random.choice(ISTANBUL_DISTRICTS)
 
-        if status == TicketStatus.ESCALATED:
-            logger.info("  -> Creating an ESCALATED ticket!")
+            # Date simulation with higher density in recent days
+            rand_date = random.random()
+            if rand_date < 0.40: # 40% in last 7 days
+                days_ago = random.randint(0, 7)
+            elif rand_date < 0.80: # 40% in last 8-30 days
+                days_ago = random.randint(8, 30)
+            else: # 20% in last 31-90 days
+                days_ago = random.randint(31, DAYS_HISTORY)
 
-        # Create Ticket
-        ticket = Ticket(
-            title=random.choice(TICKET_TITLES),
-            description=f"Automated test ticket generated for {category.name} in {district_info['name']}.",
-            category_id=category.id,
-            location_id=location.id,
-            reporter_id=reporter.id,
-            status=status,
-            created_at=created_at,
-            team_id=assigned_team.id,
-        )
-        session.add(ticket)
-        await session.flush()
+            created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
 
-        # 4. Create History (Logs)
-        # Log 1: Created
-        log1 = StatusLog(
-            ticket_id=ticket.id,
-            old_status=None,
-            new_status=TicketStatus.NEW,
-            changed_by_id=reporter.id,
-            created_at=created_at
-        )
-        session.add(log1)
+            # Assign Team Logic (Simple matching)
+            assigned_team = None
+            candidates = []
+            for team in teams:
+                # Check category match
+                cat_match = any(tc.category_id == category.id for tc in team.team_categories)
+                # Check district match
+                dist_match = any(
+                    td.district.name == district_info["name"]
+                    for td in team.team_districts
+                    if td.district # Ensure district is loaded and not None
+                )
 
-        # If progressed
-        if status != TicketStatus.NEW:
-            # Pick a staff member
-            staff = random.choice(all_staff)
-            
-            # Time gap
-            hours_later = random.randint(1, 48)
-            in_progress_at = created_at + timedelta(hours=hours_later)
-            
-            # Update ticket timestamp (simulating update time)
-            if status == TicketStatus.IN_PROGRESS:
-                ticket.updated_at = in_progress_at
-            
-            log2 = StatusLog(
+                if cat_match and dist_match:
+                    candidates.append(team)
+
+            # Fallback: just category match
+            if not candidates:
+                candidates = [t for t in teams if any(tc.category_id == category.id for tc in t.team_categories)]
+
+            # Fallback: any team
+            if not candidates:
+                candidates = teams
+
+            assigned_team = random.choice(candidates)
+
+            # Location: 60% chance to use existing hotspot, 40% chance to create new
+            if random.random() < 0.6 and location_pool:
+                # Try to find a location in the same district
+                same_district_locs = [loc for loc, dist in location_pool if dist == district_info['name']]
+                if same_district_locs:
+                    location = random.choice(same_district_locs)
+                else:
+                    # Fallback to any location
+                    location, _ = random.choice(location_pool)
+            else:
+                # Create new unique location
+                lat = district_info["lat"] + random.uniform(-0.005, 0.005)
+                lon = district_info["lon"] + random.uniform(-0.005, 0.005)
+                location = Location(
+                    latitude=lat,
+                    longitude=lon,
+                    address=f"{district_info['name']} District, Istanbul",
+                    district=district_info['name'],
+                    city="Istanbul",
+                    coordinates=f"POINT({lon} {lat})",
+                )
+                session.add(location)
+                await session.flush()
+                location_pool.append((location, district_info['name']))
+
+            # Determine status
+            rand_val = random.random()
+            if rand_val < 0.15:
+                status = TicketStatus.NEW
+            elif rand_val < 0.4:
+                status = TicketStatus.IN_PROGRESS
+            elif rand_val < 0.55:
+                status = TicketStatus.ESCALATED
+            else:
+                status = TicketStatus.RESOLVED # Mostly resolved for data density
+
+            # Create Ticket
+            ticket = Ticket(
+                title=random.choice(TICKET_TITLES),
+                description=f"Automated test ticket generated for {category.name} in {district_info['name']}.",
+                category_id=category.id,
+                location_id=location.id,
+                reporter_id=reporter.id,
+                status=status,
+                created_at=created_at,
+                team_id=assigned_team.id,
+            )
+            session.add(ticket)
+            await session.flush()
+
+            # 4. Create History (Logs)
+            # Log 1: Created
+            log1 = StatusLog(
                 ticket_id=ticket.id,
-                old_status=TicketStatus.NEW,
-                new_status=TicketStatus.IN_PROGRESS,
-                changed_by_id=staff.id,
-                created_at=in_progress_at
+                old_status=None,
+                new_status=TicketStatus.NEW,
+                changed_by_id=reporter.id,
+                created_at=created_at
             )
-            session.add(log2)
+            session.add(log1)
 
-            # If resolved
-            # If resolved
-            if status == TicketStatus.RESOLVED:
-                resolve_hours = random.randint(2, 72)
-                resolved_at = in_progress_at + timedelta(hours=resolve_hours)
-                ticket.resolved_at = resolved_at
-                ticket.updated_at = resolved_at
-                
-                log3 = StatusLog(
+            # If progressed
+            if status != TicketStatus.NEW:
+                # Pick a staff member
+                staff = random.choice(all_staff)
+
+                # Time gap
+                hours_later = random.randint(1, 48)
+                in_progress_at = created_at + timedelta(hours=hours_later)
+
+                # Update ticket timestamp (simulating update time)
+                if status == TicketStatus.IN_PROGRESS:
+                    ticket.updated_at = in_progress_at
+
+                log2 = StatusLog(
                     ticket_id=ticket.id,
-                    old_status=TicketStatus.IN_PROGRESS,
-                    new_status=TicketStatus.RESOLVED,
+                    old_status=TicketStatus.NEW,
+                    new_status=TicketStatus.IN_PROGRESS,
                     changed_by_id=staff.id,
-                    created_at=resolved_at
+                    created_at=in_progress_at
                 )
-                session.add(log3)
+                session.add(log2)
 
-            # If escalated
-            if status == TicketStatus.ESCALATED:
-                # First go to in_progress
-                if ticket.updated_at is None:
-                     ticket.updated_at = in_progress_at
+                # If resolved
+                if status == TicketStatus.RESOLVED:
+                    resolve_hours = random.randint(2, 72)
+                    resolved_at = in_progress_at + timedelta(hours=resolve_hours)
+                    ticket.resolved_at = resolved_at
+                    ticket.updated_at = resolved_at
 
-                esc_at = in_progress_at + timedelta(hours=random.randint(4, 24))
-                
-                log4 = StatusLog(
-                    ticket_id=ticket.id,
-                    old_status=TicketStatus.IN_PROGRESS,
-                    new_status=TicketStatus.ESCALATED,
-                    changed_by_id=staff.id,
-                    created_at=esc_at
-                )
-                session.add(log4)
-
-                # 5. Add Feedback (for resolved tickets)
-                if random.random() < 0.85:
-                    feedback = Feedback(
+                    log3 = StatusLog(
                         ticket_id=ticket.id,
-                        user_id=reporter.id,
-                        rating=random.choices([1,2,3,4,5], weights=[5,10,20,40,25])[0],
-                        comment=random.choice(FEEDBACK_COMMENTS),
-                        created_at=resolved_at + timedelta(days=random.randint(1, 3))
+                        old_status=TicketStatus.IN_PROGRESS,
+                        new_status=TicketStatus.RESOLVED,
+                        changed_by_id=staff.id,
+                        created_at=resolved_at
                     )
-                    session.add(feedback)
+                    session.add(log3)
 
-            # 6. Escalations (Randomly for some tickets)
-            # Can happen for In Progress or even Resolved tickets (re-open request)
-            if random.random() < 0.15: # 15% chance
-                requester = random.choice(support_staff)
-                escalation = EscalationRequest(
-                    ticket_id=ticket.id,
-                    requester_id=requester.id,
-                    reason=random.choice(ESCALATION_REASONS),
-                    status=EscalationStatus.PENDING,
-                    created_at=created_at + timedelta(days=random.randint(1, 5))
-                )
-                # Sometimes approve/reject it
-                if random.random() < 0.5: # 50% are processed
-                    reviewer = random.choice(managers)
-                    escalation.reviewer_id = reviewer.id
-                    escalation.status = random.choice([EscalationStatus.APPROVED, EscalationStatus.REJECTED])
-                    escalation.reviewed_at = escalation.created_at + timedelta(hours=random.randint(1, 24))
-                    escalation.review_comment = "Processed via automated flow."
-                
-                session.add(escalation)
+                    # 5. Add Feedback (for resolved tickets)
+                    if random.random() < 0.85:
+                        feedback = Feedback(
+                            ticket_id=ticket.id,
+                            user_id=reporter.id,
+                            rating=random.choices([1,2,3,4,5], weights=[5,10,20,40,25])[0],
+                            comment=random.choice(FEEDBACK_COMMENTS),
+                            created_at=resolved_at + timedelta(days=random.randint(1, 3))
+                        )
+                        session.add(feedback)
+
+                # If escalated
+                if status == TicketStatus.ESCALATED:
+                    # First go to in_progress
+                    if ticket.updated_at is None:
+                         ticket.updated_at = in_progress_at
+
+                    esc_at = in_progress_at + timedelta(hours=random.randint(4, 24))
+                    ticket.updated_at = esc_at
+
+                    log4 = StatusLog(
+                        ticket_id=ticket.id,
+                        old_status=TicketStatus.IN_PROGRESS,
+                        new_status=TicketStatus.ESCALATED,
+                        changed_by_id=staff.id,
+                        created_at=esc_at
+                    )
+                    session.add(log4)
+
+                    # Create the escalation request
+                    escalation = EscalationRequest(
+                        ticket_id=ticket.id,
+                        requester_id=staff.id,
+                        reason=random.choice(ESCALATION_REASONS),
+                        status=EscalationStatus.PENDING,
+                        created_at=esc_at
+                    )
+                    # Sometimes approve/reject it
+                    if random.random() < 0.5: # 50% are processed
+                        reviewer = random.choice(managers)
+                        escalation.reviewer_id = reviewer.id
+                        escalation.status = random.choice([EscalationStatus.APPROVED, EscalationStatus.REJECTED])
+                        escalation.reviewed_at = escalation.created_at + timedelta(hours=random.randint(1, 24))
+                        escalation.review_comment = "Processed via automated flow."
+
+                    session.add(escalation)
 
             count += 1
             if count % 10 == 0:
