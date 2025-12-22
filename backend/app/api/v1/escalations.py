@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.deps import DatabaseSession, ManagerUser, SupportUser
 from app.core.exceptions import (
@@ -56,10 +56,10 @@ async def create_escalation(
     db: DatabaseSession,
 ) -> EscalationResponse:
     """Create an escalation request (support only)."""
-    # Verify ticket exists
+    # Verify ticket exists and load escalations
     result = await db.execute(
         select(Ticket)
-        .options(joinedload(Ticket.escalation))
+        .options(selectinload(Ticket.escalations))
         .where(Ticket.id == request.ticket_id, Ticket.deleted_at.is_(None))
     )
     ticket = result.scalar_one_or_none()
@@ -75,11 +75,17 @@ async def create_escalation(
     if ticket.team_id != current_user.team_id:
         raise ForbiddenException(detail="You can only escalate tickets assigned to your team")
 
-    # Check if escalation already exists
-    if ticket.escalation is not None:
+    # Check for existing escalations that block new creation
+    has_pending = any(e.status == EscalationStatus.PENDING for e in ticket.escalations)
+    has_approved = any(e.status == EscalationStatus.APPROVED for e in ticket.escalations)
+
+    if has_pending:
         raise EscalationAlreadyExistsException()
 
-    # Create escalation
+    if has_approved:
+        raise ForbiddenException(detail="Ticket escalation already approved")
+
+    # Create escalation (allowed if no escalations or only rejected ones exist)
     escalation = EscalationRequest(
         ticket_id=request.ticket_id,
         requester_id=current_user.id,
@@ -128,6 +134,7 @@ async def list_escalations(
     current_user: SupportUser,
     db: DatabaseSession,
     status_filter: EscalationStatus | None = None,
+    ticket_id: UUID | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> EscalationListResponse:
@@ -145,6 +152,10 @@ async def list_escalations(
 
     if status_filter:
         query = query.where(EscalationRequest.status == status_filter)
+
+    # Filter by ticket_id if provided (for viewing escalation history of a specific ticket)
+    if ticket_id:
+        query = query.where(EscalationRequest.ticket_id == ticket_id)
 
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())

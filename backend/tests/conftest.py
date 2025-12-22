@@ -522,3 +522,45 @@ async def escalation(db_session: AsyncSession, ticket: Ticket, support_user_with
     await db_session.commit()
     await db_session.refresh(esc)
     return esc
+
+
+@pytest_asyncio.fixture
+async def rejected_escalation(db_session: AsyncSession, ticket: Ticket, support_user_with_team: User, manager_user: User) -> EscalationRequest:
+    """Create a rejected escalation request."""
+    esc = EscalationRequest(
+        id=uuid.uuid4(),
+        ticket_id=ticket.id,
+        requester_id=support_user_with_team.id,
+        reviewer_id=manager_user.id,
+        reason="Previously rejected escalation",
+        status=EscalationStatus.REJECTED,
+        review_comment="Rejected for testing",
+    )
+    db_session.add(esc)
+
+    # Ticket status should be back to IN_PROGRESS after rejection
+    ticket.status = TicketStatus.IN_PROGRESS
+    await db_session.commit()
+    await db_session.refresh(esc)
+    return esc
+
+
+@pytest_asyncio.fixture
+async def approved_escalation(db_session: AsyncSession, ticket: Ticket, support_user_with_team: User, manager_user: User) -> EscalationRequest:
+    """Create an approved escalation request."""
+    esc = EscalationRequest(
+        id=uuid.uuid4(),
+        ticket_id=ticket.id,
+        requester_id=support_user_with_team.id,
+        reviewer_id=manager_user.id,
+        reason="Previously approved escalation",
+        status=EscalationStatus.APPROVED,
+        review_comment="Approved for testing",
+    )
+    db_session.add(esc)
+
+    # Ticket status should be back to IN_PROGRESS after approval
+    ticket.status = TicketStatus.IN_PROGRESS
+    await db_session.commit()
+    await db_session.refresh(esc)
+    return esc

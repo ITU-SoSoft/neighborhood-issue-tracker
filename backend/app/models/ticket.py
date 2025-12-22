@@ -133,9 +133,25 @@ class Ticket(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     feedback: Mapped["Feedback | None"] = relationship(
         "Feedback", back_populates="ticket", uselist=False
     )
-    escalation: Mapped["EscalationRequest | None"] = relationship(
-        "EscalationRequest", back_populates="ticket", uselist=False
+    escalations: Mapped[list["EscalationRequest"]] = relationship(
+        "EscalationRequest",
+        back_populates="ticket",
+        order_by="EscalationRequest.created_at.desc()",
     )
+
+    @property
+    def active_escalation(self) -> "EscalationRequest | None":
+        """Return the pending escalation if one exists."""
+        from app.models.escalation import EscalationStatus
+        for esc in self.escalations:
+            if esc.status == EscalationStatus.PENDING:
+                return esc
+        return None
+
+    @property
+    def latest_escalation(self) -> "EscalationRequest | None":
+        """Return the most recent escalation."""
+        return self.escalations[0] if self.escalations else None
 
     def __repr__(self) -> str:
         return f"<Ticket {self.id} ({self.status.value})>"

@@ -93,18 +93,52 @@ async def test_escalation_ticket_not_found(
 
 
 @pytest.mark.asyncio
-async def test_escalation_already_exists(
+async def test_cannot_escalate_with_pending_escalation(
     client: AsyncClient,
     escalation,
     support_with_team_token: str,
 ):
-    """Cannot create escalation if one already exists for the ticket."""
+    """Cannot create escalation if a PENDING one already exists for the ticket."""
     response = await client.post(
         "/api/v1/escalations",
         json={"ticket_id": str(escalation.ticket_id), "reason": "Duplicate escalation"},
         headers=auth_headers(support_with_team_token),
     )
     assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_can_reescalate_after_rejection(
+    client: AsyncClient,
+    rejected_escalation,
+    support_with_team_token: str,
+):
+    """Can create a new escalation after the previous one was rejected."""
+    response = await client.post(
+        "/api/v1/escalations",
+        json={"ticket_id": str(rejected_escalation.ticket_id), "reason": "Re-escalating after rejection"},
+        headers=auth_headers(support_with_team_token),
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "PENDING"
+    assert data["reason"] == "Re-escalating after rejection"
+
+
+@pytest.mark.asyncio
+async def test_cannot_reescalate_after_approval(
+    client: AsyncClient,
+    approved_escalation,
+    support_with_team_token: str,
+):
+    """Cannot create a new escalation after the previous one was approved."""
+    response = await client.post(
+        "/api/v1/escalations",
+        json={"ticket_id": str(approved_escalation.ticket_id), "reason": "Trying to escalate after approval"},
+        headers=auth_headers(support_with_team_token),
+    )
+    assert response.status_code == 403
+    assert "already approved" in response.json()["detail"].lower()
 
 
 # ============================================================================
