@@ -390,115 +390,115 @@ function SupportDashboard() {
 
       {/* Content */}
       <>
-          {/* KPI Cards */}
-          {isLoading ? (
-            <DashboardKPISkeleton />
-          ) : (
-            <motion.div
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-              variants={staggerContainer}
-              initial="hidden"
-              animate="visible"
-            >
-              <KPICard
-                title="Assigned"
-                value={assignedTickets.length}
-                icon={<TicketIcon className="h-5 w-5 text-blue-600" />}
-                iconBgClass="bg-blue-100"
-              />
-              <KPICard
-                title="Pending Escalations"
-                value={escalations.length}
-                icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
-                iconBgClass="bg-amber-100"
-              />
-              <KPICard
-                title="Resolution Rate"
-                value={kpis ? formatPercentage(kpis.resolution_rate, 2) : "-"}
-                icon={<TrendingUp className="h-5 w-5 text-green-600" />}
-                iconBgClass="bg-green-100"
-              />
-              <KPICard
-                title="Avg Rating"
-                value={formatRating(kpis?.average_rating ?? null)}
-                icon={<Star className="h-5 w-5 text-purple-600" />}
-                iconBgClass="bg-purple-100"
-              />
-            </motion.div>
-          )}
-
-          {/* Assigned tickets + escalations */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Assigned Tickets */}
-            <TicketListCard
-              title="Assigned Tickets"
-              viewAllHref="/tickets?assigned=me"
-              tickets={assignedTickets}
-              isLoading={ticketsQuery.isLoading}
-              isError={ticketsQuery.isError}
-              refetch={ticketsQuery.refetch}
+        {/* KPI Cards */}
+        {isLoading ? (
+          <DashboardKPISkeleton />
+        ) : (
+          <motion.div
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+          >
+            <KPICard
+              title="Assigned"
+              value={assignedTickets.length}
+              icon={<TicketIcon className="h-5 w-5 text-blue-600" />}
+              iconBgClass="bg-blue-100"
             />
+            <KPICard
+              title="Pending Escalations"
+              value={escalations.length}
+              icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
+              iconBgClass="bg-amber-100"
+            />
+            <KPICard
+              title="Resolution Rate"
+              value={kpis ? formatPercentage(kpis.resolution_rate, 2) : "-"}
+              icon={<TrendingUp className="h-5 w-5 text-green-600" />}
+              iconBgClass="bg-green-100"
+            />
+            <KPICard
+              title="Avg Rating"
+              value={formatRating(kpis?.average_rating ?? null)}
+              icon={<Star className="h-5 w-5 text-purple-600" />}
+              iconBgClass="bg-purple-100"
+            />
+          </motion.div>
+        )}
 
-            {/* Pending Escalations */}
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              variants={fadeInUp}
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-4">
-                  <CardTitle className="text-lg">Pending Escalations</CardTitle>
-                  <Link
-                    href="/escalations"
-                    className="text-sm text-primary hover:text-primary/80"
+        {/* Assigned tickets + escalations */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Assigned Tickets */}
+          <TicketListCard
+            title="Assigned Tickets"
+            viewAllHref="/tickets?assigned=me"
+            tickets={assignedTickets}
+            isLoading={ticketsQuery.isLoading}
+            isError={ticketsQuery.isError}
+            refetch={ticketsQuery.refetch}
+          />
+
+          {/* Pending Escalations */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={fadeInUp}
+          >
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <CardTitle className="text-lg">Pending Escalations</CardTitle>
+                <Link
+                  href="/escalations"
+                  className="text-sm text-primary hover:text-primary/80"
+                >
+                  View all
+                </Link>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {escalationsQuery.isLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <TicketCardSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : escalations.length === 0 ? (
+                  <p className="py-4 text-center text-muted-foreground">
+                    No pending escalations
+                  </p>
+                ) : (
+                  <motion.div
+                    className="space-y-3"
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
                   >
-                    View all
-                  </Link>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {escalationsQuery.isLoading ? (
-                    <div className="space-y-3">
-                      {Array.from({ length: 3 }).map((_, i) => (
-                        <TicketCardSkeleton key={i} />
-                      ))}
-                    </div>
-                  ) : escalations.length === 0 ? (
-                    <p className="py-4 text-center text-muted-foreground">
-                      No pending escalations
-                    </p>
-                  ) : (
-                    <motion.div
-                      className="space-y-3"
-                      variants={staggerContainer}
-                      initial="hidden"
-                      animate="visible"
-                    >
-                      {escalations.map((escalation) => (
-                        <motion.div key={escalation.id} variants={staggerItem}>
-                          <Link
-                            href={`/escalations/${escalation.id}`}
-                            className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-foreground truncate">
-                                {escalation.ticket_title}
-                              </span>
-                              <Badge variant="warning">Pending</Badge>
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              By {escalation.requester_name} •{" "}
-                              {formatDate(escalation.created_at)}
-                            </p>
-                          </Link>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-        </>
+                    {escalations.map((escalation) => (
+                      <motion.div key={escalation.id} variants={staggerItem}>
+                        <Link
+                          href={`/escalations/${escalation.id}`}
+                          className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-foreground truncate">
+                              {escalation.ticket_title}
+                            </span>
+                            <Badge variant="warning">Pending</Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            By {escalation.requester_name} •{" "}
+                            {formatDate(escalation.created_at)}
+                          </p>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </>
     </motion.div>
   );
 }
@@ -530,7 +530,7 @@ function ManagerDashboard() {
   const pendingEscalations = escalationsQuery.data?.items ?? [];
   const heatmapData = heatmapQuery.data;
   const categoryData = categoryStatsQuery.data?.items ?? [];
-  const teamData = teamPerformanceQuery.data?.teams ?? [];
+  const teamData = teamPerformanceQuery.data?.items ?? [];
   const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   const isKPILoading = kpisQuery.isLoading;
@@ -764,7 +764,7 @@ function ManagerDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryStatsQuery.data.items}
+                          data={categoryStatsQuery.data.items as any}
                           cx="50%"
                           cy="50%"
                           innerRadius={40}
@@ -772,7 +772,7 @@ function ManagerDashboard() {
                           paddingAngle={5}
                           dataKey="total_tickets"
                           nameKey="category_name"
-                          label={({ name }) => name}
+                          label={({ name }: { name: string }) => name}
                           labelLine={false}
                         >
                           {categoryStatsQuery.data.items.map((entry: any, index: number) => {
@@ -840,7 +840,7 @@ function ManagerDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryStatsQuery.data.items}
+                          data={categoryStatsQuery.data.items as any}
                           cx="50%"
                           cy="50%"
                           innerRadius={40}
@@ -848,7 +848,7 @@ function ManagerDashboard() {
                           paddingAngle={5}
                           dataKey="open_tickets"
                           nameKey="category_name"
-                          label={({ name }) => name}
+                          label={({ name }: { name: string }) => name}
                           labelLine={false}
                         >
                           {categoryStatsQuery.data.items.map((entry: any, index: number) => {
