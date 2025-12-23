@@ -348,11 +348,10 @@ export default function TeamsPage() {
                   onToggleTickets={() =>
                     setExpandedTicketsTeamId((prev) => (prev === t.id ? null : t.id))
                   }
-                  onDelete={() => {
-                    toast.error("Istanbul General Team cannot be deleted - it serves as a fallback for unassigned tickets");
-                  }}
+                  onDelete={() => {}}
                   isDeleting={false}
                   isDeletingThis={false}
+                  hideDeleteButton={true}
                   analyticsLoading={teamPerfQuery.isLoading}
                 />
               );
@@ -652,6 +651,7 @@ function TeamRow(props: {
   isDeleting: boolean;
   isDeletingThis: boolean;
   analyticsLoading: boolean;
+  hideDeleteButton?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-border">
@@ -685,19 +685,21 @@ function TeamRow(props: {
             )}
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={props.onDelete}
-            disabled={props.isDeleting}
-          >
-            {props.isDeletingThis ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
-            )}
-            Delete
-          </Button>
+          {!props.hideDeleteButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={props.onDelete}
+              disabled={props.isDeleting}
+            >
+              {props.isDeletingThis ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 

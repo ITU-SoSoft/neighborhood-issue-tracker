@@ -26,6 +26,7 @@ import {
   useFollowedTickets,
   useAllUserTickets,
   useCategories,
+  useTeams,
 } from "@/lib/queries";
 import {
   Ticket,
@@ -130,6 +131,7 @@ export default function TicketsPage() {
   // Filter state
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "">("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [teamFilter, setTeamFilter] = useState<string>("");
   const [viewFilter, setViewFilter] = useState<"all" | "my" | "assigned" | "followed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,11 +141,13 @@ export default function TicketsPage() {
   useEffect(() => {
     const status = searchParams.get("status") as TicketStatus | null;
     const category = searchParams.get("category");
+    const team = searchParams.get("team");
     const view = searchParams.get("view") as "all" | "my" | "assigned" | "followed" | null;
     const page = searchParams.get("page");
 
     if (status) setStatusFilter(status);
     if (category) setCategoryFilter(category);
+    if (team) setTeamFilter(team);
     if (view) setViewFilter(view);
     if (page) setCurrentPage(parseInt(page, 10));
   }, [searchParams]);
@@ -151,6 +155,8 @@ export default function TicketsPage() {
   // Queries
   const { data: categoriesData } = useCategories();
   const categories = categoriesData?.items ?? [];
+  const { data: teamsData } = useTeams();
+  const teams = Array.isArray(teamsData) ? teamsData : teamsData?.items ?? [];
 
   // Check if user is support/manager (can see all tickets)
   const isStaff = user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
@@ -160,6 +166,7 @@ export default function TicketsPage() {
   const allTicketsQuery = useTickets({
     status_filter: statusFilter || undefined,
     category_id: categoryFilter || undefined,
+    team_id: teamFilter || undefined,
     page: currentPage,
     page_size: PAGE_SIZE,
   }, { enabled: viewFilter === "all" && isStaff });
@@ -213,6 +220,7 @@ export default function TicketsPage() {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     if (categoryFilter) params.set("category", categoryFilter);
+    if (teamFilter) params.set("team", teamFilter);
     if (viewFilter !== "all") params.set("view", viewFilter);
     if (currentPage > 1) params.set("page", currentPage.toString());
 
@@ -229,6 +237,7 @@ export default function TicketsPage() {
   const clearFilters = () => {
     setStatusFilter("");
     setCategoryFilter("");
+    setTeamFilter("");
     setViewFilter("all");
     setCurrentPage(1);
   };
@@ -297,10 +306,10 @@ export default function TicketsPage() {
                   {hasActiveFilters && (
                     <>
                       <span className="sr-only">
-                        {[statusFilter, categoryFilter, viewFilter !== "all"].filter(Boolean).length} active filters
+                        {[statusFilter, categoryFilter, teamFilter, viewFilter !== "all"].filter(Boolean).length} active filters
                       </span>
                       <span aria-hidden="true" className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                        {[statusFilter, categoryFilter, viewFilter !== "all"].filter(Boolean).length}
+                        {[statusFilter, categoryFilter, teamFilter, viewFilter !== "all"].filter(Boolean).length}
                       </span>
                     </>
                   )}
@@ -388,6 +397,32 @@ export default function TicketsPage() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Team filter - only for staff */}
+                    {isStaff && (
+                      <div className="min-w-[160px]">
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">Team</label>
+                        <Select
+                          value={teamFilter || "all-teams"}
+                          onValueChange={(value: string) => {
+                            setTeamFilter(value === "all-teams" ? "" : value);
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all-teams">All Teams</SelectItem>
+                            {teams.map((team: any) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     {/* Clear filters */}
                     {hasActiveFilters && (

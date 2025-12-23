@@ -27,7 +27,9 @@ export function TeamTicketsPanel({ teamId, isExpanded = true }: TeamTicketsPanel
   const reassignMut = useReassignTicket();
   const [reassigningTicketId, setReassingTicketId] = useState<string | null>(null);
 
-  const tickets = ticketsQuery.data?.items ?? [];
+  const allTickets = ticketsQuery.data?.items ?? [];
+  // Filter out RESOLVED tickets
+  const tickets = allTickets.filter((ticket: TicketResponse) => ticket.status !== "RESOLVED");
   const allTeams = Array.isArray(allTeamsQuery.data) 
     ? allTeamsQuery.data 
     : (allTeamsQuery.data as any)?.items ?? [];
