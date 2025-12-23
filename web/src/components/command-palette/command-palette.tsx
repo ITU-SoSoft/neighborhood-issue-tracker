@@ -193,9 +193,13 @@ export function CommandPalette() {
     const items = [
       { name: "Dashboard", href: "/dashboard", icon: Icons.Home },
       { name: "All Tickets", href: "/tickets", icon: Icons.Tickets },
-      { name: "Create Ticket", href: "/tickets/new", icon: Icons.Plus },
       { name: "Profile", href: "/profile", icon: Icons.User },
     ];
+
+    // Add "Create Ticket" for non-manager users
+    if (user?.role !== UserRole.MANAGER) {
+      items.splice(2, 0, { name: "Create Ticket", href: "/tickets/new", icon: Icons.Plus });
+    }
 
     // Add staff-only items
     if (user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) {
@@ -210,7 +214,7 @@ export function CommandPalette() {
     if (user?.role === UserRole.MANAGER) {
       items.push(
         { name: "Analytics", href: "/analytics", icon: Icons.Chart },
-        { name: "User Management", href: "/users", icon: Icons.Users }
+        { name: "Management", href: "/teams", icon: Icons.Users }
       );
     }
 
@@ -219,19 +223,25 @@ export function CommandPalette() {
 
   // Quick actions
   const quickActions = useMemo(() => {
-    return [
-      {
-        name: "Create New Ticket",
-        action: () => router.push("/tickets/new"),
-        icon: Icons.Plus,
-      },
+    const actions = [
       {
         name: "Sign Out",
         action: () => logout(),
         icon: Icons.Logout,
       },
     ];
-  }, [router, logout]);
+
+    // Add "Create New Ticket" for non-manager users
+    if (user?.role !== UserRole.MANAGER) {
+      actions.unshift({
+        name: "Create New Ticket",
+        action: () => router.push("/tickets/new"),
+        icon: Icons.Plus,
+      });
+    }
+
+    return actions;
+  }, [router, logout, user?.role]);
 
   // Filter tickets based on search
   const filteredTickets = useMemo(() => {

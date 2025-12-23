@@ -265,3 +265,42 @@ export function formatRating(rating: number | null): string {
   if (rating === null) return "N/A";
   return `${rating.toFixed(1)}/5`;
 }
+
+// ============================================================================
+// COLOR UTILITIES
+// ============================================================================
+
+/**
+ * Generate a consistent color for a category based on its name
+ * Uses predefined colors for common categories, generates hash-based colors for others
+ */
+export function getCategoryColor(categoryName: string): string {
+  // Predefined colors for common categories
+  const predefinedColors: Record<string, string> = {
+    Infrastructure: "#0088FE",
+    Traffic: "#00C49F",
+    Lighting: "#FFBB28",
+    "Waste Management": "#FF8042",
+    Parks: "#8884d8",
+    Football: "#FF6B9D",
+    Other: "#82ca9d",
+  };
+
+  // Return predefined color if exists
+  if (predefinedColors[categoryName]) {
+    return predefinedColors[categoryName];
+  }
+
+  // Generate color from string hash for new categories
+  let hash = 0;
+  for (let i = 0; i < categoryName.length; i++) {
+    hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Convert hash to RGB with good saturation and brightness
+  const hue = Math.abs(hash) % 360;
+  const saturation = 65 + (Math.abs(hash >> 8) % 20); // 65-85%
+  const lightness = 50 + (Math.abs(hash >> 16) % 15); // 50-65%
+  
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}

@@ -29,6 +29,7 @@ import {
   useAssignedTickets,
   useDashboardKPIs,
   useEscalations,
+  useTickets,
 } from "@/lib/queries";
 import {
   useHeatmap,
@@ -52,6 +53,7 @@ import {
   formatPercentage,
   formatDuration,
   formatRating,
+  getCategoryColor,
 } from "@/lib/utils";
 
 import {
@@ -80,6 +82,7 @@ import {
   Cell,
   ResponsiveContainer,
   Tooltip,
+  Legend,
 } from "recharts";
 
 // Dynamically import the heatmap component to avoid SSR issues with Leaflet
@@ -509,7 +512,7 @@ function ManagerDashboard() {
   const [heatmapFilter, setHeatmapFilter] = useState<"all" | "in_progress">("all");
 
   const kpisQuery = useDashboardKPIs(days);
-  const ticketsQuery = useMyTickets({ page_size: 5 });
+  const ticketsQuery = useTickets({ page: 1, page_size: 3 });
   const escalationsQuery = useEscalations({
     status_filter: EscalationStatus.PENDING,
     page_size: 5,
@@ -552,14 +555,14 @@ function ManagerDashboard() {
     0
   );
 
-  const categoryColorMap: Record<string, string> = {
-    Infrastructure: "#0088FE",
-    Traffic: "#00C49F",
-    Lighting: "#FFBB28",
-    "Waste Management": "#FF8042",
-    Parks: "#8884d8",
-    Other: "#82ca9d",
-  };
+  // Generate consistent colors for all categories
+  const categoryColorMap: Record<string, string> = categoryItems.reduce(
+    (acc, item) => {
+      acc[item.category_name] = getCategoryColor(item.category_name);
+      return acc;
+    },
+    {} as Record<string, string>
+  );
 
   const totalCategoryTickets = categoryItems.reduce(
     (sum: number, c: any) => sum + Number(c?.total_tickets ?? 0),
@@ -765,9 +768,9 @@ function ManagerDashboard() {
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">By Category</p>
               </CardHeader>
-              <CardContent className="p-2">
+              <CardContent className="p-4">
                 {categoryStatsQuery.isLoading ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                  <div className="h-[350px] flex items-center justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : categoryStatsQuery.isError ? (
@@ -777,24 +780,24 @@ function ManagerDashboard() {
                     onRetry={categoryStatsQuery.refetch}
                   />
                 ) : categoryItems.length === 0 ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                  <div className="h-[350px] flex items-center justify-center">
                     <p className="text-xs text-muted-foreground">No data</p>
                   </div>
                 ) : (
-                  <div className="h-[200px] relative">
+                  <div className="h-[350px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={categoryItems}
                           cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={5}
+                          cy="42%"
+                          innerRadius={65}
+                          outerRadius={95}
+                          paddingAngle={2}
                           dataKey="total_tickets"
                           nameKey="category_name"
-                          label={({ name }) => name}
-                          labelLine={false}
+                          label={false}
+                          minAngle={5}
                         >
                           {categoryItems.map((entry: any, index: number) => (
                             <Cell
@@ -804,15 +807,21 @@ function ManagerDashboard() {
                           ))}
                         </Pie>
                         <Tooltip />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={50}
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
 
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                       <div className="text-center">
-                        <div className="text-xl font-normal text-foreground">
+                        <div className="text-2xl font-semibold text-foreground">
                           {totalCategoryTickets}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">Total</div>
+                        <div className="text-xs text-muted-foreground">Total</div>
                       </div>
                     </div>
                   </div>
@@ -831,9 +840,9 @@ function ManagerDashboard() {
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">By Category</p>
               </CardHeader>
-              <CardContent className="p-2">
+              <CardContent className="p-4">
                 {categoryStatsQuery.isLoading ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                  <div className="h-[350px] flex items-center justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : categoryStatsQuery.isError ? (
@@ -843,24 +852,24 @@ function ManagerDashboard() {
                     onRetry={categoryStatsQuery.refetch}
                   />
                 ) : categoryItems.length === 0 ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                  <div className="h-[350px] flex items-center justify-center">
                     <p className="text-xs text-muted-foreground">No data</p>
                   </div>
                 ) : (
-                  <div className="h-[200px] relative">
+                  <div className="h-[350px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={categoryItems}
                           cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={5}
+                          cy="42%"
+                          innerRadius={65}
+                          outerRadius={95}
+                          paddingAngle={2}
                           dataKey="open_tickets"
                           nameKey="category_name"
-                          label={({ name }) => name}
-                          labelLine={false}
+                          label={false}
+                          minAngle={5}
                         >
                           {categoryItems.map((entry: any, index: number) => (
                             <Cell
@@ -870,15 +879,21 @@ function ManagerDashboard() {
                           ))}
                         </Pie>
                         <Tooltip />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={50}
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
 
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                       <div className="text-center">
-                        <div className="text-xl font-normal text-foreground">
+                        <div className="text-2xl font-semibold text-foreground">
                           {totalCategoryOpen}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">Open</div>
+                        <div className="text-xs text-muted-foreground">Open</div>
                       </div>
                     </div>
                   </div>

@@ -221,12 +221,12 @@ export default function TicketsPage() {
     if (statusFilter) params.set("status", statusFilter);
     if (categoryFilter) params.set("category", categoryFilter);
     if (teamFilter) params.set("team", teamFilter);
-    if (viewFilter !== "all") params.set("view", viewFilter);
+    if (user?.role !== UserRole.MANAGER && viewFilter !== "all") params.set("view", viewFilter);
     if (currentPage > 1) params.set("page", currentPage.toString());
 
     const query = params.toString();
     router.push(`/tickets${query ? `?${query}` : ""}`, { scroll: false });
-  }, [statusFilter, categoryFilter, viewFilter, currentPage, router]);
+  }, [statusFilter, categoryFilter, teamFilter, viewFilter, currentPage, user?.role, router]);
 
   useEffect(() => {
     updateUrl();
@@ -242,7 +242,7 @@ export default function TicketsPage() {
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = statusFilter || categoryFilter || viewFilter !== "all";
+  const hasActiveFilters = statusFilter || categoryFilter || teamFilter || (user?.role !== UserRole.MANAGER && viewFilter !== "all");
 
   // Filter tickets by search query (client-side)
   const filteredTickets = searchQuery
@@ -272,12 +272,14 @@ export default function TicketsPage() {
             {totalTickets} {totalTickets === 1 ? "ticket" : "tickets"} found
           </p>
         </div>
-        <Link href="/tickets/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Report Issue
-          </Button>
-        </Link>
+        {user?.role !== UserRole.MANAGER && (
+          <Link href="/tickets/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Report Issue
+            </Button>
+          </Link>
+        )}
       </motion.div>
 
       {/* Search and Filters */}
@@ -306,10 +308,10 @@ export default function TicketsPage() {
                   {hasActiveFilters && (
                     <>
                       <span className="sr-only">
-                        {[statusFilter, categoryFilter, teamFilter, viewFilter !== "all"].filter(Boolean).length} active filters
+                        {[statusFilter, categoryFilter, teamFilter, user?.role !== UserRole.MANAGER && viewFilter !== "all"].filter(Boolean).length} active filters
                       </span>
                       <span aria-hidden="true" className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                        {[statusFilter, categoryFilter, teamFilter, viewFilter !== "all"].filter(Boolean).length}
+                        {[statusFilter, categoryFilter, teamFilter, user?.role !== UserRole.MANAGER && viewFilter !== "all"].filter(Boolean).length}
                       </span>
                     </>
                   )}
@@ -326,29 +328,31 @@ export default function TicketsPage() {
                     exit="exit"
                     variants={accordionVariants}
                   >
-                    {/* View filter */}
-                    <div className="min-w-[140px]">
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">View</label>
-                      <Select
-                        value={viewFilter}
-                        onValueChange={(value: string) => {
-                          setViewFilter(value as "all" | "my" | "assigned" | "followed");
-                          setCurrentPage(1);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Tickets</SelectItem>
-                          <SelectItem value="my">My Reports</SelectItem>
-                          <SelectItem value="followed">Followed Tickets</SelectItem>
-                          {(user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) && (
-                            <SelectItem value="assigned">Assigned to Me</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* View filter - Hidden for Manager */}
+                    {user?.role !== UserRole.MANAGER && (
+                      <div className="min-w-[140px]">
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">View</label>
+                        <Select
+                          value={viewFilter}
+                          onValueChange={(value: string) => {
+                            setViewFilter(value as "all" | "my" | "assigned" | "followed");
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Tickets</SelectItem>
+                            <SelectItem value="my">My Reports</SelectItem>
+                            <SelectItem value="followed">Followed Tickets</SelectItem>
+                            {user?.role === UserRole.SUPPORT && (
+                              <SelectItem value="assigned">Assigned to Me</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     {/* Status filter */}
                     <div className="min-w-[140px]">
