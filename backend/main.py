@@ -51,7 +51,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pass
 
 
-def add_cors_headers(response: JSONResponse, request: Request | None = None) -> JSONResponse:
+def add_cors_headers(
+    response: JSONResponse, request: Request | None = None
+) -> JSONResponse:
     """Add CORS headers to error responses."""
     # Get origin from request or use first allowed origin
     origin = "*"
@@ -70,7 +72,9 @@ def add_cors_headers(response: JSONResponse, request: Request | None = None) -> 
     return response
 
 
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
     """Handle HTTP exceptions with CORS headers."""
     response = JSONResponse(
         status_code=exc.status_code,
@@ -79,11 +83,21 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
     return add_cors_headers(response, request)
 
 
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Handle validation errors with CORS headers."""
+    # Convert errors to JSON-serializable format
+    errors = []
+    for error in exc.errors():
+        error_dict = dict(error)
+        # Convert ValueError objects in ctx to strings
+        if "ctx" in error_dict and "error" in error_dict["ctx"]:
+            error_dict["ctx"]["error"] = str(error_dict["ctx"]["error"])
+        errors.append(error_dict)
     response = JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()},
+        content={"detail": errors},
     )
     return add_cors_headers(response, request)
 
