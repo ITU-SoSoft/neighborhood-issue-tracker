@@ -1,7 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 import * as api from "@/lib/api/client";
-import { UserRole, UserUpdate, UserRoleUpdate } from "@/lib/api/types";
+import {
+  UserRole,
+  UserUpdate,
+  UserRoleUpdate,
+  UserCreateRequest,
+} from "@/lib/api/types";
 
 // ============================================================================
 // USER QUERIES
@@ -75,6 +80,8 @@ export function useUpdateUserRole() {
         queryKey: queryKeys.users.detail(userId),
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
     },
   });
 }
@@ -86,6 +93,21 @@ export function useDeleteUser() {
     mutationFn: (userId: string) => api.deleteUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+    },
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UserCreateRequest) => api.createUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
     },
   });
 }

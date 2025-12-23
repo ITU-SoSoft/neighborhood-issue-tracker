@@ -51,6 +51,15 @@ export interface UserUpdate {
   phone_number?: string;
 }
 
+export interface UserCreateRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone_number: string;
+  role?: UserRole;
+  team_id?: string;
+}
+
 // Saved Address types
 export interface SavedAddress {
   id: string;
@@ -90,6 +99,79 @@ export interface UserRoleUpdate {
   team_id?: string;
 }
 
+// ============================================================================
+// ✅ TEAM TYPES (ADDED)
+// ============================================================================
+
+/**
+ * Member object returned in Team detail response.
+ * Backend: TeamMemberResponse
+ */
+export interface TeamMemberResponse {
+  id: string;
+  name: string;
+  phone_number: string;
+  /**
+   * Backend returns role.value (string). We keep it compatible with UserRole.
+   */
+  role: UserRole | string;
+}
+
+/**
+ * For list page (/teams): TeamListResponse
+ */
+export interface TeamListResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  member_count: number;
+}
+
+/**
+ * Basic team response after create/update: TeamResponse
+ */
+export interface TeamResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Detailed team response including members: TeamDetailResponse
+ */
+export interface TeamDetailResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  member_count?: number;
+  active_ticket_count?: number;
+  categories: TeamCategoryResponse[];
+  districts: TeamDistrictResponse[];
+  members: TeamMemberResponse[];
+}
+
+/**
+ * Create payload: TeamCreate
+ */
+export interface TeamCreate {
+  name: string;
+  description?: string | null;
+  category_ids?: string[];
+  district_ids?: string[];
+}
+
+/**
+ * Update payload: TeamUpdate
+ */
+export interface TeamUpdate {
+  name?: string;
+  description?: string | null;
+}
+
 // Category types
 export interface Category {
   id: string;
@@ -114,6 +196,34 @@ export interface CategoryUpdate {
   name?: string;
   description?: string;
   is_active?: boolean;
+}
+
+// District types
+export interface District {
+  id: string;
+  name: string;
+  city: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DistrictListResponse {
+  items: District[];
+  total: number;
+}
+
+// Team-Category and Team-District association types
+export interface TeamCategoryResponse {
+  team_id: string;
+  category_id: string;
+  category_name: string;
+}
+
+export interface TeamDistrictResponse {
+  team_id: string;
+  district_id: string;
+  district_name: string;
+  city: string;
 }
 
 // Location types
@@ -351,6 +461,7 @@ export interface TeamPerformance {
   team_name: string;
   total_assigned: number;
   total_resolved: number;
+  open_tickets: number;
   resolution_rate: number;
   average_resolution_hours: number | null;
   average_rating: number | null;

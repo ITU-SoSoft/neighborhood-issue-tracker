@@ -44,6 +44,13 @@ class TicketService:
         Raises:
             CategoryNotFoundException: If the category doesn't exist or is inactive.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Creating ticket: {request.title}")
+        logger.info(f"  Category ID: {request.category_id}")
+        logger.info(f"  Location - district_id: {request.location.district_id}")
+        logger.info(f"  Location - coordinates: ({request.location.latitude}, {request.location.longitude})")
+        
         # Verify category exists
         result = await db.execute(
             select(Category).where(

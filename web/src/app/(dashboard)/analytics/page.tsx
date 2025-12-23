@@ -24,7 +24,7 @@ import {
   useNeighborhoodStats,
 } from "@/lib/queries/analytics";
 import { UserRole } from "@/lib/api/types";
-import { formatPercentage, formatRating, formatDuration } from "@/lib/utils";
+import { formatPercentage, formatRating, formatDuration, getCategoryColor } from "@/lib/utils";
 import {
   fadeInUp,
   staggerContainer,
@@ -274,7 +274,7 @@ export default function AnalyticsPage() {
   const neighborhoodStatsQuery = useNeighborhoodStats(days, 5);
 
   const kpis = kpisQuery.data;
-  const teamData = teamPerformanceQuery.data?.items ?? [];
+  const teamData = teamPerformanceQuery.data?.teams ?? [];
   const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   // Access check - Manager only
@@ -440,11 +440,11 @@ export default function AnalyticsPage() {
                   onRetry={feedbackTrendsQuery.refetch}
                 />
               ) : !feedbackTrendsQuery.data?.items ? (
-                <div className="h-[300px] flex items-center justify-center">
+                <div className="h-[350px] flex items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="h-[300px]">
+                <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={feedbackTrendsQuery.data.items} margin={{ top: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -467,7 +467,7 @@ export default function AnalyticsPage() {
                           backgroundColor: 'hsl(var(--card))',
                           borderColor: 'hsl(var(--border))',
                         }}
-                        formatter={(value: number | string | undefined) => [`${(Number(value) || 0).toFixed(1)} / 5.0`, 'Rating']}
+                        formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Rating']}
                       />
                       <Bar
                         dataKey="average_rating"
@@ -501,7 +501,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {categoryStatsQuery.isLoading ? (
-                <div className="h-[300px] flex items-center justify-center">
+                <div className="h-[350px] flex items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : categoryStatsQuery.isError ? (
@@ -511,48 +511,44 @@ export default function AnalyticsPage() {
                   onRetry={categoryStatsQuery.refetch}
                 />
               ) : !categoryStatsQuery.data?.items || categoryStatsQuery.data.items.length === 0 ? (
-                <div className="h-[300px] flex items-center justify-center">
+                <div className="h-[350px] flex items-center justify-center">
                   <p className="text-sm text-muted-foreground">No data</p>
                 </div>
               ) : (
-                <div className="h-[300px] relative">
+                <div className="h-[350px] relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryStatsQuery.data.items as any}
+                        data={categoryStatsQuery.data.items}
                         cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={5}
+                        cy="42%"
+                        innerRadius={65}
+                        outerRadius={95}
+                        paddingAngle={2}
                         dataKey="total_tickets"
                         nameKey="category_name"
-                        label={({ name }: { name?: string }) => name ?? ''}
+                        label={false}
+                        minAngle={5}
                       >
-                        {categoryStatsQuery.data.items.map((entry: any, index: number) => {
-                          const colorMap: Record<string, string> = {
-                            'Infrastructure': '#0088FE',
-                            'Traffic': '#00C49F',
-                            'Lighting': '#FFBB28',
-                            'Waste Management': '#FF8042',
-                            'Parks': '#8884d8',
-                            'Other': '#82ca9d',
-                          };
-                          return (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={colorMap[entry.category_name] || '#999999'}
-                            />
-                          );
-                        })}
+                        {categoryStatsQuery.data.items.map((entry: any, index: number) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={getCategoryColor(entry.category_name)}
+                          />
+                        ))}
                       </Pie>
                       <Tooltip />
-                      <Legend formatter={(_value: any, entry: any) => entry.payload?.category_name} />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={50}
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                     <div className="text-center">
-                      <div className="text-2xl font-normal text-foreground">
+                      <div className="text-2xl font-semibold text-foreground">
                         {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.total_tickets, 0)}
                       </div>
                       <div className="text-xs text-muted-foreground">Total</div>
@@ -573,7 +569,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {categoryStatsQuery.isLoading ? (
-                <div className="h-[300px] flex items-center justify-center">
+                <div className="h-[350px] flex items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : categoryStatsQuery.isError ? (
@@ -583,48 +579,44 @@ export default function AnalyticsPage() {
                   onRetry={categoryStatsQuery.refetch}
                 />
               ) : !categoryStatsQuery.data?.items || categoryStatsQuery.data.items.length === 0 ? (
-                <div className="h-[300px] flex items-center justify-center">
+                <div className="h-[350px] flex items-center justify-center">
                   <p className="text-sm text-muted-foreground">No data</p>
                 </div>
               ) : (
-                <div className="h-[300px] relative">
+                <div className="h-[350px] relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryStatsQuery.data.items as any}
+                        data={categoryStatsQuery.data.items}
                         cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={5}
+                        cy="42%"
+                        innerRadius={65}
+                        outerRadius={95}
+                        paddingAngle={2}
                         dataKey="open_tickets"
                         nameKey="category_name"
-                        label={({ name }: { name?: string }) => name ?? ''}
+                        label={false}
+                        minAngle={5}
                       >
-                        {categoryStatsQuery.data.items.map((entry: any, index: number) => {
-                          const colorMap: Record<string, string> = {
-                            'Infrastructure': '#0088FE',
-                            'Traffic': '#00C49F',
-                            'Lighting': '#FFBB28',
-                            'Waste Management': '#FF8042',
-                            'Parks': '#8884d8',
-                            'Other': '#82ca9d',
-                          };
-                          return (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={colorMap[entry.category_name] || '#999999'}
-                            />
-                          );
-                        })}
+                        {categoryStatsQuery.data.items.map((entry: any, index: number) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={getCategoryColor(entry.category_name)}
+                          />
+                        ))}
                       </Pie>
                       <Tooltip />
-                      <Legend formatter={(_value: any, entry: any) => entry.payload?.category_name} />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={50}
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                     <div className="text-center">
-                      <div className="text-2xl font-normal text-foreground">
+                      <div className="text-2xl font-semibold text-foreground">
                         {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.open_tickets, 0)}
                       </div>
                       <div className="text-xs text-muted-foreground">Open</div>
@@ -711,33 +703,34 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </motion.div>
+      </div>
 
-        {/* Team Performance */}
-        <motion.div variants={staggerItem}>
-          <div className="grid gap-6">
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">Team Performance</h2>
-              <p className="text-sm text-muted-foreground">
-                Resolution rates and citizen satisfaction
-              </p>
+      {/* Team Performance - Full Width Section */}
+      <motion.div variants={staggerItem}>
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Team Performance</h2>
+            <p className="text-base text-muted-foreground">
+              Resolution rates and citizen satisfaction
+            </p>
+          </div>
+
+          {teamPerformanceQuery.isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-
-            {teamPerformanceQuery.isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : teamPerformanceQuery.isError ? (
-              <ErrorState
-                title="Failed to Load"
-                message="Could not load team performance data."
-                onRetry={teamPerformanceQuery.refetch}
-              />
-            ) : !teamData || teamData.length === 0 ? (
-              <div className="flex items-center justify-center py-12 border rounded-lg bg-muted/10">
-                <p className="text-sm text-muted-foreground">No team data found</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          ) : teamPerformanceQuery.isError ? (
+            <ErrorState
+              title="Failed to Load"
+              message="Could not load team performance data."
+              onRetry={teamPerformanceQuery.refetch}
+            />
+          ) : !teamData || teamData.length === 0 ? (
+            <div className="flex items-center justify-center py-12 border rounded-lg bg-muted/10">
+              <p className="text-sm text-muted-foreground">No team data found</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {teamData.map((team: any) => {
                   const resolutionRate = team.resolution_rate || 0;
                   const rating = team.average_rating || 0;
@@ -750,10 +743,10 @@ export default function AnalyticsPage() {
                       whileTap={cardTap}
                     >
                       <Card className="h-full">
-                        <CardContent className="p-6">
-                          <div className="space-y-4">
+                        <CardContent className="p-5">
+                          <div className="space-y-3">
                             <div className="flex items-start justify-between">
-                              <h3 className="font-semibold text-foreground line-clamp-2">
+                              <h3 className="font-semibold text-base text-foreground line-clamp-1">
                                 {((name) => {
                                   const map: Record<string, string> = {
                                     'Bakırköy Elektrik Takımı': 'Bakırköy Electricity Team',
@@ -768,8 +761,8 @@ export default function AnalyticsPage() {
                               </h3>
                             </div>
 
-                            <div className="text-center py-4 bg-muted/50 rounded-lg">
-                              <div className="text-4xl font-bold text-foreground">
+                            <div className="text-center py-3 bg-muted/50 rounded-lg">
+                              <div className="text-3xl font-bold text-foreground">
                                 {resolutionRate.toFixed(1)}%
                               </div>
                               <div className="text-xs text-muted-foreground mt-1">
@@ -781,30 +774,30 @@ export default function AnalyticsPage() {
                               <span className="text-muted-foreground">Citizen Rating</span>
                               <div className="flex items-center gap-1 font-medium">
                                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                {rating > 0 ? rating.toFixed(1) : 'N/A'}
+                                <span className="text-base">{rating > 0 ? rating.toFixed(1) : 'N/A'}</span>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t">
+                            <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t">
                               <div>
-                                <p className="text-muted-foreground">Assigned</p>
-                                <p className="font-medium text-lg">{team.assigned_tickets}</p>
+                                <p className="text-muted-foreground text-[10px] mb-0.5">Assigned</p>
+                                <p className="font-semibold text-lg">{team.total_assigned || 0}</p>
                               </div>
                               <div>
-                                <p className="text-muted-foreground">Resolved</p>
-                                <p className="font-medium text-lg text-green-600">{team.resolved_tickets}</p>
+                                <p className="text-muted-foreground text-[10px] mb-0.5">Resolved</p>
+                                <p className="font-semibold text-lg text-green-600">{team.total_resolved || 0}</p>
                               </div>
                               <div>
-                                <p className="text-muted-foreground">Avg. Time</p>
-                                <p className="font-medium">
-                                  {team.average_resolution_time
-                                    ? `${Math.round(team.average_resolution_time)}h`
+                                <p className="text-muted-foreground text-[10px] mb-0.5">Avg. Time</p>
+                                <p className="font-semibold text-sm">
+                                  {team.average_resolution_hours
+                                    ? `${Math.round(team.average_resolution_hours)}h`
                                     : 'N/A'}
                                 </p>
                               </div>
                               <div>
-                                <p className="text-muted-foreground">Members</p>
-                                <p className="font-medium">{team.member_count}</p>
+                                <p className="text-muted-foreground text-[10px] mb-0.5">Members</p>
+                                <p className="font-semibold text-sm">{team.member_count || 0}</p>
                               </div>
                             </div>
                           </div>
@@ -815,9 +808,8 @@ export default function AnalyticsPage() {
                 })}
               </div>
             )}
-          </div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

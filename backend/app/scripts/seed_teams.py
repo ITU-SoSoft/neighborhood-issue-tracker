@@ -68,20 +68,36 @@ SAMPLE_TEAMS = [
 
 async def seed_districts() -> None:
     """Seed districts for Istanbul."""
+    # All 39 districts of Istanbul
+    ISTANBUL_DISTRICTS_ALL = [
+        "Adalar", "Arnavutköy", "Ataşehir", "Avcılar", "Bağcılar",
+        "Bahçelievler", "Bakırköy", "Başakşehir", "Bayrampaşa", "Beşiktaş",
+        "Beykoz", "Beylikdüzü", "Beyoğlu", "Büyükçekmece", "Çatalca",
+        "Çekmeköy", "Esenler", "Esenyurt", "Eyüpsultan", "Fatih",
+        "Gaziosmanpaşa", "Güngören", "Kadıköy", "Kağıthane", "Kartal",
+        "Küçükçekmece", "Maltepe", "Pendik", "Sancaktepe", "Sarıyer",
+        "Silivri", "Sultanbeyli", "Sultangazi", "Şile", "Şişli",
+        "Tuzla", "Ümraniye", "Üsküdar", "Zeytinburnu"
+    ]
+    
     async with async_session_maker() as session:
         # Get existing districts
         result = await session.execute(select(District))
         existing = {(d.name, d.city) for d in result.scalars().all()}
 
-        # Collect all unique districts from team data
+        # Add all Istanbul districts
         all_districts = set()
+        for district_name in ISTANBUL_DISTRICTS_ALL:
+            all_districts.add((district_name, "Istanbul"))
+        
+        # Also include districts from team data (for backward compatibility)
         for team_data in SAMPLE_TEAMS:
             for dist in team_data["districts"]:
                 all_districts.add((dist["district"], dist["city"]))
 
         # Add new districts
         added_count = 0
-        for district_name, city in all_districts:
+        for district_name, city in sorted(all_districts):
             if (district_name, city) not in existing:
                 district = District(name=district_name, city=city)
                 session.add(district)

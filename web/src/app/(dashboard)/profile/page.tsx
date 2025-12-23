@@ -17,7 +17,7 @@ import {
   useCreateSavedAddress,
   useDeleteSavedAddress,
 } from "@/lib/queries/addresses";
-import { SavedAddress } from "@/lib/api/types";
+import { SavedAddress, UserRole } from "@/lib/api/types";
 import {
   formatDate,
   getRoleVariant,
@@ -63,9 +63,9 @@ export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const updateUserMutation = useUpdateUser();
 
-  // Saved addresses queries
+  // Saved addresses queries (disabled for managers)
   const { data: addressesData, isLoading: isLoadingAddresses } =
-    useSavedAddresses();
+    useSavedAddresses({ enabled: user?.role !== UserRole.MANAGER });
   const createAddressMutation = useCreateSavedAddress();
   const deleteAddressMutation = useDeleteSavedAddress();
 
@@ -350,9 +350,10 @@ export default function ProfilePage() {
         </Card>
       </motion.div>
 
-      {/* Saved Addresses Card */}
-      <motion.div variants={staggerItem}>
-        <Card className="p-6">
+      {/* Saved Addresses Card - Hidden for Manager */}
+      {user.role !== UserRole.MANAGER && (
+        <motion.div variants={staggerItem}>
+          <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Home className="h-5 w-5" />
@@ -493,9 +494,11 @@ export default function ProfilePage() {
           )}
         </Card>
       </motion.div>
+      )}
 
-      {/* Account Status Card */}
-      <motion.div variants={staggerItem}>
+      {/* Account Status Card - Hidden for Manager */}
+      {user.role !== UserRole.MANAGER && (
+        <motion.div variants={staggerItem}>
         <Card className="p-6">
           <h3 className="mb-4 text-lg font-semibold text-foreground">
             Account Status
@@ -516,6 +519,7 @@ export default function ProfilePage() {
           </div>
         </Card>
       </motion.div>
+      )}
     </motion.div>
   );
 }

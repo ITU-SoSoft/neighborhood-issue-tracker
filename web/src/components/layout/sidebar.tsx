@@ -71,8 +71,8 @@ const navItems: NavItem[] = [
     roles: [UserRole.MANAGER],
   },
   {
-    label: "Users",
-    href: "/users",
+    label: "Management",
+    href: "/teams",
     icon: <Users className="h-5 w-5" />,
     roles: [UserRole.MANAGER],
   },

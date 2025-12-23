@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.config import settings
-from app.database import create_tables, engine
+from app.database import engine
 from app.scripts.seed import seed_categories, seed_users
 from app.scripts.seed_teams import seed_teams
 
@@ -25,11 +25,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Sets up resources on startup and cleans up on shutdown.
     """
-    # Startup: Try to create tables and seed data if in development mode
+    # Startup: Seed data if in development mode
+    # NOTE: Tables should be created via Alembic migrations first
+    # Run: docker exec sosoft-backend uv run alembic upgrade head
     if settings.debug:
         try:
-            await create_tables()
-            logger.info("Database tables created/verified")
             # Seed default categories
             await seed_categories()
             logger.info("Default categories seeded")
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await seed_teams()
             logger.info("Default teams seeded")
         except Exception as e:
-            logger.warning(f"Could not create tables (DB may not be available): {e}")
+            logger.warning(f"Could not seed data (DB may not be ready): {e}")
 
     yield
 

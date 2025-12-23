@@ -89,18 +89,19 @@ export function HeatmapVisualization({
     // Create heat layer with custom options
     // @ts-ignore - heatLayer is added by leaflet.heat plugin
     const heatLayer = L.heatLayer(heatPoints, {
-      radius: 25, // Radius of each point in pixels
-      blur: 15, // Amount of blur
+      radius: 30, // Radius of each point in pixels (increased for better visibility)
+      blur: 12, // Amount of blur (decreased for sharper colors)
       maxZoom: 17, // Maximum zoom level where heatmap is visible
-      max: 1.0, // Maximum intensity (we use normalized intensity)
+      max: 0.8, // Maximum intensity (lowered to make colors more intense)
+      minOpacity: 0.5, // Minimum opacity for better visibility
       gradient: {
-        // Color gradient from low to high intensity
-        0.0: "blue",
-        0.2: "cyan",
-        0.4: "lime",
-        0.6: "yellow",
-        0.8: "orange",
-        1.0: "red",
+        // Color gradient from low to high intensity (more vibrant colors)
+        0.0: "#0000FF", // Deep blue
+        0.2: "#00BFFF", // Deep sky blue
+        0.4: "#00FF00", // Lime green
+        0.6: "#FFFF00", // Yellow
+        0.8: "#FF6600", // Orange
+        1.0: "#FF0000", // Red
       },
     });
 
