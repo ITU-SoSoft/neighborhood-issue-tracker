@@ -76,11 +76,12 @@ run_migrations() {
     log_info "Running database migrations..."
     # Temporarily disable exit on error for this function
     set +e
-    if docker exec sosoft-backend python -m alembic upgrade head 2>/dev/null; then
+    # Use docker compose exec to use service name instead of container name (more portable)
+    if docker compose exec -T backend python -m alembic upgrade head 2>/dev/null; then
         log_success "Database migrations completed!"
     else
         # Check if it's just because migrations are already applied
-        if docker exec sosoft-backend python -m alembic current 2>/dev/null | grep -q "head\|alembic_version"; then
+        if docker compose exec -T backend python -m alembic current 2>/dev/null | grep -q "head\|alembic_version"; then
             log_info "Database migrations already up to date"
         else
             log_error "Migration failed - check logs if this is your first setup"
@@ -94,12 +95,30 @@ seed_database() {
     log_info "Seeding database with default categories and users..."
     # Temporarily disable exit on error for this function
     set +e
-    if docker exec sosoft-backend python -m app.scripts.seed 2>/dev/null; then
+    # Use docker compose exec to use service name instead of container name (more portable)
+    if docker compose exec -T backend python -m app.scripts.seed 2>/dev/null; then
         log_success "Database seeding completed!"
     else
         # Seed script handles duplicates gracefully, so any error is likely OK
         log_info "Database may already be seeded or seed script encountered an issue"
     fi
+    
+    # Seed fallback team (for development/testing)
+    log_info "Creating fallback team..."
+    if docker compose exec -T backend python -m app.scripts.seed_fallback_team 2>/dev/null; then
+        log_success "Fallback team seeding completed!"
+    else
+        log_info "Fallback team may already exist or encountered an issue"
+    fi
+    
+    # Seed test data (for development/testing)
+    log_info "Seeding test data (teams, users, tickets)..."
+    if docker compose exec -T backend python -m app.scripts.seed_test_data 2>/dev/null; then
+        log_success "Test data seeding completed!"
+    else
+        log_info "Test data may already exist or encountered an issue"
+    fi
+    
     set -e
 }
 
