@@ -144,10 +144,15 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-help.sagbas.io}`)"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-help.sagbas.io}`) || Host(`www.${DOMAIN:-help.sagbas.io}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      # Redirect www to non-www
+      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.(.+)"
+      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
+      - "traefik.http.middlewares.www-redirect.redirectregex.permanent=true"
+      - "traefik.http.routers.frontend.middlewares=www-redirect"
     networks:
       - sosoft-network
 
