@@ -14,13 +14,8 @@ export function useReassignTicket() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      ticketId,
-      teamId,
-    }: {
-      ticketId: string;
-      teamId: string | null;
-    }) => api.assignTicket(ticketId, { team_id: teamId }),
+    mutationFn: ({ ticketId, teamId }: { ticketId: string; teamId: string }) =>
+      api.assignTicket(ticketId, { team_id: teamId }),
     onSuccess: (_, variables) => {
       // Invalidate all team tickets queries
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.all });
@@ -29,4 +24,3 @@ export function useReassignTicket() {
     },
   });
 }
-

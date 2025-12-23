@@ -17,7 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TicketListSkeleton } from "@/components/shared/skeletons";
-import { EmptyTickets, EmptySearchResults } from "@/components/shared/empty-state";
+import {
+  EmptyTickets,
+  EmptySearchResults,
+} from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import {
   useTickets,
@@ -28,11 +31,7 @@ import {
   useCategories,
   useTeams,
 } from "@/lib/queries";
-import {
-  Ticket,
-  TicketStatus,
-  UserRole,
-} from "@/lib/api/types";
+import { Ticket, TicketStatus, UserRole } from "@/lib/api/types";
 import {
   formatRelativeTime,
   getStatusVariant,
@@ -80,12 +79,19 @@ function TicketCard({ ticket }: TicketCardProps) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-start gap-3">
-                <h3 className="font-semibold text-foreground line-clamp-1">{ticket.title}</h3>
-                <Badge variant={getStatusVariant(ticket.status)} className="shrink-0">
+                <h3 className="font-semibold text-foreground line-clamp-1">
+                  {ticket.title}
+                </h3>
+                <Badge
+                  variant={getStatusVariant(ticket.status)}
+                  className="shrink-0"
+                >
                   {getStatusLabel(ticket.status)}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-2">{ticket.description}</p>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {ticket.description}
+              </p>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" />
@@ -132,7 +138,9 @@ export default function TicketsPage() {
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "">("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [teamFilter, setTeamFilter] = useState<string>("");
-  const [viewFilter, setViewFilter] = useState<"all" | "my" | "assigned" | "followed">("all");
+  const [viewFilter, setViewFilter] = useState<
+    "all" | "my" | "assigned" | "followed"
+  >("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -142,7 +150,12 @@ export default function TicketsPage() {
     const status = searchParams.get("status") as TicketStatus | null;
     const category = searchParams.get("category");
     const team = searchParams.get("team");
-    const view = searchParams.get("view") as "all" | "my" | "assigned" | "followed" | null;
+    const view = searchParams.get("view") as
+      | "all"
+      | "my"
+      | "assigned"
+      | "followed"
+      | null;
     const page = searchParams.get("page");
 
     if (status) setStatusFilter(status);
@@ -156,59 +169,76 @@ export default function TicketsPage() {
   const { data: categoriesData } = useCategories();
   const categories = categoriesData?.items ?? [];
   const { data: teamsData } = useTeams();
-  const teams = Array.isArray(teamsData) ? teamsData : teamsData?.items ?? [];
+  const teams = Array.isArray(teamsData) ? teamsData : [];
 
   // Check if user is support/manager (can see all tickets)
-  const isStaff = user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
+  const isStaff =
+    user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
 
   // Select the right query based on view filter
   // For "all" view: staff users see all tickets, citizens see own + followed tickets
-  const allTicketsQuery = useTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    team_id: teamFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "all" && isStaff });
+  const allTicketsQuery = useTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      team_id: teamFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "all" && isStaff },
+  );
 
-  const allUserTicketsQuery = useAllUserTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "all" && !isStaff });
+  const allUserTicketsQuery = useAllUserTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "all" && !isStaff },
+  );
 
-  const myTicketsQuery = useMyTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "my" });
+  const myTicketsQuery = useMyTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "my" },
+  );
 
-  const assignedTicketsQuery = useAssignedTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "assigned" && isStaff });
+  const assignedTicketsQuery = useAssignedTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "assigned" && isStaff },
+  );
 
-  const followedTicketsQuery = useFollowedTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "followed" });
+  const followedTicketsQuery = useFollowedTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "followed" },
+  );
 
   // Get the active query
-  const activeQuery = viewFilter === "my" 
-    ? myTicketsQuery 
-    : viewFilter === "assigned" 
-      ? assignedTicketsQuery 
-      : viewFilter === "followed"
-        ? followedTicketsQuery
-        : isStaff
-          ? allTicketsQuery
-          : allUserTicketsQuery;
+  const activeQuery =
+    viewFilter === "my"
+      ? myTicketsQuery
+      : viewFilter === "assigned"
+        ? assignedTicketsQuery
+        : viewFilter === "followed"
+          ? followedTicketsQuery
+          : isStaff
+            ? allTicketsQuery
+            : allUserTicketsQuery;
 
   const tickets = activeQuery.data?.items ?? [];
   const totalTickets = activeQuery.data?.total ?? 0;
@@ -221,12 +251,21 @@ export default function TicketsPage() {
     if (statusFilter) params.set("status", statusFilter);
     if (categoryFilter) params.set("category", categoryFilter);
     if (teamFilter) params.set("team", teamFilter);
-    if (user?.role !== UserRole.MANAGER && viewFilter !== "all") params.set("view", viewFilter);
+    if (user?.role !== UserRole.MANAGER && viewFilter !== "all")
+      params.set("view", viewFilter);
     if (currentPage > 1) params.set("page", currentPage.toString());
 
     const query = params.toString();
     router.push(`/tickets${query ? `?${query}` : ""}`, { scroll: false });
-  }, [statusFilter, categoryFilter, teamFilter, viewFilter, currentPage, user?.role, router]);
+  }, [
+    statusFilter,
+    categoryFilter,
+    teamFilter,
+    viewFilter,
+    currentPage,
+    user?.role,
+    router,
+  ]);
 
   useEffect(() => {
     updateUrl();
@@ -242,7 +281,11 @@ export default function TicketsPage() {
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = statusFilter || categoryFilter || teamFilter || (user?.role !== UserRole.MANAGER && viewFilter !== "all");
+  const hasActiveFilters =
+    statusFilter ||
+    categoryFilter ||
+    teamFilter ||
+    (user?.role !== UserRole.MANAGER && viewFilter !== "all");
 
   // Filter tickets by search query (client-side)
   const filteredTickets = searchQuery
@@ -250,19 +293,19 @@ export default function TicketsPage() {
         (t) =>
           t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.category_name?.toLowerCase().includes(searchQuery.toLowerCase())
+          t.category_name?.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : tickets;
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
       {/* Header */}
-      <motion.div 
+      <motion.div
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
         variants={fadeInUp}
       >
@@ -301,17 +344,39 @@ export default function TicketsPage() {
                 <Button
                   variant="outline"
                   onClick={() => setShowFilters(!showFilters)}
-                  className={showFilters ? "bg-primary/10 border-primary/30" : ""}
+                  className={
+                    showFilters ? "bg-primary/10 border-primary/30" : ""
+                  }
                 >
                   <Filter className="mr-2 h-4 w-4" />
                   Filters
                   {hasActiveFilters && (
                     <>
                       <span className="sr-only">
-                        {[statusFilter, categoryFilter, teamFilter, user?.role !== UserRole.MANAGER && viewFilter !== "all"].filter(Boolean).length} active filters
+                        {
+                          [
+                            statusFilter,
+                            categoryFilter,
+                            teamFilter,
+                            user?.role !== UserRole.MANAGER &&
+                              viewFilter !== "all",
+                          ].filter(Boolean).length
+                        }{" "}
+                        active filters
                       </span>
-                      <span aria-hidden="true" className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                        {[statusFilter, categoryFilter, teamFilter, user?.role !== UserRole.MANAGER && viewFilter !== "all"].filter(Boolean).length}
+                      <span
+                        aria-hidden="true"
+                        className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground"
+                      >
+                        {
+                          [
+                            statusFilter,
+                            categoryFilter,
+                            teamFilter,
+                            user?.role !== UserRole.MANAGER &&
+                              viewFilter !== "all",
+                          ].filter(Boolean).length
+                        }
                       </span>
                     </>
                   )}
@@ -321,7 +386,7 @@ export default function TicketsPage() {
               {/* Filter options */}
               <AnimatePresence>
                 {showFilters && (
-                  <motion.div 
+                  <motion.div
                     className="flex flex-wrap gap-3 border-t border-border pt-4"
                     initial="hidden"
                     animate="visible"
@@ -331,11 +396,15 @@ export default function TicketsPage() {
                     {/* View filter - Hidden for Manager */}
                     {user?.role !== UserRole.MANAGER && (
                       <div className="min-w-[140px]">
-                        <label className="mb-1 block text-xs font-medium text-muted-foreground">View</label>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          View
+                        </label>
                         <Select
                           value={viewFilter}
                           onValueChange={(value: string) => {
-                            setViewFilter(value as "all" | "my" | "assigned" | "followed");
+                            setViewFilter(
+                              value as "all" | "my" | "assigned" | "followed",
+                            );
                             setCurrentPage(1);
                           }}
                         >
@@ -345,9 +414,13 @@ export default function TicketsPage() {
                           <SelectContent>
                             <SelectItem value="all">All Tickets</SelectItem>
                             <SelectItem value="my">My Reports</SelectItem>
-                            <SelectItem value="followed">Followed Tickets</SelectItem>
+                            <SelectItem value="followed">
+                              Followed Tickets
+                            </SelectItem>
                             {user?.role === UserRole.SUPPORT && (
-                              <SelectItem value="assigned">Assigned to Me</SelectItem>
+                              <SelectItem value="assigned">
+                                Assigned to Me
+                              </SelectItem>
                             )}
                           </SelectContent>
                         </Select>
@@ -356,11 +429,17 @@ export default function TicketsPage() {
 
                     {/* Status filter */}
                     <div className="min-w-[140px]">
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Status
+                      </label>
                       <Select
                         value={statusFilter || "all-statuses"}
                         onValueChange={(value: string) => {
-                          setStatusFilter(value === "all-statuses" ? "" : value as TicketStatus);
+                          setStatusFilter(
+                            value === "all-statuses"
+                              ? ""
+                              : (value as TicketStatus),
+                          );
                           setCurrentPage(1);
                         }}
                       >
@@ -368,23 +447,37 @@ export default function TicketsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all-statuses">All Statuses</SelectItem>
+                          <SelectItem value="all-statuses">
+                            All Statuses
+                          </SelectItem>
                           <SelectItem value={TicketStatus.NEW}>New</SelectItem>
-                          <SelectItem value={TicketStatus.IN_PROGRESS}>In Progress</SelectItem>
-                          <SelectItem value={TicketStatus.RESOLVED}>Resolved</SelectItem>
-                          <SelectItem value={TicketStatus.CLOSED}>Closed</SelectItem>
-                          <SelectItem value={TicketStatus.ESCALATED}>Escalated</SelectItem>
+                          <SelectItem value={TicketStatus.IN_PROGRESS}>
+                            In Progress
+                          </SelectItem>
+                          <SelectItem value={TicketStatus.RESOLVED}>
+                            Resolved
+                          </SelectItem>
+                          <SelectItem value={TicketStatus.CLOSED}>
+                            Closed
+                          </SelectItem>
+                          <SelectItem value={TicketStatus.ESCALATED}>
+                            Escalated
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     {/* Category filter */}
                     <div className="min-w-[160px]">
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">Category</label>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Category
+                      </label>
                       <Select
                         value={categoryFilter || "all-categories"}
                         onValueChange={(value: string) => {
-                          setCategoryFilter(value === "all-categories" ? "" : value);
+                          setCategoryFilter(
+                            value === "all-categories" ? "" : value,
+                          );
                           setCurrentPage(1);
                         }}
                       >
@@ -392,7 +485,9 @@ export default function TicketsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all-categories">All Categories</SelectItem>
+                          <SelectItem value="all-categories">
+                            All Categories
+                          </SelectItem>
                           {categories.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
                               {category.name}
@@ -405,7 +500,9 @@ export default function TicketsPage() {
                     {/* Team filter - only for staff */}
                     {isStaff && (
                       <div className="min-w-[160px]">
-                        <label className="mb-1 block text-xs font-medium text-muted-foreground">Team</label>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Team
+                        </label>
                         <Select
                           value={teamFilter || "all-teams"}
                           onValueChange={(value: string) => {
@@ -431,7 +528,11 @@ export default function TicketsPage() {
                     {/* Clear filters */}
                     {hasActiveFilters && (
                       <div className="flex items-end">
-                        <Button variant="ghost" size="sm" onClick={clearFilters}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearFilters}
+                        >
                           <X className="mr-1 h-4 w-4" />
                           Clear
                         </Button>
@@ -467,7 +568,9 @@ export default function TicketsPage() {
           <motion.div variants={fadeInUp}>
             <Card>
               <CardContent className="py-12">
-                <EmptyTickets onCreateTicket={() => router.push("/tickets/new")} />
+                <EmptyTickets
+                  onCreateTicket={() => router.push("/tickets/new")}
+                />
                 {hasActiveFilters && (
                   <div className="flex justify-center mt-4">
                     <Button variant="outline" onClick={clearFilters}>
@@ -480,7 +583,7 @@ export default function TicketsPage() {
           </motion.div>
         )
       ) : (
-        <motion.div 
+        <motion.div
           className="space-y-4"
           variants={staggerContainer}
           initial="hidden"
@@ -497,7 +600,7 @@ export default function TicketsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && !isLoading && (
-        <motion.div 
+        <motion.div
           className="flex items-center justify-between"
           variants={fadeInUp}
         >

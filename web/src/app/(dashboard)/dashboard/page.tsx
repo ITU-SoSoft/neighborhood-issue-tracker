@@ -98,7 +98,7 @@ const HeatmapVisualization = dynamic(
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     ),
-  }
+  },
 );
 
 // ============================================================================
@@ -129,7 +129,11 @@ interface KPICardProps {
 
 function KPICard({ title, value, icon, iconBgClass }: KPICardProps) {
   return (
-    <motion.div variants={staggerItem} whileHover={cardHover} whileTap={cardTap}>
+    <motion.div
+      variants={staggerItem}
+      whileHover={cardHover}
+      whileTap={cardTap}
+    >
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
@@ -273,7 +277,8 @@ function CitizenDashboard() {
     inProgress: tickets.filter((t) => t.status === TicketStatus.IN_PROGRESS)
       .length,
     resolved: tickets.filter(
-      (t) => t.status === TicketStatus.RESOLVED || t.status === TicketStatus.CLOSED
+      (t) =>
+        t.status === TicketStatus.RESOLVED || t.status === TicketStatus.CLOSED,
     ).length,
     pending: tickets.filter((t) => t.status === TicketStatus.NEW).length,
   };
@@ -290,8 +295,12 @@ function CitizenDashboard() {
         variants={fadeInUp}
       >
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Welcome back!</h1>
-          <p className="text-muted-foreground">Track and manage your neighborhood issues</p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Welcome back!
+          </h1>
+          <p className="text-muted-foreground">
+            Track and manage your neighborhood issues
+          </p>
         </div>
         <Link href="/tickets/new">
           <Button>
@@ -381,11 +390,18 @@ function SupportDashboard() {
       <motion.div variants={fadeInUp}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Support Dashboard</h1>
-            <p className="text-muted-foreground">Manage assigned tickets and escalations</p>
+            <h1 className="text-2xl font-semibold text-foreground">
+              Support Dashboard
+            </h1>
+            <p className="text-muted-foreground">
+              Manage assigned tickets and escalations
+            </p>
           </div>
 
-          <Select value={days.toString()} onValueChange={(v) => setDays(parseInt(v, 10))}>
+          <Select
+            value={days.toString()}
+            onValueChange={(v) => setDays(parseInt(v, 10))}
+          >
             <SelectTrigger className="w-[150px]">
               <SelectValue />
             </SelectTrigger>
@@ -509,7 +525,9 @@ function SupportDashboard() {
 
 function ManagerDashboard() {
   const [days, setDays] = useState(30);
-  const [heatmapFilter, setHeatmapFilter] = useState<"all" | "in_progress">("all");
+  const [heatmapFilter, setHeatmapFilter] = useState<"all" | "in_progress">(
+    "all",
+  );
 
   const kpisQuery = useDashboardKPIs(days);
   const ticketsQuery = useTickets({ page: 1, page_size: 3 });
@@ -520,7 +538,8 @@ function ManagerDashboard() {
 
   const heatmapQuery = useHeatmap({
     days,
-    status: heatmapFilter === "in_progress" ? TicketStatus.IN_PROGRESS : undefined,
+    status:
+      heatmapFilter === "in_progress" ? TicketStatus.IN_PROGRESS : undefined,
   });
 
   const categoryStatsQuery = useCategoryStats(days);
@@ -533,7 +552,7 @@ function ManagerDashboard() {
   const heatmapData = heatmapQuery.data;
 
   const categoryItems = categoryStatsQuery.data?.items ?? [];
-  const teamData = teamPerformanceQuery.data?.teams ?? [];
+  const teamData = teamPerformanceQuery.data?.items ?? [];
   const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   const isKPILoading = kpisQuery.isLoading;
@@ -548,11 +567,11 @@ function ManagerDashboard() {
     Number(t?.open_tickets ?? t?.openTickets ?? t?.open_count ?? t?.open ?? 0);
 
   const sortedTeams = [...teamData].sort(
-    (a: any, b: any) => getOpenCount(b) - getOpenCount(a)
+    (a: any, b: any) => getOpenCount(b) - getOpenCount(a),
   );
   const totalOpenAcrossTeams = sortedTeams.reduce(
     (sum: number, t: any) => sum + getOpenCount(t),
-    0
+    0,
   );
 
   // Generate consistent colors for all categories
@@ -561,16 +580,16 @@ function ManagerDashboard() {
       acc[item.category_name] = getCategoryColor(item.category_name);
       return acc;
     },
-    {} as Record<string, string>
+    {} as Record<string, string>,
   );
 
   const totalCategoryTickets = categoryItems.reduce(
     (sum: number, c: any) => sum + Number(c?.total_tickets ?? 0),
-    0
+    0,
   );
   const totalCategoryOpen = categoryItems.reduce(
     (sum: number, c: any) => sum + Number(c?.open_tickets ?? 0),
-    0
+    0,
   );
 
   return (
@@ -585,14 +604,19 @@ function ManagerDashboard() {
         variants={fadeInUp}
       >
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Manager Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Manager Dashboard
+          </h1>
           <p className="text-muted-foreground">
             High-level overview of city-wide performance and workloads
           </p>
         </div>
 
         <div className="flex gap-2">
-          <Select value={days.toString()} onValueChange={(v) => setDays(parseInt(v, 10))}>
+          <Select
+            value={days.toString()}
+            onValueChange={(v) => setDays(parseInt(v, 10))}
+          >
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
@@ -700,7 +724,10 @@ function ManagerDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-lg">Pending Escalations</CardTitle>
-            <Link href="/escalations" className="text-sm text-primary hover:text-primary/80">
+            <Link
+              href="/escalations"
+              className="text-sm text-primary hover:text-primary/80"
+            >
               View all
             </Link>
           </CardHeader>
@@ -788,7 +815,7 @@ function ManagerDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryItems}
+                          data={categoryItems as any[]}
                           cx="50%"
                           cy="42%"
                           innerRadius={65}
@@ -802,16 +829,19 @@ function ManagerDashboard() {
                           {categoryItems.map((entry: any, index: number) => (
                             <Cell
                               key={`cell-${index}`}
-                              fill={categoryColorMap[entry.category_name] || "#999999"}
+                              fill={
+                                categoryColorMap[entry.category_name] ||
+                                "#999999"
+                              }
                             />
                           ))}
                         </Pie>
                         <Tooltip />
-                        <Legend 
-                          verticalAlign="bottom" 
+                        <Legend
+                          verticalAlign="bottom"
                           height={50}
                           iconType="circle"
-                          wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -821,7 +851,9 @@ function ManagerDashboard() {
                         <div className="text-2xl font-semibold text-foreground">
                           {totalCategoryTickets}
                         </div>
-                        <div className="text-xs text-muted-foreground">Total</div>
+                        <div className="text-xs text-muted-foreground">
+                          Total
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -860,7 +892,7 @@ function ManagerDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryItems}
+                          data={categoryItems as any[]}
                           cx="50%"
                           cy="42%"
                           innerRadius={65}
@@ -874,16 +906,19 @@ function ManagerDashboard() {
                           {categoryItems.map((entry: any, index: number) => (
                             <Cell
                               key={`cell-${index}`}
-                              fill={categoryColorMap[entry.category_name] || "#999999"}
+                              fill={
+                                categoryColorMap[entry.category_name] ||
+                                "#999999"
+                              }
                             />
                           ))}
                         </Pie>
                         <Tooltip />
-                        <Legend 
-                          verticalAlign="bottom" 
+                        <Legend
+                          verticalAlign="bottom"
                           height={50}
                           iconType="circle"
-                          wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -893,7 +928,9 @@ function ManagerDashboard() {
                         <div className="text-2xl font-semibold text-foreground">
                           {totalCategoryOpen}
                         </div>
-                        <div className="text-xs text-muted-foreground">Open</div>
+                        <div className="text-xs text-muted-foreground">
+                          Open
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -905,14 +942,19 @@ function ManagerDashboard() {
       </div>
 
       {/* Workload Snapshot & Quick Actions */}
-      <motion.div className="grid gap-6 lg:grid-cols-[1.4fr,1fr]" variants={fadeInUp}>
+      <motion.div
+        className="grid gap-6 lg:grid-cols-[1.4fr,1fr]"
+        variants={fadeInUp}
+      >
         {/* Workload Snapshot (TEAM API DATA) */}
         <Card>
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Workload Snapshot</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Workload Snapshot
+            </h2>
             <p className="mb-4 text-sm text-muted-foreground">
-              High-level distribution of open tickets across support teams. This helps
-              managers balance workloads and identify overloaded teams.
+              High-level distribution of open tickets across support teams. This
+              helps managers balance workloads and identify overloaded teams.
             </p>
 
             {teamPerformanceQuery.isLoading ? (
@@ -944,7 +986,9 @@ function ManagerDashboard() {
                   return (
                     <div key={key}>
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-foreground">{teamName}</span>
+                        <span className="font-medium text-foreground">
+                          {teamName}
+                        </span>
                         <span>{open} open</span>
                       </div>
                       <div className="mt-1 h-2 rounded-full bg-muted">
@@ -964,7 +1008,9 @@ function ManagerDashboard() {
         {/* Quick Actions */}
         <Card>
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Quick Actions
+            </h2>
             <div className="flex flex-wrap gap-3">
               <Link href="/analytics">
                 <Button variant="outline">
@@ -1003,12 +1049,15 @@ function ManagerDashboard() {
               <div>
                 <CardTitle>Issue Density Heatmap</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Geographic visualization of reported issues ({getTimeRangeLabel(days)})
+                  Geographic visualization of reported issues (
+                  {getTimeRangeLabel(days)})
                 </p>
               </div>
               <Select
                 value={heatmapFilter}
-                onValueChange={(v) => setHeatmapFilter(v as "all" | "in_progress")}
+                onValueChange={(v) =>
+                  setHeatmapFilter(v as "all" | "in_progress")
+                }
               >
                 <SelectTrigger className="w-[160px]">
                   <SelectValue />
@@ -1036,19 +1085,24 @@ function ManagerDashboard() {
               <div className="h-[400px] rounded-xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center p-8 text-center">
                 <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-sm text-muted-foreground">
-                  No {heatmapFilter === "in_progress" ? "in-progress" : ""} tickets
-                  found in the {getTimeRangeLabel(days)}.
+                  No {heatmapFilter === "in_progress" ? "in-progress" : ""}{" "}
+                  tickets found in the {getTimeRangeLabel(days)}.
                   <br />
                   The heatmap will appear once issues are reported.
                 </p>
               </div>
             ) : (
               <>
-                <HeatmapVisualization points={heatmapData.points} height="450px" />
+                <HeatmapVisualization
+                  points={heatmapData.points}
+                  height="450px"
+                />
 
                 <div className="grid gap-4 md:grid-cols-3 text-xs">
                   <div>
-                    <p className="font-medium text-foreground text-sm mb-2">Legend</p>
+                    <p className="font-medium text-foreground text-sm mb-2">
+                      Legend
+                    </p>
                     <ul className="space-y-1 text-muted-foreground">
                       <li className="flex items-center gap-2">
                         <span className="h-3 w-3 rounded-sm bg-blue-500" />
@@ -1066,7 +1120,9 @@ function ManagerDashboard() {
                   </div>
 
                   <div>
-                    <p className="font-medium text-foreground text-sm mb-2">Statistics</p>
+                    <p className="font-medium text-foreground text-sm mb-2">
+                      Statistics
+                    </p>
                     <ul className="space-y-1 text-muted-foreground">
                       <li>Unique locations: {heatmapData.points.length}</li>
                       <li>Total tickets: {heatmapData.total_tickets}</li>
@@ -1075,10 +1131,13 @@ function ManagerDashboard() {
                   </div>
 
                   <div>
-                    <p className="font-medium text-foreground text-sm mb-2">Use Cases</p>
+                    <p className="font-medium text-foreground text-sm mb-2">
+                      Use Cases
+                    </p>
                     <p className="text-muted-foreground">
-                      Identify problem areas requiring additional resources. Zoom and pan
-                      to explore specific neighborhoods and coordinate field team deployment.
+                      Identify problem areas requiring additional resources.
+                      Zoom and pan to explore specific neighborhoods and
+                      coordinate field team deployment.
                     </p>
                   </div>
                 </div>
@@ -1111,7 +1170,9 @@ function ManagerDashboard() {
               />
             ) : neighborhoodData.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <p className="text-sm text-muted-foreground">No district data found</p>
+                <p className="text-sm text-muted-foreground">
+                  No district data found
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1128,8 +1189,8 @@ function ManagerDashboard() {
                               index === 0
                                 ? "bg-red-100 text-red-700"
                                 : index === 1
-                                ? "bg-orange-100 text-orange-700"
-                                : "bg-muted text-muted-foreground"
+                                  ? "bg-orange-100 text-orange-700"
+                                  : "bg-muted text-muted-foreground"
                             }`}
                         >
                           {index + 1}
@@ -1154,7 +1215,9 @@ function ManagerDashboard() {
                           <span className="font-medium text-foreground">
                             {cat.category_name}:
                           </span>
-                          <span className="text-muted-foreground">{cat.ticket_count}</span>
+                          <span className="text-muted-foreground">
+                            {cat.ticket_count}
+                          </span>
                         </div>
                       ))}
                     </div>

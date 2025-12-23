@@ -6,7 +6,7 @@ export function useCreateCategory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { name: string; description?: string | null }) =>
+    mutationFn: (data: { name: string; description?: string }) =>
       api.createCategory(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
@@ -25,4 +25,3 @@ export function useDeleteCategory() {
     },
   });
 }
-

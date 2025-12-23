@@ -32,7 +32,7 @@ type QueryOptions = { enabled?: boolean };
 
 // List
 export function useTeams(options?: QueryOptions) {
-  return useQuery<TeamListResponse>({
+  return useQuery<TeamListResponse[]>({
     queryKey: TEAM_KEYS.list(),
     queryFn: () => getTeams(),
     enabled: options?.enabled ?? true,
@@ -58,7 +58,10 @@ export function useTeam(teamId: string, options?: QueryOptions) {
  * - analytics (workload/team performance)
  * - users list (team_id / team_name display)
  */
-async function invalidateAfterTeamChange(qc: ReturnType<typeof useQueryClient>, teamId?: string) {
+async function invalidateAfterTeamChange(
+  qc: ReturnType<typeof useQueryClient>,
+  teamId?: string,
+) {
   await qc.invalidateQueries({ queryKey: TEAM_KEYS.all });
   if (teamId) {
     await qc.invalidateQueries({ queryKey: TEAM_KEYS.detail(teamId) });
@@ -79,24 +82,20 @@ export function useCreateTeam() {
     onMutate: async (newTeam) => {
       await qc.cancelQueries({ queryKey: TEAM_KEYS.list() });
 
-      const previous = qc.getQueryData<TeamListResponse>(TEAM_KEYS.list());
+      const previous = qc.getQueryData<TeamListResponse[]>(TEAM_KEYS.list());
 
       // Optimistic: push a temporary item to list if list exists
       if (previous) {
-        qc.setQueryData<TeamListResponse>(TEAM_KEYS.list(), {
+        qc.setQueryData<TeamListResponse[]>(TEAM_KEYS.list(), [
+          {
+            // temporary id (backend will overwrite on refetch)
+            id: `temp-${Date.now()}`,
+            name: newTeam.name,
+            description: newTeam.description ?? null,
+            member_count: 0,
+          },
           ...previous,
-          items: [
-            {
-              // temporary id (backend will overwrite on refetch)
-              id: `temp-${Date.now()}`,
-              name: newTeam.name,
-              description: newTeam.description ?? null,
-              member_count: 0,
-            } as any,
-            ...previous.items,
-          ],
-          total: previous.total + 1,
-        });
+        ]);
       }
 
       return { previous };
@@ -125,8 +124,10 @@ export function useUpdateTeam(teamId: string) {
       await qc.cancelQueries({ queryKey: TEAM_KEYS.detail(teamId) });
       await qc.cancelQueries({ queryKey: TEAM_KEYS.list() });
 
-      const prevDetail = qc.getQueryData<TeamDetailResponse>(TEAM_KEYS.detail(teamId));
-      const prevList = qc.getQueryData<TeamListResponse>(TEAM_KEYS.list());
+      const prevDetail = qc.getQueryData<TeamDetailResponse>(
+        TEAM_KEYS.detail(teamId),
+      );
+      const prevList = qc.getQueryData<TeamListResponse[]>(TEAM_KEYS.list());
 
       // Optimistic detail
       if (prevDetail) {
@@ -139,9 +140,9 @@ export function useUpdateTeam(teamId: string) {
 
       // Optimistic list
       if (prevList) {
-        qc.setQueryData<TeamListResponse>(TEAM_KEYS.list(), {
-          ...prevList,
-          items: prevList.items.map((t) =>
+        qc.setQueryData<TeamListResponse[]>(
+          TEAM_KEYS.list(),
+          prevList.map((t: TeamListResponse) =>
             t.id === teamId
               ? {
                   ...t,
@@ -150,14 +151,15 @@ export function useUpdateTeam(teamId: string) {
                 }
               : t,
           ),
-        });
+        );
       }
 
       return { prevDetail, prevList };
     },
 
     onError: (_err, _patch, ctx) => {
-      if (ctx?.prevDetail) qc.setQueryData(TEAM_KEYS.detail(teamId), ctx.prevDetail);
+      if (ctx?.prevDetail)
+        qc.setQueryData(TEAM_KEYS.detail(teamId), ctx.prevDetail);
       if (ctx?.prevList) qc.setQueryData(TEAM_KEYS.list(), ctx.prevList);
     },
 
@@ -177,14 +179,13 @@ export function useDeleteTeam() {
     onMutate: async (teamId) => {
       await qc.cancelQueries({ queryKey: TEAM_KEYS.list() });
 
-      const prevList = qc.getQueryData<TeamListResponse>(TEAM_KEYS.list());
+      const prevList = qc.getQueryData<TeamListResponse[]>(TEAM_KEYS.list());
 
       if (prevList) {
-        qc.setQueryData<TeamListResponse>(TEAM_KEYS.list(), {
-          ...prevList,
-          items: prevList.items.filter((t) => t.id !== teamId),
-          total: Math.max(0, prevList.total - 1),
-        });
+        qc.setQueryData<TeamListResponse[]>(
+          TEAM_KEYS.list(),
+          prevList.filter((t: TeamListResponse) => t.id !== teamId),
+        );
       }
 
       return { prevList };

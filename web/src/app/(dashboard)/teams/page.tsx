@@ -19,7 +19,10 @@ import {
 } from "@/lib/queries/users";
 import { useCategories } from "@/lib/queries/categories";
 import { useDistricts } from "@/lib/queries/districts";
-import { useCreateCategory, useDeleteCategory } from "@/lib/queries/categories-management";
+import {
+  useCreateCategory,
+  useDeleteCategory,
+} from "@/lib/queries/categories-management";
 import { UserRole } from "@/lib/api/types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,9 +41,7 @@ import {
 } from "lucide-react";
 import { TeamTicketsPanel } from "./team-tickets-panel";
 
-type AnyTeamListResponse =
-  | { items: any[]; total?: number }
-  | any[];
+type AnyTeamListResponse = { items: any[]; total?: number } | any[];
 
 /** getTeams() response'u bazen {items: []} bazen direkt [] olabiliyor */
 function normalizeTeams(data: AnyTeamListResponse | undefined): any[] {
@@ -66,13 +67,17 @@ export default function TeamsPage() {
   const [selectedDistrictIds, setSelectedDistrictIds] = useState<string[]>([]);
 
   // hangi team expanded?
-  const [expandedMembersTeamId, setExpandedMembersTeamId] = useState<string | null>(null);
-  const [expandedTicketsTeamId, setExpandedTicketsTeamId] = useState<string | null>(null);
+  const [expandedMembersTeamId, setExpandedMembersTeamId] = useState<
+    string | null
+  >(null);
+  const [expandedTicketsTeamId, setExpandedTicketsTeamId] = useState<
+    string | null
+  >(null);
 
   // Fetch categories and districts
   const categoriesQuery = useCategories(false); // Get all categories
   const districtsQuery = useDistricts();
-  
+
   const categories = categoriesQuery.data?.items ?? [];
   const districts = districtsQuery.data?.items ?? [];
 
@@ -96,9 +101,15 @@ export default function TeamsPage() {
   // team_id -> open ticket count map (analytics'ten)
   const openByTeamId = useMemo(() => {
     const map = new Map<string, number>();
-    const items = (teamPerfQuery.data as any)?.items ?? (teamPerfQuery.data as any)?.teams ?? [];
+    const items =
+      (teamPerfQuery.data as any)?.items ??
+      (teamPerfQuery.data as any)?.teams ??
+      [];
     for (const t of items) {
-      const open = Math.max(0, (t.total_assigned ?? 0) - (t.total_resolved ?? 0));
+      const open = Math.max(
+        0,
+        (t.total_assigned ?? 0) - (t.total_resolved ?? 0),
+      );
       if (t.team_id) map.set(t.team_id, open);
     }
     return map;
@@ -135,7 +146,7 @@ export default function TeamsPage() {
     try {
       await createCategoryMut.mutateAsync({
         name,
-        description: newCategoryDesc.trim() || null,
+        description: newCategoryDesc.trim() || undefined,
       });
       setNewCategoryName("");
       setNewCategoryDesc("");
@@ -146,7 +157,11 @@ export default function TeamsPage() {
   }
 
   async function onDeleteCategory(categoryId: string, categoryName: string) {
-    if (!confirm(`Delete category "${categoryName}"? All tickets will be moved to "Other" category.`)) {
+    if (
+      !confirm(
+        `Delete category "${categoryName}"? All tickets will be moved to "Other" category.`,
+      )
+    ) {
       return;
     }
 
@@ -165,80 +180,86 @@ export default function TeamsPage() {
   const FALLBACK_TEAM_NAME = "Istanbul General Team";
   const fallbackTeam = teams.find((t: any) => t.name === FALLBACK_TEAM_NAME);
   const regularTeams = teams.filter((t: any) => t.name !== FALLBACK_TEAM_NAME);
-  
+
   // Filter regular teams by search term
   const filteredTeams = regularTeams.filter((t: any) =>
-    t.name.toLowerCase().includes(teamSearchTerm.toLowerCase())
+    t.name.toLowerCase().includes(teamSearchTerm.toLowerCase()),
   );
 
   return (
     <div className="space-y-6">
       {/* Create Staff Card */}
       <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Create Staff</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCreateUserForm(!showCreateUserForm)}
-            >
-              {showCreateUserForm ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </CardHeader>
-
-          {showCreateUserForm && (
-            <CardContent>
-              <CreateUserForm onSuccess={() => setShowCreateUserForm(false)} />
-            </CardContent>
-          )}
-        </Card>
-
-        {/* Create Team Card */}
-      <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Create Team</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCreateTeamForm(!showCreateTeamForm)}
-            >
-              {showCreateTeamForm ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Create Staff</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateUserForm(!showCreateUserForm)}
+          >
+            {showCreateUserForm ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
         </CardHeader>
 
-          {showCreateTeamForm && (
-        <CardContent className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-2">
-            <input
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              placeholder="Team name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <input
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              placeholder="Description (optional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-              </div>
+        {showCreateUserForm && (
+          <CardContent>
+            <CreateUserForm onSuccess={() => setShowCreateUserForm(false)} />
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Create Team Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Create Team</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateTeamForm(!showCreateTeamForm)}
+          >
+            {showCreateTeamForm ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CardHeader>
+
+        {showCreateTeamForm && (
+          <CardContent className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                placeholder="Team name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                placeholder="Description (optional)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
 
             {/* Categories Multi-Select */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Categories (Select all that apply)</label>
+              <label className="text-sm font-medium">
+                Categories (Select all that apply)
+              </label>
               <div className="flex flex-wrap gap-2">
                 {categoriesQuery.isLoading ? (
-                  <span className="text-sm text-muted-foreground">Loading categories...</span>
+                  <span className="text-sm text-muted-foreground">
+                    Loading categories...
+                  </span>
                 ) : categoriesQuery.isError ? (
-                  <span className="text-sm text-destructive">Failed to load categories</span>
+                  <span className="text-sm text-destructive">
+                    Failed to load categories
+                  </span>
                 ) : (
                   (categoriesQuery.data?.items || []).map((category: any) => (
                     <label
@@ -250,9 +271,16 @@ export default function TeamsPage() {
                         checked={selectedCategoryIds.includes(category.id)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedCategoryIds([...selectedCategoryIds, category.id]);
+                            setSelectedCategoryIds([
+                              ...selectedCategoryIds,
+                              category.id,
+                            ]);
                           } else {
-                            setSelectedCategoryIds(selectedCategoryIds.filter((id) => id !== category.id));
+                            setSelectedCategoryIds(
+                              selectedCategoryIds.filter(
+                                (id) => id !== category.id,
+                              ),
+                            );
                           }
                         }}
                         className="h-4 w-4"
@@ -266,12 +294,18 @@ export default function TeamsPage() {
 
             {/* Districts Multi-Select */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Districts (Select all that apply)</label>
+              <label className="text-sm font-medium">
+                Districts (Select all that apply)
+              </label>
               <div className="flex flex-wrap gap-2">
                 {districtsQuery.isLoading ? (
-                  <span className="text-sm text-muted-foreground">Loading districts...</span>
+                  <span className="text-sm text-muted-foreground">
+                    Loading districts...
+                  </span>
                 ) : districtsQuery.isError ? (
-                  <span className="text-sm text-destructive">Failed to load districts</span>
+                  <span className="text-sm text-destructive">
+                    Failed to load districts
+                  </span>
                 ) : (
                   (districtsQuery.data?.items || []).map((district: any) => (
                     <label
@@ -283,14 +317,23 @@ export default function TeamsPage() {
                         checked={selectedDistrictIds.includes(district.id)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedDistrictIds([...selectedDistrictIds, district.id]);
+                            setSelectedDistrictIds([
+                              ...selectedDistrictIds,
+                              district.id,
+                            ]);
                           } else {
-                            setSelectedDistrictIds(selectedDistrictIds.filter((id) => id !== district.id));
+                            setSelectedDistrictIds(
+                              selectedDistrictIds.filter(
+                                (id) => id !== district.id,
+                              ),
+                            );
                           }
                         }}
                         className="h-4 w-4"
                       />
-                      <span>{district.name}, {district.city}</span>
+                      <span>
+                        {district.name}, {district.city}
+                      </span>
                     </label>
                   ))
                 )}
@@ -300,18 +343,18 @@ export default function TeamsPage() {
             <Button
               onClick={onAddTeam}
               disabled={createTeamMut.isPending || !name.trim()}
-                className="w-full sm:w-auto"
+              className="w-full sm:w-auto"
             >
               {createTeamMut.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Plus className="mr-2 h-4 w-4" />
               )}
-                Add Team
-              </Button>
-            </CardContent>
-          )}
-        </Card>
+              Add Team
+            </Button>
+          </CardContent>
+        )}
+      </Card>
 
       {/* Istanbul General Team Section */}
       {fallbackTeam && (
@@ -324,14 +367,15 @@ export default function TeamsPage() {
               </span>
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-2">
-              Handles unassigned tickets from deleted teams. Covers all categories and districts.
+              Handles unassigned tickets from deleted teams. Covers all
+              categories and districts.
             </p>
           </CardHeader>
           <CardContent>
             {(() => {
               const t = fallbackTeam;
               const openTickets = openByTeamId.get(t.id) ?? 0;
-              
+
               return (
                 <TeamRow
                   key={t.id}
@@ -343,10 +387,14 @@ export default function TeamsPage() {
                   isMembersExpanded={expandedMembersTeamId === t.id}
                   isTicketsExpanded={expandedTicketsTeamId === t.id}
                   onToggleMembers={() =>
-                    setExpandedMembersTeamId((prev) => (prev === t.id ? null : t.id))
+                    setExpandedMembersTeamId((prev) =>
+                      prev === t.id ? null : t.id,
+                    )
                   }
                   onToggleTickets={() =>
-                    setExpandedTicketsTeamId((prev) => (prev === t.id ? null : t.id))
+                    setExpandedTicketsTeamId((prev) =>
+                      prev === t.id ? null : t.id,
+                    )
                   }
                   onDelete={() => {}}
                   isDeleting={false}
@@ -422,7 +470,7 @@ export default function TeamsPage() {
             ) : (
               <ChevronDown className="h-4 w-4" />
             )}
-            </Button>
+          </Button>
         </CardHeader>
 
         {showManageTeams && (
@@ -449,62 +497,68 @@ export default function TeamsPage() {
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
-          </div>
-
-          {/* teams list */}
-          {isLoadingList ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-12 w-full rounded-lg bg-muted animate-pulse"
-                />
-              ))}
             </div>
-          ) : isErrorList ? (
-            <ErrorState
-              title="Failed to load teams"
-              message="Please try again."
-              onRetry={teamsQuery.refetch}
-            />
-          ) : filteredTeams.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {teamSearchTerm ? "No teams found matching your search." : "No teams yet."}
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {filteredTeams.map((t: any) => {
-                const openTickets = openByTeamId.get(t.id) ?? 0;
 
-                return (
-                  <TeamRow
-                    key={t.id}
-                    teamId={t.id}
-                    name={t.name}
-                    description={t.description ?? null}
-                    memberCount={t.member_count ?? t.memberCount ?? 0}
-                    openTicketCount={openTickets}
-                    isMembersExpanded={expandedMembersTeamId === t.id}
-                    isTicketsExpanded={expandedTicketsTeamId === t.id}
-                    onToggleMembers={() =>
-                      setExpandedMembersTeamId((prev) => (prev === t.id ? null : t.id))
-                    }
-                    onToggleTickets={() =>
-                      setExpandedTicketsTeamId((prev) => (prev === t.id ? null : t.id))
-                    }
-                    onDelete={() => onDeleteTeam(t.id)}
-                    isDeleting={deleteTeamMut.isPending}
-                    isDeletingThis={
-                      deleteTeamMut.isPending &&
-                      (deleteTeamMut.variables as any) === t.id
-                    }
-                    analyticsLoading={teamPerfQuery.isLoading}
+            {/* teams list */}
+            {isLoadingList ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-12 w-full rounded-lg bg-muted animate-pulse"
                   />
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
+                ))}
+              </div>
+            ) : isErrorList ? (
+              <ErrorState
+                title="Failed to load teams"
+                message="Please try again."
+                onRetry={teamsQuery.refetch}
+              />
+            ) : filteredTeams.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {teamSearchTerm
+                  ? "No teams found matching your search."
+                  : "No teams yet."}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {filteredTeams.map((t: any) => {
+                  const openTickets = openByTeamId.get(t.id) ?? 0;
+
+                  return (
+                    <TeamRow
+                      key={t.id}
+                      teamId={t.id}
+                      name={t.name}
+                      description={t.description ?? null}
+                      memberCount={t.member_count ?? t.memberCount ?? 0}
+                      openTicketCount={openTickets}
+                      isMembersExpanded={expandedMembersTeamId === t.id}
+                      isTicketsExpanded={expandedTicketsTeamId === t.id}
+                      onToggleMembers={() =>
+                        setExpandedMembersTeamId((prev) =>
+                          prev === t.id ? null : t.id,
+                        )
+                      }
+                      onToggleTickets={() =>
+                        setExpandedTicketsTeamId((prev) =>
+                          prev === t.id ? null : t.id,
+                        )
+                      }
+                      onDelete={() => onDeleteTeam(t.id)}
+                      isDeleting={deleteTeamMut.isPending}
+                      isDeletingThis={
+                        deleteTeamMut.isPending &&
+                        (deleteTeamMut.variables as any) === t.id
+                      }
+                      analyticsLoading={teamPerfQuery.isLoading}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
         )}
       </Card>
 
@@ -548,7 +602,9 @@ export default function TeamsPage() {
               </div>
               <Button
                 onClick={onCreateCategory}
-                disabled={createCategoryMut.isPending || !newCategoryName.trim()}
+                disabled={
+                  createCategoryMut.isPending || !newCategoryName.trim()
+                }
                 size="sm"
               >
                 {createCategoryMut.isPending ? (
@@ -588,16 +644,23 @@ export default function TeamsPage() {
             {categoriesQuery.isLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />
+                  <div
+                    key={i}
+                    className="h-12 rounded-lg bg-muted animate-pulse"
+                  />
                 ))}
               </div>
             ) : categoriesQuery.isError ? (
-              <p className="text-sm text-destructive">Failed to load categories</p>
+              <p className="text-sm text-destructive">
+                Failed to load categories
+              </p>
             ) : (
               <div className="space-y-2">
                 {categories
                   .filter((cat: any) =>
-                    cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                    cat.name
+                      .toLowerCase()
+                      .includes(categorySearchTerm.toLowerCase()),
                   )
                   .map((cat: any) => (
                     <div
@@ -607,7 +670,9 @@ export default function TeamsPage() {
                       <div>
                         <div className="font-medium">{cat.name}</div>
                         {cat.description && (
-                          <div className="text-sm text-muted-foreground">{cat.description}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {cat.description}
+                          </div>
                         )}
                       </div>
                       <Button
@@ -615,7 +680,8 @@ export default function TeamsPage() {
                         size="sm"
                         onClick={() => onDeleteCategory(cat.id, cat.name)}
                         disabled={
-                          deleteCategoryMut.isPending || cat.name.toLowerCase() === "other"
+                          deleteCategoryMut.isPending ||
+                          cat.name.toLowerCase() === "other"
                         }
                       >
                         {deleteCategoryMut.isPending ? (
@@ -657,9 +723,12 @@ function TeamRow(props: {
     <div className="rounded-lg border border-border">
       <div className="flex items-center justify-between gap-3 px-3 py-3">
         <div className="min-w-0">
-          <div className="font-medium text-foreground truncate">{props.name}</div>
+          <div className="font-medium text-foreground truncate">
+            {props.name}
+          </div>
           <div className="text-xs text-muted-foreground truncate">
-            {props.description ?? "No description"} • {props.memberCount} members •{" "}
+            {props.description ?? "No description"} • {props.memberCount}{" "}
+            members •{" "}
             {props.analyticsLoading ? "…" : `${props.openTicketCount} open`}
           </div>
         </div>
@@ -686,19 +755,19 @@ function TeamRow(props: {
           </Button>
 
           {!props.hideDeleteButton && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={props.onDelete}
-            disabled={props.isDeleting}
-          >
-            {props.isDeletingThis ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
-            )}
-            Delete
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={props.onDelete}
+              disabled={props.isDeleting}
+            >
+              {props.isDeletingThis ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete
+            </Button>
           )}
         </div>
       </div>
@@ -711,7 +780,10 @@ function TeamRow(props: {
 
       {props.isTicketsExpanded && (
         <div className="border-t border-border px-3 py-4">
-          <TeamTicketsPanel teamId={props.teamId} isExpanded={props.isTicketsExpanded} />
+          <TeamTicketsPanel
+            teamId={props.teamId}
+            isExpanded={props.isTicketsExpanded}
+          />
         </div>
       )}
     </div>
@@ -733,7 +805,12 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!name.trim() || !email.trim() || !password.trim() || phoneNumber.length !== 13) {
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !password.trim() ||
+      phoneNumber.length !== 13
+    ) {
       toast.error("Please fill all required fields correctly");
       return;
     }
@@ -757,18 +834,19 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
       });
 
       toast.success(`Support staff ${name} created successfully!`);
-      
+
       // Reset form
       setName("");
       setEmail("");
       setPassword("");
       setPhoneNumber("+90");
       setSelectedTeamId("");
-      
+
       onSuccess();
     } catch (error: any) {
       console.error("Failed to create user:", error);
-      const errorMessage = error?.message || error?.detail || "Failed to create user";
+      const errorMessage =
+        error?.message || error?.detail || "Failed to create user";
       toast.error(errorMessage);
     }
   }
@@ -881,19 +959,32 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-function StaffManagementPanel({ teams, searchTerm }: { teams: any[]; searchTerm: string }) {
-  const supportUsersQuery = useUsers({ role: UserRole.SUPPORT, page_size: 200 });
+function StaffManagementPanel({
+  teams,
+  searchTerm,
+}: {
+  teams: any[];
+  searchTerm: string;
+}) {
+  const supportUsersQuery = useUsers({
+    role: UserRole.SUPPORT,
+    page_size: 200,
+  });
   const updateRoleMut = useUpdateUserRole();
   const deleteUserMut = useDeleteUser();
 
   const supportUsers = supportUsersQuery.data?.items ?? [];
-  
+
   // Filter users by search term
   const filteredUsers = supportUsers.filter((user: any) =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  async function handleTeamChange(userId: string, newTeamId: string | null, userName: string) {
+  async function handleTeamChange(
+    userId: string,
+    newTeamId: string | null,
+    userName: string,
+  ) {
     try {
       await updateRoleMut.mutateAsync({
         userId,
@@ -922,11 +1013,16 @@ function StaffManagementPanel({ teams, searchTerm }: { teams: any[]; searchTerm:
   }
 
   if (supportUsersQuery.isLoading) {
-    return <div className="space-y-2">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="h-16 w-full rounded-lg bg-muted animate-pulse" />
-      ))}
-    </div>;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-16 w-full rounded-lg bg-muted animate-pulse"
+          />
+        ))}
+      </div>
+    );
   }
 
   if (supportUsersQuery.isError) {
@@ -940,25 +1036,33 @@ function StaffManagementPanel({ teams, searchTerm }: { teams: any[]; searchTerm:
   }
 
   if (supportUsers.length === 0) {
-    return <p className="text-sm text-muted-foreground">No support staff yet.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">No support staff yet.</p>
+    );
   }
 
   if (filteredUsers.length === 0) {
-    return <p className="text-sm text-muted-foreground">No staff found matching your search.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        No staff found matching your search.
+      </p>
+    );
   }
 
   return (
     <div className="space-y-3">
       {filteredUsers.map((user: any) => {
         const currentTeam = teams.find((t) => t.id === user.team_id);
-        
+
         return (
           <div
             key={user.id}
             className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
           >
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-foreground truncate">{user.name}</div>
+              <div className="font-medium text-foreground truncate">
+                {user.name}
+              </div>
               <div className="text-xs text-muted-foreground truncate">
                 {user.email} • {user.phone_number}
               </div>
@@ -968,7 +1072,9 @@ function StaffManagementPanel({ teams, searchTerm }: { teams: any[]; searchTerm:
               <select
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm min-w-[200px]"
                 value={user.team_id || ""}
-                onChange={(e) => handleTeamChange(user.id, e.target.value || null, user.name)}
+                onChange={(e) =>
+                  handleTeamChange(user.id, e.target.value || null, user.name)
+                }
                 disabled={updateRoleMut.isPending}
               >
                 <option value="">No team</option>
@@ -985,7 +1091,8 @@ function StaffManagementPanel({ teams, searchTerm }: { teams: any[]; searchTerm:
                 onClick={() => handleDeleteUser(user.id, user.name)}
                 disabled={deleteUserMut.isPending}
               >
-                {deleteUserMut.isPending && deleteUserMut.variables === user.id ? (
+                {deleteUserMut.isPending &&
+                deleteUserMut.variables === user.id ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -1083,7 +1190,9 @@ function TeamMembersPanel({ teamId }: { teamId: string }) {
         <div className="text-sm font-medium text-foreground">Team Members</div>
 
         {teamMembers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No members in this team.</p>
+          <p className="text-sm text-muted-foreground">
+            No members in this team.
+          </p>
         ) : (
           <div className="space-y-2">
             {teamMembers.map((m: any) => (
@@ -1097,7 +1206,8 @@ function TeamMembersPanel({ teamId }: { teamId: string }) {
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
                     {/* TeamMemberResponse backend'de email değil phone_number var */}
-                    {(m.phone_number as string | undefined) ?? "No phone"} • {m.role}
+                    {(m.phone_number as string | undefined) ?? "No phone"} •{" "}
+                    {m.role}
                   </div>
                 </div>
 

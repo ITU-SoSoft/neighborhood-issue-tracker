@@ -14,25 +14,32 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowRightCircle } from "lucide-react";
 import Link from "next/link";
-import type { TicketResponse } from "@/lib/api/types";
+import type { Ticket } from "@/lib/api/types";
 
 interface TeamTicketsPanelProps {
   teamId: string;
   isExpanded?: boolean;
 }
 
-export function TeamTicketsPanel({ teamId, isExpanded = true }: TeamTicketsPanelProps) {
+export function TeamTicketsPanel({
+  teamId,
+  isExpanded = true,
+}: TeamTicketsPanelProps) {
   const ticketsQuery = useTeamTickets(teamId, isExpanded);
   const allTeamsQuery = useTeams();
   const reassignMut = useReassignTicket();
-  const [reassigningTicketId, setReassingTicketId] = useState<string | null>(null);
+  const [reassigningTicketId, setReassingTicketId] = useState<string | null>(
+    null,
+  );
 
   const allTickets = ticketsQuery.data?.items ?? [];
   // Filter out RESOLVED tickets
-  const tickets = allTickets.filter((ticket: TicketResponse) => ticket.status !== "RESOLVED");
-  const allTeams = Array.isArray(allTeamsQuery.data) 
-    ? allTeamsQuery.data 
-    : (allTeamsQuery.data as any)?.items ?? [];
+  const tickets = allTickets.filter(
+    (ticket: Ticket) => ticket.status !== "RESOLVED",
+  );
+  const allTeams = Array.isArray(allTeamsQuery.data)
+    ? allTeamsQuery.data
+    : ((allTeamsQuery.data as any)?.items ?? []);
   const otherTeams = allTeams.filter((t: any) => t.id !== teamId);
 
   async function handleReassign(ticketId: string, newTeamId: string) {
@@ -73,7 +80,7 @@ export function TeamTicketsPanel({ teamId, isExpanded = true }: TeamTicketsPanel
       <h4 className="text-sm font-medium mb-3">
         Assigned Tickets ({tickets.length})
       </h4>
-      {tickets.map((ticket: TicketResponse) => (
+      {tickets.map((ticket: Ticket) => (
         <div
           key={ticket.id}
           className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card"
@@ -89,9 +96,9 @@ export function TeamTicketsPanel({ teamId, isExpanded = true }: TeamTicketsPanel
               <Badge variant="outline" className="text-xs">
                 {ticket.status}
               </Badge>
-              {ticket.category && (
+              {ticket.category_name && (
                 <span className="text-xs text-muted-foreground">
-                  {ticket.category.name}
+                  {ticket.category_name}
                 </span>
               )}
             </div>
@@ -99,8 +106,12 @@ export function TeamTicketsPanel({ teamId, isExpanded = true }: TeamTicketsPanel
 
           <div className="flex items-center gap-2">
             <Select
-              disabled={reassigningTicketId === ticket.id || otherTeams.length === 0}
-              onValueChange={(newTeamId) => handleReassign(ticket.id, newTeamId)}
+              disabled={
+                reassigningTicketId === ticket.id || otherTeams.length === 0
+              }
+              onValueChange={(newTeamId) =>
+                handleReassign(ticket.id, newTeamId)
+              }
             >
               <SelectTrigger className="w-[180px] h-9">
                 <SelectValue placeholder="Reassign to..." />
@@ -122,4 +133,3 @@ export function TeamTicketsPanel({ teamId, isExpanded = true }: TeamTicketsPanel
     </div>
   );
 }
-

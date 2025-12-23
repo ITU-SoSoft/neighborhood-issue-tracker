@@ -478,8 +478,8 @@ export default function AnalyticsPage() {
                           backgroundColor: "hsl(var(--card))",
                           borderColor: "hsl(var(--border))",
                         }}
-                        formatter={(value: number) => [
-                          `${value.toFixed(1)} / 5.0`,
+                        formatter={(value) => [
+                          `${Number(value).toFixed(1)} / 5.0`,
                           "Rating",
                         ]}
                       />
@@ -534,7 +534,7 @@ export default function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryStatsQuery.data.items}
+                        data={categoryStatsQuery.data.items as any[]}
                         cx="50%"
                         cy="42%"
                         innerRadius={65}
@@ -608,7 +608,7 @@ export default function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryStatsQuery.data.items}
+                        data={categoryStatsQuery.data.items as any[]}
                         cx="50%"
                         cy="42%"
                         innerRadius={65}
