@@ -1,7 +1,10 @@
 import { SignInInput, SignUpInput } from "@/lib/validators/auth";
 
-const AUTH_BASE_URL =
-  process.env.NEXT_PUBLIC_AUTH_BASE_URL?.replace(/\/$/, "") ?? "/api/auth";
+// Import the same API_BASE_URL used everywhere else
+const API_BASE_URL =
+  (process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000/api/v1");
+
+const AUTH_BASE_URL = `${API_BASE_URL}/auth`;
 
 console.log("AUTH_BASE_URL", AUTH_BASE_URL);
 
