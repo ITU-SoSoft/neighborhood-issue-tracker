@@ -60,20 +60,31 @@ class TeamCategoryResponse(BaseSchema):
     category_name: str
 
 
-class TeamDetailResponse(TeamResponse):
-    """Detailed team response with assignments."""
-
-    districts: list[TeamDistrictResponse] = []
-    categories: list[TeamCategoryResponse] = []
-
-
 class TeamMemberResponse(BaseSchema):
     """Team member response schema."""
 
     id: UUID
     name: str
-    email: str
+    email: str | None = None
+    phone_number: str | None = None
     role: str
+
+
+class TeamDetailResponse(TeamResponse):
+    """Detailed team response with assignments."""
+
+    districts: list[TeamDistrictResponse] = []
+    categories: list[TeamCategoryResponse] = []
+    members: list[TeamMemberResponse] = []
+
+
+class TeamListItem(BaseSchema):
+    """Individual team item in list response."""
+
+    id: UUID
+    name: str
+    description: str | None
+    member_count: int = 0
 
 
 class TeamListResponse(BaseSchema):

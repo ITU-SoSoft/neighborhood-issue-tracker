@@ -14,6 +14,7 @@ from app.models import Team, User
 from app.schemas.team import (
     TeamCreate,
     TeamDetailResponse,
+    TeamListItem,
     TeamListResponse,
     TeamMemberResponse,
     TeamResponse,
@@ -29,11 +30,7 @@ ManagerUser = Annotated[User, Depends(get_manager_user)]
 
 async def _get_team_with_members(db: AsyncSession, team_id: uuid.UUID) -> Team | None:
     """Helper: fetch a team with members eagerly loaded."""
-    stmt = (
-        select(Team)
-        .options(selectinload(Team.members))
-        .where(Team.id == team_id)
-    )
+    stmt = select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -50,6 +47,7 @@ def _to_team_detail_response(team: Team) -> TeamDetailResponse:
             TeamMemberResponse(
                 id=member.id,
                 name=member.name,
+                email=member.email,
                 phone_number=member.phone_number,
                 role=member.role.value,
             )
@@ -59,11 +57,11 @@ def _to_team_detail_response(team: Team) -> TeamDetailResponse:
     )
 
 
-@router.get("", response_model=list[TeamListResponse])
+@router.get("", response_model=list[TeamListItem])
 async def list_teams(
     db: DatabaseSession,
     _: ManagerUser,
-) -> list[TeamListResponse]:
+) -> list[TeamListItem]:
     """List all teams with member count.
 
     Only accessible by managers.
@@ -79,7 +77,7 @@ async def list_teams(
     rows = result.all()
 
     return [
-        TeamListResponse(
+        TeamListItem(
             id=team.id,
             name=team.name,
             description=team.description,
@@ -179,9 +177,7 @@ async def delete_team(
         raise NotFoundException(detail="Team not found")
 
     # Set team_id = NULL for all users in this team
-    await db.execute(
-        update(User).where(User.team_id == team_id).values(team_id=None)
-    )
+    await db.execute(update(User).where(User.team_id == team_id).values(team_id=None))
     await db.commit()
 
     await db.delete(team)
