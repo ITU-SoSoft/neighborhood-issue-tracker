@@ -24,7 +24,12 @@ import {
   useNeighborhoodStats,
 } from "@/lib/queries/analytics";
 import { UserRole } from "@/lib/api/types";
-import { formatPercentage, formatRating, formatDuration, getCategoryColor } from "@/lib/utils";
+import {
+  formatPercentage,
+  formatRating,
+  formatDuration,
+  getCategoryColor,
+} from "@/lib/utils";
 import {
   fadeInUp,
   staggerContainer,
@@ -114,15 +119,15 @@ function CategoryStatsTable({
   isLoading,
 }: {
   data:
-  | {
-    category_id: string;
-    category_name: string;
-    total_tickets: number;
-    open_tickets: number;
-    resolved_tickets: number;
-    average_rating: number | null;
-  }[]
-  | undefined;
+    | {
+        category_id: string;
+        category_name: string;
+        total_tickets: number;
+        open_tickets: number;
+        resolved_tickets: number;
+        average_rating: number | null;
+      }[]
+    | undefined;
   isLoading: boolean;
 }) {
   if (isLoading) {
@@ -185,14 +190,14 @@ function FeedbackTrendsSection({
   isLoading,
 }: {
   data:
-  | {
-    category_id: string;
-    category_name: string;
-    total_feedbacks: number;
-    average_rating: number;
-    rating_distribution: Record<number, number>;
-  }[]
-  | undefined;
+    | {
+        category_id: string;
+        category_name: string;
+        total_feedbacks: number;
+        average_rating: number;
+        rating_distribution: Record<number, number>;
+      }[]
+    | undefined;
   isLoading: boolean;
 }) {
   if (isLoading) {
@@ -274,7 +279,7 @@ export default function AnalyticsPage() {
   const neighborhoodStatsQuery = useNeighborhoodStats(days, 5);
 
   const kpis = kpisQuery.data;
-  const teamData = teamPerformanceQuery.data?.teams ?? [];
+  const teamData = teamPerformanceQuery.data?.items ?? [];
   const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   // Access check - Manager only
@@ -446,8 +451,14 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={feedbackTrendsQuery.data.items} margin={{ top: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <BarChart
+                      data={feedbackTrendsQuery.data.items}
+                      margin={{ top: 20 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-muted"
+                      />
                       <XAxis
                         dataKey="category_name"
                         stroke="#888888"
@@ -464,10 +475,13 @@ export default function AnalyticsPage() {
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          borderColor: 'hsl(var(--border))',
+                          backgroundColor: "hsl(var(--card))",
+                          borderColor: "hsl(var(--border))",
                         }}
-                        formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Rating']}
+                        formatter={(value: number) => [
+                          `${value.toFixed(1)} / 5.0`,
+                          "Rating",
+                        ]}
                       />
                       <Bar
                         dataKey="average_rating"
@@ -475,10 +489,10 @@ export default function AnalyticsPage() {
                         radius={[4, 4, 0, 0]}
                         name="Average Rating"
                         label={{
-                          position: 'top',
-                          fill: 'hsl(var(--foreground))',
+                          position: "top",
+                          fill: "hsl(var(--foreground))",
                           fontSize: 12,
-                          formatter: (value: any) => Number(value).toFixed(1)
+                          formatter: (value: any) => Number(value).toFixed(1),
                         }}
                       />
                     </BarChart>
@@ -510,7 +524,8 @@ export default function AnalyticsPage() {
                   message="Could not load category statistics."
                   onRetry={categoryStatsQuery.refetch}
                 />
-              ) : !categoryStatsQuery.data?.items || categoryStatsQuery.data.items.length === 0 ? (
+              ) : !categoryStatsQuery.data?.items ||
+                categoryStatsQuery.data.items.length === 0 ? (
                 <div className="h-[350px] flex items-center justify-center">
                   <p className="text-sm text-muted-foreground">No data</p>
                 </div>
@@ -530,26 +545,31 @@ export default function AnalyticsPage() {
                         label={false}
                         minAngle={5}
                       >
-                        {categoryStatsQuery.data.items.map((entry: any, index: number) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={getCategoryColor(entry.category_name)}
-                          />
-                        ))}
+                        {categoryStatsQuery.data.items.map(
+                          (entry: any, index: number) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={getCategoryColor(entry.category_name)}
+                            />
+                          ),
+                        )}
                       </Pie>
                       <Tooltip />
-                      <Legend 
-                        verticalAlign="bottom" 
+                      <Legend
+                        verticalAlign="bottom"
                         height={50}
                         iconType="circle"
-                        wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                        wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                     <div className="text-center">
                       <div className="text-2xl font-semibold text-foreground">
-                        {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.total_tickets, 0)}
+                        {categoryStatsQuery.data.items.reduce(
+                          (sum: number, cat: any) => sum + cat.total_tickets,
+                          0,
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">Total</div>
                     </div>
@@ -578,7 +598,8 @@ export default function AnalyticsPage() {
                   message="Could not load category statistics."
                   onRetry={categoryStatsQuery.refetch}
                 />
-              ) : !categoryStatsQuery.data?.items || categoryStatsQuery.data.items.length === 0 ? (
+              ) : !categoryStatsQuery.data?.items ||
+                categoryStatsQuery.data.items.length === 0 ? (
                 <div className="h-[350px] flex items-center justify-center">
                   <p className="text-sm text-muted-foreground">No data</p>
                 </div>
@@ -598,26 +619,31 @@ export default function AnalyticsPage() {
                         label={false}
                         minAngle={5}
                       >
-                        {categoryStatsQuery.data.items.map((entry: any, index: number) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={getCategoryColor(entry.category_name)}
-                          />
-                        ))}
+                        {categoryStatsQuery.data.items.map(
+                          (entry: any, index: number) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={getCategoryColor(entry.category_name)}
+                            />
+                          ),
+                        )}
                       </Pie>
                       <Tooltip />
-                      <Legend 
-                        verticalAlign="bottom" 
+                      <Legend
+                        verticalAlign="bottom"
                         height={50}
                         iconType="circle"
-                        wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                        wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                     <div className="text-center">
                       <div className="text-2xl font-semibold text-foreground">
-                        {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.open_tickets, 0)}
+                        {categoryStatsQuery.data.items.reduce(
+                          (sum: number, cat: any) => sum + cat.open_tickets,
+                          0,
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">Open</div>
                     </div>
@@ -627,8 +653,6 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </motion.div>
-
-
 
         {/* Top 5 Problematic Neighborhoods */}
         <motion.div variants={staggerItem}>
@@ -652,7 +676,9 @@ export default function AnalyticsPage() {
                 />
               ) : neighborhoodData.length === 0 ? (
                 <div className="flex items-center justify-center py-12">
-                  <p className="text-sm text-muted-foreground">No district data found</p>
+                  <p className="text-sm text-muted-foreground">
+                    No district data found
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -663,10 +689,14 @@ export default function AnalyticsPage() {
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold
-                            ${index === 0 ? 'bg-red-100 text-red-700' :
-                              index === 1 ? 'bg-orange-100 text-orange-700' :
-                                'bg-muted text-muted-foreground'
+                          <div
+                            className={`flex items-center justify-center w-8 h-8 rounded-full font-bold
+                            ${
+                              index === 0
+                                ? "bg-red-100 text-red-700"
+                                : index === 1
+                                  ? "bg-orange-100 text-orange-700"
+                                  : "bg-muted text-muted-foreground"
                             }`}
                           >
                             {index + 1}
@@ -709,7 +739,9 @@ export default function AnalyticsPage() {
       <motion.div variants={staggerItem}>
         <div className="space-y-6">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Team Performance</h2>
+            <h2 className="text-xl font-semibold tracking-tight">
+              Team Performance
+            </h2>
             <p className="text-base text-muted-foreground">
               Resolution rates and citizen satisfaction
             </p>
@@ -727,87 +759,112 @@ export default function AnalyticsPage() {
             />
           ) : !teamData || teamData.length === 0 ? (
             <div className="flex items-center justify-center py-12 border rounded-lg bg-muted/10">
-              <p className="text-sm text-muted-foreground">No team data found</p>
+              <p className="text-sm text-muted-foreground">
+                No team data found
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                {teamData.map((team: any) => {
-                  const resolutionRate = team.resolution_rate || 0;
-                  const rating = team.average_rating || 0;
+              {teamData.map((team: any) => {
+                const resolutionRate = team.resolution_rate || 0;
+                const rating = team.average_rating || 0;
 
-                  return (
-                    <motion.div
-                      key={team.team_id}
-                      variants={staggerItem}
-                      whileHover={cardHover}
-                      whileTap={cardTap}
-                    >
-                      <Card className="h-full">
-                        <CardContent className="p-5">
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <h3 className="font-semibold text-base text-foreground line-clamp-1">
-                                {((name) => {
-                                  const map: Record<string, string> = {
-                                    'Bakırköy Elektrik Takımı': 'Bakırköy Electricity Team',
-                                    'Kadıköy Trafik Takımı': 'Kadıköy Traffic Team',
-                                    'Beşiktaş Temizlik Takımı': 'Beşiktaş Waste Management Team',
-                                    'Şişli Park Takımı': 'Şişli Parks Team',
-                                    'İstanbul Genel Altyapı': 'Istanbul General Infrastructure',
-                                    'Avrupa Yakası Trafik': 'European Side Traffic'
-                                  };
-                                  return map[name] || name;
-                                })(team.team_name)}
-                              </h3>
+                return (
+                  <motion.div
+                    key={team.team_id}
+                    variants={staggerItem}
+                    whileHover={cardHover}
+                    whileTap={cardTap}
+                  >
+                    <Card className="h-full">
+                      <CardContent className="p-5">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <h3 className="font-semibold text-base text-foreground line-clamp-1">
+                              {((name) => {
+                                const map: Record<string, string> = {
+                                  "Bakırköy Elektrik Takımı":
+                                    "Bakırköy Electricity Team",
+                                  "Kadıköy Trafik Takımı":
+                                    "Kadıköy Traffic Team",
+                                  "Beşiktaş Temizlik Takımı":
+                                    "Beşiktaş Waste Management Team",
+                                  "Şişli Park Takımı": "Şişli Parks Team",
+                                  "İstanbul Genel Altyapı":
+                                    "Istanbul General Infrastructure",
+                                  "Avrupa Yakası Trafik":
+                                    "European Side Traffic",
+                                };
+                                return map[name] || name;
+                              })(team.team_name)}
+                            </h3>
+                          </div>
+
+                          <div className="text-center py-3 bg-muted/50 rounded-lg">
+                            <div className="text-3xl font-bold text-foreground">
+                              {resolutionRate.toFixed(1)}%
                             </div>
-
-                            <div className="text-center py-3 bg-muted/50 rounded-lg">
-                              <div className="text-3xl font-bold text-foreground">
-                                {resolutionRate.toFixed(1)}%
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                Resolution Rate
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">Citizen Rating</span>
-                              <div className="flex items-center gap-1 font-medium">
-                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                <span className="text-base">{rating > 0 ? rating.toFixed(1) : 'N/A'}</span>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t">
-                              <div>
-                                <p className="text-muted-foreground text-[10px] mb-0.5">Assigned</p>
-                                <p className="font-semibold text-lg">{team.total_assigned || 0}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-[10px] mb-0.5">Resolved</p>
-                                <p className="font-semibold text-lg text-green-600">{team.total_resolved || 0}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-[10px] mb-0.5">Avg. Time</p>
-                                <p className="font-semibold text-sm">
-                                  {team.average_resolution_hours
-                                    ? `${Math.round(team.average_resolution_hours)}h`
-                                    : 'N/A'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-[10px] mb-0.5">Members</p>
-                                <p className="font-semibold text-sm">{team.member_count || 0}</p>
-                              </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Resolution Rate
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
+
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Citizen Rating
+                            </span>
+                            <div className="flex items-center gap-1 font-medium">
+                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              <span className="text-base">
+                                {rating > 0 ? rating.toFixed(1) : "N/A"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t">
+                            <div>
+                              <p className="text-muted-foreground text-[10px] mb-0.5">
+                                Assigned
+                              </p>
+                              <p className="font-semibold text-lg">
+                                {team.total_assigned || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground text-[10px] mb-0.5">
+                                Resolved
+                              </p>
+                              <p className="font-semibold text-lg text-green-600">
+                                {team.total_resolved || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground text-[10px] mb-0.5">
+                                Avg. Time
+                              </p>
+                              <p className="font-semibold text-sm">
+                                {team.average_resolution_hours
+                                  ? `${Math.round(team.average_resolution_hours)}h`
+                                  : "N/A"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground text-[10px] mb-0.5">
+                                Members
+                              </p>
+                              <p className="font-semibold text-sm">
+                                {team.member_count || 0}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
