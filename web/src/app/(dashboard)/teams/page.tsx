@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/users";
 import { useCategories } from "@/lib/queries/categories";
 import { useDistricts } from "@/lib/queries/districts";
+import { useCreateCategory, useDeleteCategory } from "@/lib/queries/categories-management";
 import { UserRole } from "@/lib/api/types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +34,9 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Ticket,
 } from "lucide-react";
+import { TeamTicketsPanel } from "./team-tickets-panel";
 
 type AnyTeamListResponse =
   | { items: any[]; total?: number }
@@ -63,14 +66,30 @@ export default function TeamsPage() {
   const [selectedDistrictIds, setSelectedDistrictIds] = useState<string[]>([]);
 
   // hangi team expanded?
-  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+  const [expandedMembersTeamId, setExpandedMembersTeamId] = useState<string | null>(null);
+  const [expandedTicketsTeamId, setExpandedTicketsTeamId] = useState<string | null>(null);
 
   // Fetch categories and districts
   const categoriesQuery = useCategories(false); // Get all categories
   const districtsQuery = useDistricts();
+  
+  const categories = categoriesQuery.data?.items ?? [];
+  const districts = districtsQuery.data?.items ?? [];
 
-  // Create user form state
+  // UI state
   const [showCreateUserForm, setShowCreateUserForm] = useState(false);
+  const [showCreateTeamForm, setShowCreateTeamForm] = useState(false);
+  const [showManageStaff, setShowManageStaff] = useState(true);
+  const [showManageTeams, setShowManageTeams] = useState(true);
+  const [showManageCategories, setShowManageCategories] = useState(true);
+  const [staffSearchTerm, setStaffSearchTerm] = useState("");
+  const [teamSearchTerm, setTeamSearchTerm] = useState("");
+  const [categorySearchTerm, setCategorySearchTerm] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryDesc, setNewCategoryDesc] = useState("");
+
+  const createCategoryMut = useCreateCategory();
+  const deleteCategoryMut = useDeleteCategory();
 
   const teams = normalizeTeams(teamsQuery.data as AnyTeamListResponse);
 
@@ -100,71 +119,117 @@ export default function TeamsPage() {
     setDescription("");
     setSelectedCategoryIds([]);
     setSelectedDistrictIds([]);
+    setShowCreateTeamForm(false);
   }
 
   async function onDeleteTeam(teamId: string) {
     await deleteTeamMut.mutateAsync(teamId);
-    if (expandedTeamId === teamId) setExpandedTeamId(null);
+    if (expandedMembersTeamId === teamId) setExpandedMembersTeamId(null);
+    if (expandedTicketsTeamId === teamId) setExpandedTicketsTeamId(null);
+  }
+
+  async function onCreateCategory() {
+    const name = newCategoryName.trim();
+    if (!name) return;
+
+    try {
+      await createCategoryMut.mutateAsync({
+        name,
+        description: newCategoryDesc.trim() || null,
+      });
+      setNewCategoryName("");
+      setNewCategoryDesc("");
+      toast.success(`Category "${name}" created`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create category");
+    }
+  }
+
+  async function onDeleteCategory(categoryId: string, categoryName: string) {
+    if (!confirm(`Delete category "${categoryName}"? All tickets will be moved to "Other" category.`)) {
+      return;
+    }
+
+    try {
+      await deleteCategoryMut.mutateAsync(categoryId);
+      toast.success(`Category "${categoryName}" deleted`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete category");
+    }
   }
 
   const isLoadingList = teamsQuery.isLoading;
   const isErrorList = teamsQuery.isError;
 
+  // Separate fallback team from other teams
+  const FALLBACK_TEAM_NAME = "Istanbul General Team";
+  const fallbackTeam = teams.find((t: any) => t.name === FALLBACK_TEAM_NAME);
+  const regularTeams = teams.filter((t: any) => t.name !== FALLBACK_TEAM_NAME);
+  
+  // Filter regular teams by search term
+  const filteredTeams = regularTeams.filter((t: any) =>
+    t.name.toLowerCase().includes(teamSearchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
-      {/* Create User Section */}
+      {/* Create Staff Card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Create Support Staff</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowCreateUserForm(!showCreateUserForm)}
-          >
-            {showCreateUserForm ? "Hide Form" : "New Staff"}
-          </Button>
-        </CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Create Staff</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCreateUserForm(!showCreateUserForm)}
+            >
+              {showCreateUserForm ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CardHeader>
 
-        {showCreateUserForm && (
-          <CardContent>
-            <CreateUserForm onSuccess={() => setShowCreateUserForm(false)} />
-          </CardContent>
-        )}
-      </Card>
+          {showCreateUserForm && (
+            <CardContent>
+              <CreateUserForm onSuccess={() => setShowCreateUserForm(false)} />
+            </CardContent>
+          )}
+        </Card>
 
-      {/* Staff Management Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Manage Support Staff</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StaffManagementPanel teams={teams} />
-        </CardContent>
-      </Card>
+        {/* Create Team Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Create Team</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCreateTeamForm(!showCreateTeamForm)}
+            >
+              {showCreateTeamForm ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CardHeader>
 
-      {/* Teams Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Manage Teams</CardTitle>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {/* add team form */}
-          <div className="grid gap-4">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <input
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                placeholder="Team name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <input
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                placeholder="Description (optional)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+          {showCreateTeamForm && (
+            <CardContent className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="Team name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <input
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="Description (optional)"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
 
             {/* Categories Multi-Select */}
             <div className="space-y-2">
@@ -232,21 +297,162 @@ export default function TeamsPage() {
               </div>
             </div>
 
-            <Button
-              onClick={onAddTeam}
-              disabled={createTeamMut.isPending || !name.trim()}
-              className="w-full sm:w-auto"
-            >
-              {createTeamMut.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              Add Team
-            </Button>
-          </div>
+              <Button
+                onClick={onAddTeam}
+                disabled={createTeamMut.isPending || !name.trim()}
+                className="w-full sm:w-auto"
+              >
+                {createTeamMut.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Add Team
+              </Button>
+            </CardContent>
+          )}
+        </Card>
 
-          {/* teams list */}
+      {/* Istanbul General Team Section */}
+      {fallbackTeam && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>Istanbul General Team</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                (Fallback - Cannot be deleted)
+              </span>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              Handles unassigned tickets from deleted teams. Covers all categories and districts.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const t = fallbackTeam;
+              const openTickets = openByTeamId.get(t.id) ?? 0;
+              
+              return (
+                <TeamRow
+                  key={t.id}
+                  teamId={t.id}
+                  name={t.name}
+                  description={t.description ?? null}
+                  memberCount={t.member_count ?? t.memberCount ?? 0}
+                  openTicketCount={openTickets}
+                  isMembersExpanded={expandedMembersTeamId === t.id}
+                  isTicketsExpanded={expandedTicketsTeamId === t.id}
+                  onToggleMembers={() =>
+                    setExpandedMembersTeamId((prev) => (prev === t.id ? null : t.id))
+                  }
+                  onToggleTickets={() =>
+                    setExpandedTicketsTeamId((prev) => (prev === t.id ? null : t.id))
+                  }
+                  onDelete={() => {
+                    toast.error("Istanbul General Team cannot be deleted - it serves as a fallback for unassigned tickets");
+                  }}
+                  isDeleting={false}
+                  isDeletingThis={false}
+                  analyticsLoading={teamPerfQuery.isLoading}
+                />
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Manage Staff Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Manage Staff</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowManageStaff(!showManageStaff)}
+          >
+            {showManageStaff ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CardHeader>
+
+        {showManageStaff && (
+          <CardContent className="space-y-4">
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search staff by name..."
+                value={staffSearchTerm}
+                onChange={(e) => setStaffSearchTerm(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm pl-10"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+
+            <StaffManagementPanel teams={teams} searchTerm={staffSearchTerm} />
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Manage Teams Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Manage Teams</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowManageTeams(!showManageTeams)}
+          >
+            {showManageTeams ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CardHeader>
+
+        {showManageTeams && (
+          <CardContent className="space-y-4">
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search teams by name..."
+                value={teamSearchTerm}
+                onChange={(e) => setTeamSearchTerm(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm pl-10"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+
+            {/* teams list */}
           {isLoadingList ? (
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -262,11 +468,13 @@ export default function TeamsPage() {
               message="Please try again."
               onRetry={teamsQuery.refetch}
             />
-          ) : teams.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No teams yet.</p>
+          ) : filteredTeams.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {teamSearchTerm ? "No teams found matching your search." : "No teams yet."}
+            </p>
           ) : (
             <div className="space-y-3">
-              {teams.map((t: any) => {
+              {filteredTeams.map((t: any) => {
                 const openTickets = openByTeamId.get(t.id) ?? 0;
 
                 return (
@@ -277,9 +485,13 @@ export default function TeamsPage() {
                     description={t.description ?? null}
                     memberCount={t.member_count ?? t.memberCount ?? 0}
                     openTicketCount={openTickets}
-                    isExpanded={expandedTeamId === t.id}
-                    onToggle={() =>
-                      setExpandedTeamId((prev) => (prev === t.id ? null : t.id))
+                    isMembersExpanded={expandedMembersTeamId === t.id}
+                    isTicketsExpanded={expandedTicketsTeamId === t.id}
+                    onToggleMembers={() =>
+                      setExpandedMembersTeamId((prev) => (prev === t.id ? null : t.id))
+                    }
+                    onToggleTickets={() =>
+                      setExpandedTicketsTeamId((prev) => (prev === t.id ? null : t.id))
                     }
                     onDelete={() => onDeleteTeam(t.id)}
                     isDeleting={deleteTeamMut.isPending}
@@ -293,7 +505,132 @@ export default function TeamsPage() {
               })}
             </div>
           )}
-        </CardContent>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Manage Categories Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Manage Categories</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowManageCategories(!showManageCategories)}
+          >
+            {showManageCategories ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CardHeader>
+
+        {showManageCategories && (
+          <CardContent className="space-y-4">
+            {/* Create Category Form */}
+            <div className="rounded-lg border border-border p-4 space-y-3">
+              <h4 className="text-sm font-medium">Create New Category</h4>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="Category name"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={newCategoryDesc}
+                  onChange={(e) => setNewCategoryDesc(e.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <Button
+                onClick={onCreateCategory}
+                disabled={createCategoryMut.isPending || !newCategoryName.trim()}
+                size="sm"
+              >
+                {createCategoryMut.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Add Category
+              </Button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search categories by name..."
+                value={categorySearchTerm}
+                onChange={(e) => setCategorySearchTerm(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm pl-10"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+
+            {/* Categories List */}
+            {categoriesQuery.isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />
+                ))}
+              </div>
+            ) : categoriesQuery.isError ? (
+              <p className="text-sm text-destructive">Failed to load categories</p>
+            ) : (
+              <div className="space-y-2">
+                {categories
+                  .filter((cat: any) =>
+                    cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                  )
+                  .map((cat: any) => (
+                    <div
+                      key={cat.id}
+                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
+                    >
+                      <div>
+                        <div className="font-medium">{cat.name}</div>
+                        {cat.description && (
+                          <div className="text-sm text-muted-foreground">{cat.description}</div>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteCategory(cat.id, cat.name)}
+                        disabled={
+                          deleteCategoryMut.isPending || cat.name.toLowerCase() === "other"
+                        }
+                      >
+                        {deleteCategoryMut.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
     </div>
   );
@@ -306,8 +643,10 @@ function TeamRow(props: {
   memberCount: number;
   openTicketCount: number;
 
-  isExpanded: boolean;
-  onToggle: () => void;
+  isMembersExpanded: boolean;
+  isTicketsExpanded: boolean;
+  onToggleMembers: () => void;
+  onToggleTickets: () => void;
   onDelete: () => void;
 
   isDeleting: boolean;
@@ -326,10 +665,20 @@ function TeamRow(props: {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={props.onToggle}>
+          <Button variant="outline" size="sm" onClick={props.onToggleMembers}>
             <Users className="mr-2 h-4 w-4" />
             Members
-            {props.isExpanded ? (
+            {props.isMembersExpanded ? (
+              <ChevronUp className="ml-2 h-4 w-4" />
+            ) : (
+              <ChevronDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={props.onToggleTickets}>
+            <Ticket className="mr-2 h-4 w-4" />
+            Tickets
+            {props.isTicketsExpanded ? (
               <ChevronUp className="ml-2 h-4 w-4" />
             ) : (
               <ChevronDown className="ml-2 h-4 w-4" />
@@ -352,9 +701,15 @@ function TeamRow(props: {
         </div>
       </div>
 
-      {props.isExpanded && (
+      {props.isMembersExpanded && (
         <div className="border-t border-border px-3 py-4">
           <TeamMembersPanel teamId={props.teamId} />
+        </div>
+      )}
+
+      {props.isTicketsExpanded && (
+        <div className="border-t border-border px-3 py-4">
+          <TeamTicketsPanel teamId={props.teamId} isExpanded={props.isTicketsExpanded} />
         </div>
       )}
     </div>
@@ -524,12 +879,17 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-function StaffManagementPanel({ teams }: { teams: any[] }) {
+function StaffManagementPanel({ teams, searchTerm }: { teams: any[]; searchTerm: string }) {
   const supportUsersQuery = useUsers({ role: UserRole.SUPPORT, page_size: 200 });
   const updateRoleMut = useUpdateUserRole();
   const deleteUserMut = useDeleteUser();
 
   const supportUsers = supportUsersQuery.data?.items ?? [];
+  
+  // Filter users by search term
+  const filteredUsers = supportUsers.filter((user: any) =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   async function handleTeamChange(userId: string, newTeamId: string | null, userName: string) {
     try {
@@ -581,9 +941,13 @@ function StaffManagementPanel({ teams }: { teams: any[] }) {
     return <p className="text-sm text-muted-foreground">No support staff yet.</p>;
   }
 
+  if (filteredUsers.length === 0) {
+    return <p className="text-sm text-muted-foreground">No staff found matching your search.</p>;
+  }
+
   return (
     <div className="space-y-3">
-      {supportUsers.map((user: any) => {
+      {filteredUsers.map((user: any) => {
         const currentTeam = teams.find((t) => t.id === user.team_id);
         
         return (

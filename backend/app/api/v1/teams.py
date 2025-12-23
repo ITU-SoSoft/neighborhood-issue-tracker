@@ -259,17 +259,86 @@ async def delete_team(
 ) -> None:
     """Delete a team.
 
-    Members will have team_id set to NULL before deleting the team.
+    Members will have team_id set to NULL.
+    Assigned tickets will be automatically reassigned to another suitable team.
+    If no suitable team is found, tickets are assigned to the Istanbul General Team.
     """
+    import logging
+    from app.models.ticket import Ticket
+    from app.services.team_assignment_service import TeamAssignmentService
+    
+    logger = logging.getLogger(__name__)
+    
     team = await db.get(Team, team_id)
     if not team:
         raise NotFoundException(detail="Team not found")
+    
+    # Prevent deletion of fallback team
+    FALLBACK_TEAM_NAME = "Istanbul General Team"
+    if team.name == FALLBACK_TEAM_NAME:
+        raise ConflictException(detail=f"{FALLBACK_TEAM_NAME} cannot be deleted as it serves as a fallback for unassigned tickets")
 
+    logger.info(f"Deleting team: {team.name} ({team_id})")
+
+    # Reassign tickets to other teams
+    tickets_query = select(Ticket).options(
+        selectinload(Ticket.category),
+        selectinload(Ticket.location),
+    ).where(
+        Ticket.team_id == team_id,
+        Ticket.deleted_at.is_(None),
+    )
+    result = await db.execute(tickets_query)
+    tickets = result.scalars().all()
+    
+    assignment_service = TeamAssignmentService()
+    reassigned_count = 0
+    unassigned_count = 0
+    
+    for ticket in tickets:
+        # Try to find another suitable team
+        location = ticket.location
+        district_name = location.district if location else None
+        city = location.city if location else "Istanbul"
+        
+        new_team = await assignment_service.find_matching_team(
+            session=db,
+            category_id=ticket.category_id,
+            district=district_name,
+            city=city,
+        )
+        
+        if new_team and new_team.id != team_id:
+            ticket.team_id = new_team.id
+            reassigned_count += 1
+            logger.info(f"  Reassigned ticket {ticket.id} to team {new_team.name}")
+        else:
+            # No suitable team found, assign to fallback team
+            fallback_team_result = await db.execute(
+                select(Team).where(Team.name == FALLBACK_TEAM_NAME)
+            )
+            fallback_team = fallback_team_result.scalar_one_or_none()
+            
+            if fallback_team:
+                ticket.team_id = fallback_team.id
+                unassigned_count += 1
+                logger.info(f"  No suitable team for ticket {ticket.id}, assigned to {FALLBACK_TEAM_NAME}")
+            else:
+                # Fallback team doesn't exist (shouldn't happen), set to NULL
+                ticket.team_id = None
+                unassigned_count += 1
+                logger.info(f"  No suitable team for ticket {ticket.id}, set to unassigned")
+    
+    logger.info(f"  Reassigned {reassigned_count} tickets, {unassigned_count} assigned to fallback team")
+
+    # Remove team members
     await db.execute(update(User).where(User.team_id == team_id).values(team_id=None))
-    await db.commit()
-
+    
+    # Delete team
     await db.delete(team)
     await db.commit()
+    
+    logger.info(f"Team {team.name} deleted successfully")
 
 
 @router.post("/{team_id}/members/{user_id}", response_model=TeamDetailResponse)

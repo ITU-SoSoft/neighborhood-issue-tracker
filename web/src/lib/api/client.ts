@@ -384,6 +384,19 @@ export async function deleteTeam(teamId: string): Promise<void> {
   });
 }
 
+export async function getTicketsByTeam(
+  teamId: string,
+  page: number = 1,
+  pageSize: number = 100
+): Promise<TicketListResponse> {
+  const params = new URLSearchParams({
+    team_id: teamId,
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  return apiFetch<TicketListResponse>(`/tickets/?${params.toString()}`);
+}
+
 export async function addTeamMember(
   teamId: string,
   userId: string,
@@ -431,6 +444,12 @@ export async function updateCategory(
   return apiFetch<Category>(`/categories/${categoryId}`, {
     method: "PUT",
     body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCategory(categoryId: string): Promise<void> {
+  return apiFetch<void>(`/categories/${categoryId}`, {
+    method: "DELETE",
   });
 }
 

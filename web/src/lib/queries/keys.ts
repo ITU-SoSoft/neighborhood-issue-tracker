@@ -47,6 +47,7 @@ export const queryKeys = {
       radius_meters?: number;
       category_id?: string;
     }) => [...queryKeys.tickets.all, "nearby", params] as const,
+    byTeam: (teamId: string) => [...queryKeys.tickets.all, "team", teamId] as const,
   },
 
   // Categories
