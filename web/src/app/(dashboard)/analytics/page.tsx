@@ -519,7 +519,7 @@ export default function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryStatsQuery.data.items}
+                        data={categoryStatsQuery.data.items as any}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -591,7 +591,7 @@ export default function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={categoryStatsQuery.data.items}
+                        data={categoryStatsQuery.data.items as any}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
