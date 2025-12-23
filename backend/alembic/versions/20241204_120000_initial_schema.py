@@ -108,7 +108,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_users_phone_number"), "users", ["phone_number"], unique=True
+        op.f("ix_users_phone_number"), "users", ["phone_number"], unique=True, if_not_exists=True
     )
 
     # Create otp_codes table
@@ -127,7 +127,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_otp_codes_phone_number"), "otp_codes", ["phone_number"])
+    op.create_index(op.f("ix_otp_codes_phone_number"), "otp_codes", ["phone_number"], if_not_exists=True)
 
     # Create categories table
     op.create_table(
@@ -176,6 +176,7 @@ def upgrade() -> None:
         "locations",
         ["coordinates"],
         postgresql_using="gist",
+        if_not_exists=True,
     )
 
     # Create tickets table
@@ -216,7 +217,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["assignee_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_tickets_status"), "tickets", ["status"])
+    op.create_index(op.f("ix_tickets_status"), "tickets", ["status"], if_not_exists=True)
 
     # Create ticket_followers table (junction table)
     op.create_table(
