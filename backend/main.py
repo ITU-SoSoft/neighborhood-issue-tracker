@@ -4,8 +4,11 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.config import settings
@@ -48,6 +51,53 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pass
 
 
+def add_cors_headers(response: JSONResponse, request: Request | None = None) -> JSONResponse:
+    """Add CORS headers to error responses."""
+    # Get origin from request or use first allowed origin
+    origin = "*"
+    if request and "origin" in request.headers:
+        request_origin = request.headers["origin"]
+        if request_origin in settings.cors_origins_list:
+            origin = request_origin
+    elif settings.cors_origins_list:
+        origin = settings.cors_origins_list[0]
+
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Vary"] = "Origin"
+    return response
+
+
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Handle HTTP exceptions with CORS headers."""
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+    return add_cors_headers(response, request)
+
+
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Handle validation errors with CORS headers."""
+    response = JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
+    return add_cors_headers(response, request)
+
+
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle unexpected exceptions with CORS headers."""
+    logger.error(f"Unexpected error: {exc}", exc_info=True)
+    response = JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error"},
+    )
+    return add_cors_headers(response, request)
+
+
 def create_application() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
@@ -69,6 +119,11 @@ def create_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Register exception handlers
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(Exception, general_exception_handler)
 
     # Include API routers
     app.include_router(api_router, prefix=settings.api_v1_prefix)
