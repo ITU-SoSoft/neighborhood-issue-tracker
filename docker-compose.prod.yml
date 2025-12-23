@@ -53,6 +53,7 @@ services:
       - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
     networks:
       - sosoft-network
+      - dokploy-network
 
   # MinIO setup - creates bucket on startup
   minio-setup:
@@ -127,6 +128,7 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
     networks:
       - sosoft-network
+      - dokploy-network
 
   # Frontend (Next.js)
   frontend:
@@ -155,6 +157,7 @@ services:
       - "traefik.http.routers.frontend.middlewares=www-redirect"
     networks:
       - sosoft-network
+      - dokploy-network
 
 volumes:
   postgres_data:
@@ -163,3 +166,5 @@ volumes:
 networks:
   sosoft-network:
     driver: bridge
+  dokploy-network:
+    external: true
