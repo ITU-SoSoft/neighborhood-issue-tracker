@@ -467,7 +467,7 @@ export default function AnalyticsPage() {
                           backgroundColor: 'hsl(var(--card))',
                           borderColor: 'hsl(var(--border))',
                         }}
-                        formatter={(value: number) => [`${value.toFixed(1)} / 5.0`, 'Rating']}
+                        formatter={(value: number | string | undefined) => [`${(Number(value) || 0).toFixed(1)} / 5.0`, 'Rating']}
                       />
                       <Bar
                         dataKey="average_rating"
@@ -527,7 +527,7 @@ export default function AnalyticsPage() {
                         paddingAngle={5}
                         dataKey="total_tickets"
                         nameKey="category_name"
-                        label={({ name }) => name}
+                        label={({ name }: { name: string }) => name}
                       >
                         {categoryStatsQuery.data.items.map((entry: any, index: number) => {
                           const colorMap: Record<string, string> = {
@@ -547,7 +547,7 @@ export default function AnalyticsPage() {
                         })}
                       </Pie>
                       <Tooltip />
-                      <Legend formatter={(value, entry: any) => entry.payload?.category_name} />
+                      <Legend formatter={(_value: string, entry: { payload?: { category_name?: string } }) => entry.payload?.category_name} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -599,7 +599,7 @@ export default function AnalyticsPage() {
                         paddingAngle={5}
                         dataKey="open_tickets"
                         nameKey="category_name"
-                        label={({ name }) => name}
+                        label={({ name }: { name: string }) => name}
                       >
                         {categoryStatsQuery.data.items.map((entry: any, index: number) => {
                           const colorMap: Record<string, string> = {
@@ -619,7 +619,7 @@ export default function AnalyticsPage() {
                         })}
                       </Pie>
                       <Tooltip />
-                      <Legend formatter={(value, entry: any) => entry.payload?.category_name} />
+                      <Legend formatter={(_value: string, entry: { payload?: { category_name?: string } }) => entry.payload?.category_name} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
