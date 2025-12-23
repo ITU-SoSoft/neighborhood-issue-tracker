@@ -62,6 +62,8 @@ import {
   TeamResponse,
   TeamCreate,
   TeamUpdate,
+  District,
+  DistrictListResponse,
 } from "./types";
 
 const API_BASE_URL =
@@ -430,6 +432,14 @@ export async function updateCategory(
     method: "PUT",
     body: JSON.stringify(data),
   });
+}
+
+// ============================================================================
+// DISTRICTS
+// ============================================================================
+
+export async function getDistricts(): Promise<DistrictListResponse> {
+  return apiFetch<DistrictListResponse>("/districts", {}, false);
 }
 
 // ============================================================================

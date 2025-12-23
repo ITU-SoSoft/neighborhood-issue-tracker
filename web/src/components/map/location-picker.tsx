@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getDistricts } from "@/lib/api/client";
+import type { District } from "@/lib/api/types";
 
 // Fix for default marker icons in Leaflet with Next.js
 const defaultIcon = L.icon({
@@ -23,6 +25,7 @@ interface LocationPickerProps {
     latitude: number;
     longitude: number;
     address?: string;
+    district_id?: string;
   }) => void;
   className?: string;
 }
@@ -46,9 +49,23 @@ export function LocationPicker({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [districts, setDistricts] = useState<District[]>([]);
 
   // Default to Istanbul if no location provided
   const defaultCenter = { lat: 41.0082, lng: 28.9784 };
+
+  // Fetch districts on mount
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      try {
+        const response = await getDistricts();
+        setDistricts(response.items);
+      } catch (error) {
+        console.error("Failed to fetch districts:", error);
+      }
+    };
+    fetchDistricts();
+  }, []);
 
   useEffect(() => {
     // Request user's current location
@@ -145,10 +162,41 @@ export function LocationPicker({
       );
       const data = await response.json();
       
+      // Extract district name from Nominatim response
+      // Priority: county (ilçe), town (ilçe), then others
+      // Note: suburb is usually a neighborhood (mahalle), not a district
+      const districtName = 
+        data.address?.county ||      // Primary: county is usually the district
+        data.address?.town ||        // Secondary: town is often the district in Turkey  
+        data.address?.district ||    // Tertiary: explicit district field
+        data.address?.city_district; // Last: city_district as fallback
+        // Note: Explicitly NOT using suburb as it's typically a neighborhood
+      
+      // Match district name with our districts database
+      let districtId: string | undefined;
+      if (districtName && districts.length > 0) {
+        // Try exact match first
+        let matchedDistrict = districts.find(
+          (d) => d.name.toLowerCase() === districtName.toLowerCase()
+        );
+        
+        // If no exact match, try partial match
+        if (!matchedDistrict) {
+          matchedDistrict = districts.find(
+            (d) => 
+              d.name.toLowerCase().includes(districtName.toLowerCase()) ||
+              districtName.toLowerCase().includes(d.name.toLowerCase())
+          );
+        }
+        
+        districtId = matchedDistrict?.id;
+      }
+      
       onLocationSelect({
         latitude: lat,
         longitude: lng,
         address: data.display_name || undefined,
+        district_id: districtId,
       });
     } catch {
       onLocationSelect({

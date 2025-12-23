@@ -145,4 +145,21 @@ export const queryKeys = {
     }) => [...queryKeys.notifications.lists(), params ?? {}] as const,
     unreadCount: () => [...queryKeys.notifications.all, "unreadCount"] as const,
   },
+
+  // Districts
+  districts: {
+    all: ["districts"] as const,
+  },
+
+  // Teams
+  teams: {
+    all: ["teams"] as const,
+    lists: () => [...queryKeys.teams.all, "list"] as const,
+    list: (filters?: {
+      page?: number;
+      page_size?: number;
+    }) => [...queryKeys.teams.lists(), filters ?? {}] as const,
+    detail: (id: string) => [...queryKeys.teams.all, "detail", id] as const,
+    unassignedMembers: () => [...queryKeys.teams.all, "unassignedMembers"] as const,
+  },
 } as const;

@@ -17,6 +17,8 @@ import {
   useUpdateUserRole,
   useDeleteUser,
 } from "@/lib/queries/users";
+import { useCategories } from "@/lib/queries/categories";
+import { useDistricts } from "@/lib/queries/districts";
 import { UserRole } from "@/lib/api/types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,9 +59,15 @@ export default function TeamsPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedDistrictIds, setSelectedDistrictIds] = useState<string[]>([]);
 
   // hangi team expanded?
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+
+  // Fetch categories and districts
+  const categoriesQuery = useCategories(false); // Get all categories
+  const districtsQuery = useDistricts();
 
   // Create user form state
   const [showCreateUserForm, setShowCreateUserForm] = useState(false);
@@ -84,10 +92,14 @@ export default function TeamsPage() {
     await createTeamMut.mutateAsync({
       name: n,
       description: description.trim() ? description.trim() : null,
+      category_ids: selectedCategoryIds,
+      district_ids: selectedDistrictIds,
     });
 
     setName("");
     setDescription("");
+    setSelectedCategoryIds([]);
+    setSelectedDistrictIds([]);
   }
 
   async function onDeleteTeam(teamId: string) {
@@ -138,29 +150,99 @@ export default function TeamsPage() {
 
         <CardContent className="space-y-4">
           {/* add team form */}
-          <div className="grid gap-2 sm:grid-cols-[1fr,1.5fr,auto]">
-            <input
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              placeholder="Team name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <input
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              placeholder="Description (optional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+          <div className="grid gap-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                placeholder="Team name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                placeholder="Description (optional)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            {/* Categories Multi-Select */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Categories (Select all that apply)</label>
+              <div className="flex flex-wrap gap-2">
+                {categoriesQuery.isLoading ? (
+                  <span className="text-sm text-muted-foreground">Loading categories...</span>
+                ) : categoriesQuery.isError ? (
+                  <span className="text-sm text-destructive">Failed to load categories</span>
+                ) : (
+                  (categoriesQuery.data?.items || []).map((category: any) => (
+                    <label
+                      key={category.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCategoryIds.includes(category.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCategoryIds([...selectedCategoryIds, category.id]);
+                          } else {
+                            setSelectedCategoryIds(selectedCategoryIds.filter((id) => id !== category.id));
+                          }
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span>{category.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Districts Multi-Select */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Districts (Select all that apply)</label>
+              <div className="flex flex-wrap gap-2">
+                {districtsQuery.isLoading ? (
+                  <span className="text-sm text-muted-foreground">Loading districts...</span>
+                ) : districtsQuery.isError ? (
+                  <span className="text-sm text-destructive">Failed to load districts</span>
+                ) : (
+                  (districtsQuery.data?.items || []).map((district: any) => (
+                    <label
+                      key={district.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-accent"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedDistrictIds.includes(district.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedDistrictIds([...selectedDistrictIds, district.id]);
+                          } else {
+                            setSelectedDistrictIds(selectedDistrictIds.filter((id) => id !== district.id));
+                          }
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span>{district.name}, {district.city}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
             <Button
               onClick={onAddTeam}
               disabled={createTeamMut.isPending || !name.trim()}
+              className="w-full sm:w-auto"
             >
               {createTeamMut.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Plus className="mr-2 h-4 w-4" />
               )}
-              Add
+              Add Team
             </Button>
           </div>
 

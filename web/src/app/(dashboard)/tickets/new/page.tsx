@@ -83,6 +83,7 @@ export default function CreateTicketPage() {
     latitude: number;
     longitude: number;
     address?: string;
+    district_id?: string;
   } | null>(null);
   const [photos, setPhotos] = useState<PhotoPreview[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
@@ -109,6 +110,7 @@ export default function CreateTicketPage() {
           latitude: address.latitude,
           longitude: address.longitude,
           address: address.address,
+          // Saved addresses don't have district_id yet
         });
       }
     }
@@ -211,6 +213,7 @@ export default function CreateTicketPage() {
         latitude: location.latitude,
         longitude: location.longitude,
         address: location.address,
+        district_id: location.district_id,
         city: "Istanbul", // Default city, could be extracted from address
       };
 

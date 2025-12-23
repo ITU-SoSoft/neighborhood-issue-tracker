@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import get_async_session, get_current_user, get_manager_user
 from app.core.exceptions import ConflictException, NotFoundException
 from app.models import Team, User
+from app.models.team import TeamCategory, TeamDistrict
 from app.schemas.team import (
     TeamCreate,
     TeamDetailResponse,
@@ -29,21 +30,47 @@ ManagerUser = Annotated[User, Depends(get_manager_user)]
 
 
 async def _get_team_with_members(db: AsyncSession, team_id: uuid.UUID) -> Team | None:
-    """Helper: fetch a team with members eagerly loaded."""
-    stmt = select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
+    """Helper: fetch a team with members, categories, and districts eagerly loaded."""
+    stmt = (
+        select(Team)
+        .options(
+            selectinload(Team.members),
+            selectinload(Team.team_categories).selectinload(TeamCategory.category),
+            selectinload(Team.team_districts).selectinload(TeamDistrict.district),
+        )
+        .where(Team.id == team_id)
+    )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
 def _to_team_detail_response(team: Team) -> TeamDetailResponse:
     """Helper: convert Team ORM object to TeamDetailResponse."""
+    from app.schemas.team import TeamCategoryResponse, TeamDistrictResponse
+    
     return TeamDetailResponse(
         id=team.id,
         name=team.name,
         description=team.description,
         created_at=team.created_at,
         updated_at=team.updated_at,
-        # districts/categories default [] in schema
+        categories=[
+            TeamCategoryResponse(
+                team_id=tc.team_id,
+                category_id=tc.category_id,
+                category_name=tc.category.name,
+            )
+            for tc in team.team_categories
+        ],
+        districts=[
+            TeamDistrictResponse(
+                team_id=td.team_id,
+                district_id=td.district_id,
+                district_name=td.district.name,
+                city=td.district.city,
+            )
+            for td in team.team_districts
+        ],
         members=[
             TeamMemberResponse(
                 id=member.id,
@@ -156,7 +183,13 @@ async def create_team(
     db: DatabaseSession,
     _: ManagerUser,
 ) -> TeamResponse:
-    """Create a new team."""
+    """Create a new team with categories and districts."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Creating team: {team_data.name}")
+    logger.info(f"  Categories: {team_data.category_ids}")
+    logger.info(f"  Districts: {team_data.district_ids}")
+    
     existing = await db.execute(select(Team).where(Team.name == team_data.name))
     if existing.scalar_one_or_none():
         raise ConflictException(detail="Team with this name already exists")
@@ -166,8 +199,29 @@ async def create_team(
         description=team_data.description,
     )
     db.add(team)
+    await db.flush()  # Get team.id before creating associations
+
+    # Create TeamCategory associations
+    for category_id in team_data.category_ids:
+        team_category = TeamCategory(
+            team_id=team.id,
+            category_id=category_id,
+        )
+        db.add(team_category)
+        logger.info(f"  Added category {category_id} to team")
+
+    # Create TeamDistrict associations
+    for district_id in team_data.district_ids:
+        team_district = TeamDistrict(
+            team_id=team.id,
+            district_id=district_id,
+        )
+        db.add(team_district)
+        logger.info(f"  Added district {district_id} to team")
+
     await db.commit()
     await db.refresh(team)
+    logger.info(f"Team {team.name} created successfully with {len(team_data.category_ids)} categories and {len(team_data.district_ids)} districts")
     return TeamResponse.model_validate(team)
 
 

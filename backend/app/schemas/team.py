@@ -13,6 +13,8 @@ class TeamCreate(BaseSchema):
 
     name: str = Field(..., min_length=3, max_length=100)
     description: str | None = Field(default=None, max_length=500)
+    category_ids: list[UUID] = Field(default_factory=list, description="List of category IDs this team handles")
+    district_ids: list[UUID] = Field(default_factory=list, description="List of district IDs this team covers")
 
 
 class TeamUpdate(BaseSchema):

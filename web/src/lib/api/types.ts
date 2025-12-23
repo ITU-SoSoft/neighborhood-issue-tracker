@@ -147,6 +147,10 @@ export interface TeamDetailResponse {
   description: string | null;
   created_at: string;
   updated_at: string;
+  member_count?: number;
+  active_ticket_count?: number;
+  categories: TeamCategoryResponse[];
+  districts: TeamDistrictResponse[];
   members: TeamMemberResponse[];
 }
 
@@ -156,6 +160,8 @@ export interface TeamDetailResponse {
 export interface TeamCreate {
   name: string;
   description?: string | null;
+  category_ids?: string[];
+  district_ids?: string[];
 }
 
 /**
@@ -190,6 +196,34 @@ export interface CategoryUpdate {
   name?: string;
   description?: string;
   is_active?: boolean;
+}
+
+// District types
+export interface District {
+  id: string;
+  name: string;
+  city: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DistrictListResponse {
+  items: District[];
+  total: number;
+}
+
+// Team-Category and Team-District association types
+export interface TeamCategoryResponse {
+  team_id: string;
+  category_id: string;
+  category_name: string;
+}
+
+export interface TeamDistrictResponse {
+  team_id: string;
+  district_id: string;
+  district_name: string;
+  city: string;
 }
 
 // Location types
