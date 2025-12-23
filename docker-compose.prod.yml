@@ -118,8 +118,8 @@ services:
       MINIO_SECURE: "false"
       MINIO_PUBLIC_ENDPOINT: "storage.${DOMAIN:-help.sagbas.io}"
       
-      # CORS
-      CORS_ORIGINS: '["https://${DOMAIN:-help.sagbas.io}", "https://www.${DOMAIN:-help.sagbas.io}"]'
+      # CORS (comma-separated list)
+      CORS_ORIGINS: "https://${DOMAIN:-help.sagbas.io},https://www.${DOMAIN:-help.sagbas.io}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`api.${DOMAIN:-help.sagbas.io}`)"

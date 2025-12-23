@@ -102,8 +102,8 @@ services:
       MINIO_SECURE: "false"
       MINIO_PUBLIC_ENDPOINT: "localhost:9000"
       
-      # CORS
-      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+      # CORS (comma-separated list)
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:8000"
       
       # Test database (for running pytest inside container)
       TEST_DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/sosoft_test"
@@ -132,7 +132,7 @@ services:
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: "1"
       # API URL for server-side requests (container-to-container)
-      NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1"
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000/api/v1"
       # Enable hot reload for Windows/Docker
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"

@@ -52,12 +52,19 @@ class Settings(BaseSettings):
     minio_public_endpoint: str = "localhost:9000"  # Public URL for browser access
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: str = "http://localhost:3000"
 
     @property
     def async_database_url(self) -> str:
         """Return the async database URL."""
         return self.database_url
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS origins from comma-separated string."""
+        if not self.cors_origins:
+            return []
+        return [origin.strip() for origin in self.cors_origins.split(",")]
 
 
 @lru_cache

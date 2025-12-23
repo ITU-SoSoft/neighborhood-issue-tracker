@@ -1,82 +1,96 @@
 # Web Application
 
-Frontend web application for the Neighborhood Issue Tracker built with Next.js 16.
+Frontend web application for the Neighborhood Issue Tracker built with Next.js 14+.
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
+- **Framework**: Next.js 14+ (App Router)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS 4
+- **Styling**: Tailwind CSS
+- **State Management**: TanStack Query (React Query)
 - **Forms**: React Hook Form + Zod validation
-- **Authentication**: Better Auth (via ID service)
+- **Authentication**: JWT-based (via FastAPI backend)
 - **Maps**: Leaflet + React Leaflet
-- **Package Manager**: pnpm
+- **UI Components**: shadcn/ui
+- **Animations**: Framer Motion
+- **Package Manager**: npm
 
 ## Setup
 
 ### 1. Install dependencies
 
 ```bash
-pnpm install
+npm install
 ```
 
 ### 2. Configure environment variables
 
-Create a `.env.local` file in the root directory:
+The API URL is automatically configured in `docker-compose.yml` and `docker-compose.prod.yml`.
+
+For **local development** (if running outside Docker):
+Create a `.env.local` file in the `web/` directory:
 
 ```bash
-# Auth Service URL
-# Points to the ID service authentication endpoints
-NEXT_PUBLIC_AUTH_BASE_URL=http://localhost:8787/api/auth
+# API Backend URL
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-**Note**: For production, update this URL to your deployed ID service endpoint.
+For **production**, the URL is set via Docker build arguments in `docker-compose.prod.yml`.
 
 ### 3. Start the development server
 
-Make sure the ID service is running first (see `../id/README.md`), then:
-
+**Option A: Using Docker Compose (Recommended)**
 ```bash
-pnpm dev
+# From project root
+docker-compose up -d
 ```
-
 The application will be available at `http://localhost:3000`.
+
+**Option B: Local Development (without Docker)**
+```bash
+# Make sure the backend is running first
+npm run dev
+```
 
 ## Authentication Flow
 
-The web app communicates with the ID service for authentication:
+The web app communicates with the FastAPI backend for authentication:
 
-1. User submits sign-up/sign-in form
-2. Web app sends POST request to `${NEXT_PUBLIC_AUTH_BASE_URL}/sign-up/email` or `/sign-in/email`
-3. ID service validates credentials and returns session token
-4. Session cookie is set automatically by Better Auth
+1. User submits sign-up/sign-in form (phone number + password or OTP)
+2. Web app sends request to backend API endpoints
+3. Backend validates credentials and returns JWT tokens
+4. Tokens are stored in localStorage
 5. User is redirected to the dashboard
 
 ### Available Auth Pages
 
-- `/sign-in` - User login
-- `/sign-up` - User registration
-- `/forgot-password` - Password reset (if implemented)
+- `/sign-in` - Citizen login (phone + password or OTP)
+- `/sign-up` - Citizen registration
+- `/staff` - Staff login (support/manager)
 
 ## Development
 
-### Running Both Services
+### Running with Docker Compose
 
-For local development, you need both services running:
+For local development, use Docker Compose to run all services:
 
 ```bash
-# Terminal 1 - Start ID service
-cd ../id
-pnpm dev
+# From project root
+docker-compose up -d
 
-# Terminal 2 - Start Web app
-cd web
-pnpm dev
+# View logs
+docker-compose logs -f frontend
 ```
 
 ### Building for Production
 
 ```bash
-pnpm build
-pnpm start
+npm run build
+npm start
+```
+
+Or using Docker:
+```bash
+# From project root
+docker-compose -f docker-compose.prod.yml up -d
 ```
