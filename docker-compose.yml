@@ -1,11 +1,11 @@
-# Docker Compose for SoSoft Development Environment
+# Docker Compose for SoSoft Development/Staging Environment
 # Usage: docker compose up -d
 
 services:
   # PostgreSQL with PostGIS (multi-arch image)
   postgres:
     image: imresamu/postgis:16-3.5
-    container_name: sosoft-postgres
+    container_name: sosoft-staging-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,19 +13,19 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_staging:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d sosoft"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - sosoft-network
+      - sosoft-staging-network
 
   # MinIO for S3-compatible storage
   minio:
     image: minio/minio:latest
-    container_name: sosoft-minio
+    container_name: sosoft-staging-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -34,19 +34,19 @@ services:
       - "9000:9000"   # S3 API
       - "9001:9001"   # Web Console
     volumes:
-      - minio_data:/data
+      - minio_data_staging:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - sosoft-network
+      - sosoft-staging-network
 
   # MinIO setup - creates bucket on startup
   minio-setup:
     image: minio/mc:latest
-    container_name: sosoft-minio-setup
+    container_name: sosoft-staging-minio-setup
     depends_on:
       minio:
         condition: service_healthy
@@ -58,14 +58,14 @@ services:
       exit 0;
       "
     networks:
-      - sosoft-network
+      - sosoft-staging-network
 
   # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-    container_name: sosoft-backend
+    container_name: sosoft-staging-backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,14 +118,14 @@ services:
       - ./backend/tests:/app/tests
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     networks:
-      - sosoft-network
+      - sosoft-staging-network
 
   # Frontend (Next.js)
   frontend:
     build:
       context: ./web
       dockerfile: Dockerfile.dev
-    container_name: sosoft-frontend
+    container_name: sosoft-staging-frontend
     depends_on:
       - backend
     environment:
@@ -147,12 +147,12 @@ services:
       - /app/node_modules
       - /app/.next
     networks:
-      - sosoft-network
+      - sosoft-staging-network
 
 volumes:
-  postgres_data:
-  minio_data:
+  postgres_data_staging:
+  minio_data_staging:
 
 networks:
-  sosoft-network:
+  sosoft-staging-network:
     driver: bridge
