@@ -201,6 +201,10 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+CLAUDE.md
+backend/app/scripts/clear_db.py
+pdfs/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
