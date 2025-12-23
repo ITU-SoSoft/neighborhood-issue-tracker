@@ -527,7 +527,7 @@ export default function AnalyticsPage() {
                         paddingAngle={5}
                         dataKey="total_tickets"
                         nameKey="category_name"
-                        label={({ name }: { name: string }) => name}
+                        label={({ name }: { name?: string }) => name ?? ''}
                       >
                         {categoryStatsQuery.data.items.map((entry: any, index: number) => {
                           const colorMap: Record<string, string> = {
@@ -599,7 +599,7 @@ export default function AnalyticsPage() {
                         paddingAngle={5}
                         dataKey="open_tickets"
                         nameKey="category_name"
-                        label={({ name }: { name: string }) => name}
+                        label={({ name }: { name?: string }) => name ?? ''}
                       >
                         {categoryStatsQuery.data.items.map((entry: any, index: number) => {
                           const colorMap: Record<string, string> = {

@@ -764,7 +764,7 @@ function ManagerDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryStatsQuery.data.items as any}
+                          data={categoryStatsQuery.data?.items as any}
                           cx="50%"
                           cy="50%"
                           innerRadius={40}
@@ -772,10 +772,10 @@ function ManagerDashboard() {
                           paddingAngle={5}
                           dataKey="total_tickets"
                           nameKey="category_name"
-                          label={({ name }: { name: string }) => name}
+                          label={({ name }: { name?: string }) => name ?? ''}
                           labelLine={false}
                         >
-                          {categoryStatsQuery.data.items.map((entry: any, index: number) => {
+                          {categoryStatsQuery.data?.items.map((entry: any, index: number) => {
                             const colorMap: Record<string, string> = {
                               'Infrastructure': '#0088FE',
                               'Traffic': '#00C49F',
@@ -795,7 +795,7 @@ function ManagerDashboard() {
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="text-center">
                         <div className="text-xl font-normal text-foreground">
-                          {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.total_tickets, 0)}
+                          {categoryStatsQuery.data?.items.reduce((sum: number, cat: any) => sum + cat.total_tickets, 0)}
                         </div>
                         <div className="text-[10px] text-muted-foreground">Total</div>
                       </div>
@@ -840,7 +840,7 @@ function ManagerDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryStatsQuery.data.items as any}
+                          data={categoryStatsQuery.data?.items as any}
                           cx="50%"
                           cy="50%"
                           innerRadius={40}
@@ -848,10 +848,10 @@ function ManagerDashboard() {
                           paddingAngle={5}
                           dataKey="open_tickets"
                           nameKey="category_name"
-                          label={({ name }: { name: string }) => name}
+                          label={({ name }: { name?: string }) => name ?? ''}
                           labelLine={false}
                         >
-                          {categoryStatsQuery.data.items.map((entry: any, index: number) => {
+                          {categoryStatsQuery.data?.items.map((entry: any, index: number) => {
                             const colorMap: Record<string, string> = {
                               'Infrastructure': '#0088FE',
                               'Traffic': '#00C49F',
@@ -871,7 +871,7 @@ function ManagerDashboard() {
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="text-center">
                         <div className="text-xl font-normal text-foreground">
-                          {categoryStatsQuery.data.items.reduce((sum: number, cat: any) => sum + cat.open_tickets, 0)}
+                          {categoryStatsQuery.data?.items.reduce((sum: number, cat: any) => sum + cat.open_tickets, 0)}
                         </div>
                         <div className="text-[10px] text-muted-foreground">Open</div>
                       </div>
