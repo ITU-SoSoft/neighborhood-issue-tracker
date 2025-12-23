@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, DatabaseSession, ManagerUser
+from app.api.deps import DatabaseSession, ManagerUser
 from app.core.exceptions import CategoryNotFoundException, ConflictException
 from app.models.category import Category
 from app.schemas.category import (

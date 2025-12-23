@@ -6,7 +6,6 @@ Run with: docker exec sosoft-backend python -m app.scripts.create_test_tickets
 import asyncio
 import logging
 import random
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -110,7 +109,7 @@ async def create_test_tickets(count: int = 300) -> None:
     async with async_session_maker() as session:
         # Get all categories
         category_result = await session.execute(
-            select(Category).where(Category.is_active == True)
+            select(Category).where(Category.is_active)
         )
         categories = list(category_result.scalars().all())
 

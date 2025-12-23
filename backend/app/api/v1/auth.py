@@ -14,7 +14,6 @@ from app.core.exceptions import (
     OTPExpiredException,
     OTPInvalidException,
     UserAlreadyExistsException,
-    UserNotFoundException,
     UserNotVerifiedException,
 )
 from app.core.rate_limit import (

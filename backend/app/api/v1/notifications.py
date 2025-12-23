@@ -8,7 +8,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DatabaseSession
-from app.core.exceptions import NotFoundException
 from app.models.notification import Notification
 from app.schemas.notification import (
     NotificationListResponse,

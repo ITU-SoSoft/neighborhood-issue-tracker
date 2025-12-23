@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.database import async_session_maker
 from app.core.security import hash_password
 from app.models.category import Category
-from app.models.ticket import Location, StatusLog, Ticket, TicketFollower, TicketStatus
+from app.models.ticket import Location, StatusLog, Ticket, TicketStatus
 from app.models.user import User, UserRole
 from app.models.team import Team, TeamDistrict
 from app.models.feedback import Feedback

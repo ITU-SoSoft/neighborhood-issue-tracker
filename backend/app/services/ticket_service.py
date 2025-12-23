@@ -12,7 +12,6 @@ from app.core.exceptions import (
     ForbiddenException,
     InvalidStatusTransitionException,
     NotFoundException,
-    TicketNotFoundException,
 )
 from app.models.category import Category
 from app.models.district import District
@@ -132,7 +131,6 @@ class TicketService:
         await db.commit()
         
         # Reload ticket with all relationships to avoid lazy loading issues
-        from sqlalchemy.orm import selectinload, joinedload
         from app.models.comment import Comment
         
         result = await db.execute(

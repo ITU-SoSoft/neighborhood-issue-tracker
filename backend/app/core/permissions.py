@@ -3,7 +3,6 @@
 from functools import wraps
 from typing import Callable
 
-from fastapi import Depends
 
 from app.core.exceptions import ForbiddenException
 from app.models.user import User, UserRole

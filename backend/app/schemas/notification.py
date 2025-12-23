@@ -3,7 +3,6 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field
 
 from app.models.notification import NotificationType
 from app.schemas.base import BaseSchema, TimestampSchema

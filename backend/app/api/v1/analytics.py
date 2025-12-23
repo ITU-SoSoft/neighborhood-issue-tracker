@@ -4,16 +4,15 @@ from datetime import datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, case, distinct, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Query
+from sqlalchemy import and_, func, select
 
 from app.api.deps import DatabaseSession, ManagerUser, SupportUser
 from app.models.category import Category
 from app.models.feedback import Feedback
 from app.models.team import Team
 from app.models.ticket import Location, Ticket, TicketStatus
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.analytics import (
     CategoryStats,
     CategoryStatsResponse,
@@ -53,7 +52,7 @@ async def get_dashboard_kpis(
     start_date = datetime.utcnow() - timedelta(days=days)
 
     # Base query for tickets within the date range
-    base_query = select(Ticket).where(
+    select(Ticket).where(
         and_(
             Ticket.created_at >= start_date,
             Ticket.deleted_at.is_(None),
@@ -493,7 +492,7 @@ async def get_category_statistics(
 
     # Get all categories
     categories_result = await db.execute(
-        select(Category).where(Category.is_active == True)
+        select(Category).where(Category.is_active)
     )
     categories = categories_result.scalars().all()
 
@@ -700,7 +699,7 @@ async def get_feedback_trends(
 
     # Get all categories
     categories_result = await db.execute(
-        select(Category).where(Category.is_active == True)
+        select(Category).where(Category.is_active)
     )
     categories = categories_result.scalars().all()
 

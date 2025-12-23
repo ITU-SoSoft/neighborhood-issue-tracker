@@ -1,6 +1,5 @@
 """User schemas."""
 
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import Field
