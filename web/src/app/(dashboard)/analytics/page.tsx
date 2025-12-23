@@ -274,7 +274,7 @@ export default function AnalyticsPage() {
   const neighborhoodStatsQuery = useNeighborhoodStats(days, 5);
 
   const kpis = kpisQuery.data;
-  const teamData = teamPerformanceQuery.data?.teams ?? [];
+  const teamData = teamPerformanceQuery.data?.items ?? [];
   const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   // Access check - Manager only
