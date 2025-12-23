@@ -144,6 +144,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_BASE_URL: https://api.${DOMAIN:-help.sagbas.io}/api/v1
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-help.sagbas.io}`) || Host(`www.${DOMAIN:-help.sagbas.io}`)"
