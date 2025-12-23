@@ -4,7 +4,6 @@ import os
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -18,7 +17,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from app.config import settings
 from app.core.security import create_access_token
 from app.database import Base, get_async_session
 from app.models import Category, OTPCode, Team, User, UserRole
@@ -244,20 +242,20 @@ async def unverified_user(db_session: AsyncSession) -> User:
 # ============================================================================
 
 
-@pytest.fixture
-def citizen_token(citizen_user: User) -> str:
+@pytest_asyncio.fixture
+async def citizen_token(citizen_user: User) -> str:
     """Create JWT token for citizen user."""
     return create_access_token(data={"sub": str(citizen_user.id)})
 
 
-@pytest.fixture
-def support_token(support_user: User) -> str:
+@pytest_asyncio.fixture
+async def support_token(support_user: User) -> str:
     """Create JWT token for support user."""
     return create_access_token(data={"sub": str(support_user.id)})
 
 
-@pytest.fixture
-def manager_token(manager_user: User) -> str:
+@pytest_asyncio.fixture
+async def manager_token(manager_user: User) -> str:
     """Create JWT token for manager user."""
     return create_access_token(data={"sub": str(manager_user.id)})
 
@@ -368,7 +366,9 @@ async def expired_otp(db_session: AsyncSession) -> OTPCode:
 
 
 @pytest_asyncio.fixture
-async def ticket(db_session: AsyncSession, category: Category, citizen_user: User, team: Team) -> Ticket:
+async def ticket(
+    db_session: AsyncSession, category: Category, citizen_user: User, team: Team
+) -> Ticket:
     """Create a test ticket assigned to a team."""
     location = Location(
         id=uuid.uuid4(),
@@ -399,7 +399,9 @@ async def ticket(db_session: AsyncSession, category: Category, citizen_user: Use
 
 
 @pytest_asyncio.fixture
-async def unassigned_ticket(db_session: AsyncSession, category: Category, citizen_user: User) -> Ticket:
+async def unassigned_ticket(
+    db_session: AsyncSession, category: Category, citizen_user: User
+) -> Ticket:
     """Create a test ticket with no team assignment (team_id=None)."""
     location = Location(
         id=uuid.uuid4(),
@@ -506,7 +508,9 @@ def support_other_team_token(support_user_other_team: User) -> str:
 
 
 @pytest_asyncio.fixture
-async def escalation(db_session: AsyncSession, ticket: Ticket, support_user_with_team: User) -> EscalationRequest:
+async def escalation(
+    db_session: AsyncSession, ticket: Ticket, support_user_with_team: User
+) -> EscalationRequest:
     """Create a pending escalation request."""
     esc = EscalationRequest(
         id=uuid.uuid4(),
@@ -525,7 +529,12 @@ async def escalation(db_session: AsyncSession, ticket: Ticket, support_user_with
 
 
 @pytest_asyncio.fixture
-async def rejected_escalation(db_session: AsyncSession, ticket: Ticket, support_user_with_team: User, manager_user: User) -> EscalationRequest:
+async def rejected_escalation(
+    db_session: AsyncSession,
+    ticket: Ticket,
+    support_user_with_team: User,
+    manager_user: User,
+) -> EscalationRequest:
     """Create a rejected escalation request."""
     esc = EscalationRequest(
         id=uuid.uuid4(),
@@ -546,7 +555,12 @@ async def rejected_escalation(db_session: AsyncSession, ticket: Ticket, support_
 
 
 @pytest_asyncio.fixture
-async def approved_escalation(db_session: AsyncSession, ticket: Ticket, support_user_with_team: User, manager_user: User) -> EscalationRequest:
+async def approved_escalation(
+    db_session: AsyncSession,
+    ticket: Ticket,
+    support_user_with_team: User,
+    manager_user: User,
+) -> EscalationRequest:
     """Create an approved escalation request."""
     esc = EscalationRequest(
         id=uuid.uuid4(),

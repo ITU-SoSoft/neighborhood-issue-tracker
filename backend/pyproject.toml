@@ -26,6 +26,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "aiosqlite>=0.20.0",
+    "factory-boy>=3.3.3",
     "mypy>=1.19.0",
     "psycopg2-binary>=2.9.11",
     "pytest>=9.0.1",
@@ -45,9 +46,12 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["app"]
 omit = ["app/scripts/*"]
+concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
+fail_under = 80
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
+    "raise NotImplementedError",
 ]

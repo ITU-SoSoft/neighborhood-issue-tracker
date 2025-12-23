@@ -1,6 +1,5 @@
 """Tests for security utilities."""
 
-import pytest
 from datetime import timedelta, datetime, timezone
 
 from app.core.security import (
@@ -9,6 +8,8 @@ from app.core.security import (
     decode_token,
     generate_otp_code,
     get_otp_expiry,
+    hash_password,
+    verify_password,
 )
 
 
@@ -89,3 +90,74 @@ class TestOTPGeneration:
         diff = expiry - now
         # Allow 1 second tolerance
         assert 299 <= diff.total_seconds() <= 301
+
+
+class TestPasswordHashing:
+    """Tests for password hashing utilities."""
+
+    def test_hash_password(self):
+        """Should hash password successfully."""
+        password = "SecurePassword123!"
+        hashed = hash_password(password)
+
+        assert hashed is not None
+        assert hashed != password
+        assert len(hashed) > 0
+        # bcrypt hashes start with $2b$
+        assert hashed.startswith("$2")
+
+    def test_hash_password_produces_different_hashes(self):
+        """Should produce different hashes for same password (different salts)."""
+        password = "TestPassword123"
+        hash1 = hash_password(password)
+        hash2 = hash_password(password)
+
+        assert hash1 != hash2  # Different salts produce different hashes
+
+    def test_verify_password_correct(self):
+        """Should verify correct password."""
+        password = "CorrectPassword123!"
+        hashed = hash_password(password)
+
+        result = verify_password(password, hashed)
+
+        assert result is True
+
+    def test_verify_password_incorrect(self):
+        """Should reject incorrect password."""
+        password = "CorrectPassword123!"
+        wrong_password = "WrongPassword456!"
+        hashed = hash_password(password)
+
+        result = verify_password(wrong_password, hashed)
+
+        assert result is False
+
+    def test_verify_password_empty(self):
+        """Should handle empty password."""
+        password = ""
+        hashed = hash_password(password)
+
+        result = verify_password(password, hashed)
+
+        assert result is True
+
+    def test_hash_password_truncates_long_passwords(self):
+        """Should handle passwords longer than bcrypt's 72 byte limit."""
+        # Create a password longer than 72 bytes
+        long_password = "a" * 100
+
+        # Should not raise an error
+        hashed = hash_password(long_password)
+
+        # Should verify correctly (after truncation)
+        assert verify_password(long_password, hashed) is True
+
+    def test_hash_password_unicode(self):
+        """Should handle unicode passwords."""
+        password = "şifre123!Türkçe"
+        hashed = hash_password(password)
+
+        result = verify_password(password, hashed)
+
+        assert result is True

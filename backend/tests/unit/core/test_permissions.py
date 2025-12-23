@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from app.core.permissions import (
+    require_roles,
     is_citizen,
     is_support,
     is_manager,
@@ -12,6 +13,7 @@ from app.core.permissions import (
     can_view_analytics,
     can_approve_escalations,
 )
+from app.core.exceptions import ForbiddenException
 from app.models import User, UserRole
 
 
@@ -109,3 +111,69 @@ class TestPermissionChecks:
 
         user.role = UserRole.CITIZEN
         assert can_approve_escalations(user) is False
+
+
+class TestRequireRolesDecorator:
+    """Tests for the require_roles decorator."""
+
+    async def test_require_roles_allows_valid_role(self):
+        """Decorator should allow user with valid role."""
+        user = MagicMock(spec=User)
+        user.role = UserRole.MANAGER
+
+        @require_roles(UserRole.MANAGER, UserRole.SUPPORT)
+        async def protected_endpoint(current_user: User):
+            return "success"
+
+        result = await protected_endpoint(current_user=user)
+        assert result == "success"
+
+    async def test_require_roles_denies_invalid_role(self):
+        """Decorator should deny user with invalid role."""
+        user = MagicMock(spec=User)
+        user.role = UserRole.CITIZEN
+
+        @require_roles(UserRole.MANAGER, UserRole.SUPPORT)
+        async def protected_endpoint(current_user: User):
+            return "success"
+
+        with pytest.raises(ForbiddenException) as exc_info:
+            await protected_endpoint(current_user=user)
+
+        assert "not allowed" in str(exc_info.value.detail)
+
+    async def test_require_roles_denies_unauthenticated_user(self):
+        """Decorator should deny when current_user is None."""
+
+        @require_roles(UserRole.MANAGER)
+        async def protected_endpoint(current_user=None):
+            return "success"
+
+        with pytest.raises(ForbiddenException) as exc_info:
+            await protected_endpoint(current_user=None)
+
+        assert "not authenticated" in str(exc_info.value.detail)
+
+    async def test_require_roles_allows_single_role(self):
+        """Decorator should work with a single role requirement."""
+        user = MagicMock(spec=User)
+        user.role = UserRole.SUPPORT
+
+        @require_roles(UserRole.SUPPORT)
+        async def support_only_endpoint(current_user: User):
+            return "support access"
+
+        result = await support_only_endpoint(current_user=user)
+        assert result == "support access"
+
+    async def test_require_roles_preserves_function_return(self):
+        """Decorator should preserve the wrapped function's return value."""
+        user = MagicMock(spec=User)
+        user.role = UserRole.MANAGER
+
+        @require_roles(UserRole.MANAGER)
+        async def return_data_endpoint(current_user: User):
+            return {"data": "test", "user_role": current_user.role}
+
+        result = await return_data_endpoint(current_user=user)
+        assert result == {"data": "test", "user_role": UserRole.MANAGER}
