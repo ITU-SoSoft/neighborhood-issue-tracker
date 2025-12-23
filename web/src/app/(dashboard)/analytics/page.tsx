@@ -547,7 +547,7 @@ export default function AnalyticsPage() {
                         })}
                       </Pie>
                       <Tooltip />
-                      <Legend formatter={(_value: string, entry: { payload?: { category_name?: string } }) => entry.payload?.category_name} />
+                      <Legend formatter={(_value: any, entry: any) => entry.payload?.category_name} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -619,7 +619,7 @@ export default function AnalyticsPage() {
                         })}
                       </Pie>
                       <Tooltip />
-                      <Legend formatter={(_value: string, entry: { payload?: { category_name?: string } }) => entry.payload?.category_name} />
+                      <Legend formatter={(_value: any, entry: any) => entry.payload?.category_name} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
