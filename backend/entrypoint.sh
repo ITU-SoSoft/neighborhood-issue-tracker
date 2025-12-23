@@ -68,6 +68,32 @@ async def seed_all():
 asyncio.run(seed_all())
 "
 
+# Seed test data for staging environment (controlled by SEED_TEST_DATA env var)
+if [ "$SEED_TEST_DATA" = "true" ]; then
+    echo "🌱 Seeding staging test data..."
+    python -c "
+import asyncio
+from app.scripts.seed_fallback_team import main as seed_fallback
+from app.scripts.seed_test_data import main as seed_test
+
+async def seed_staging():
+    try:
+        await seed_fallback()
+        print('✅ Fallback team seeded')
+    except Exception as e:
+        print(f'⚠️  Fallback team seeding error: {e}')
+    
+    try:
+        await seed_test()
+        print('✅ Test data seeded')
+    except Exception as e:
+        print(f'⚠️  Test data seeding error: {e}')
+
+asyncio.run(seed_staging())
+"
+    echo "✅ Staging test data complete!"
+fi
+
 echo "✅ Initialization complete!"
 echo "🚀 Starting uvicorn server..."
 

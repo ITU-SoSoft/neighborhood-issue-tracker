@@ -1,0 +1,137 @@
+# Docker Compose for SoSoft Staging Environment
+# Usage with Dokploy - domains and networking handled via Dokploy UI
+
+services:
+  # PostgreSQL with PostGIS
+  postgres:
+    image: imresamu/postgis:16-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sosoft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sosoft}
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sosoft} -d ${POSTGRES_DB:-sosoft}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dokploy-network
+
+  # MinIO for S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data_staging:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    expose:
+      - 9000
+      - 9001
+    networks:
+      - dokploy-network
+
+  # MinIO setup - creates bucket on startup
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 $${MINIO_ACCESS_KEY} $${MINIO_SECRET_KEY};
+      mc mb --ignore-existing myminio/sosoft-uploads;
+      mc anonymous set public myminio/sosoft-uploads;
+      exit 0;
+      "
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    networks:
+      - dokploy-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      # Application
+      DEBUG: "false"
+      ENVIRONMENT: "production"
+      
+      # Database
+      DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-sosoft}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sosoft}"
+      
+      # JWT - Generate with: openssl rand -hex 32
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
+      
+      # OTP
+      OTP_EXPIRE_MINUTES: "5"
+      OTP_LENGTH: "6"
+      
+      # Twilio (optional - set TWILIO_ENABLED=true to enable)
+      TWILIO_ENABLED: ${TWILIO_ENABLED:-false}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      
+      # MinIO
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: "sosoft-uploads"
+      MINIO_SECURE: "false"
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      
+      # CORS (comma-separated list - set in Dokploy environment)
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    expose:
+      - 8000
+    networks:
+      - dokploy-network
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    expose:
+      - 3000
+    networks:
+      - dokploy-network
+
+volumes:
+  postgres_data_staging:
+  minio_data_staging:
+
+networks:
+  dokploy-network:
+    external: true
