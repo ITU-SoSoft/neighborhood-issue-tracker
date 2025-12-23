@@ -37,9 +37,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    expose:
-      - "9000"
-      - "9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     networks:
       - sosoft-staging-network
 
@@ -108,8 +108,8 @@ services:
       
       # CORS (comma-separated list - set in Dokploy environment)
       CORS_ORIGINS: ${CORS_ORIGINS}
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     networks:
       - sosoft-staging-network
 
@@ -128,8 +128,8 @@ services:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     networks:
       - sosoft-staging-network
 
