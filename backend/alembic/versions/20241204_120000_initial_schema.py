@@ -28,28 +28,28 @@ def upgrade() -> None:
 
     # Create enums
     userrole_enum = postgresql.ENUM(
-        "citizen", "support", "manager", name="userrole", create_type=False
+        "CITIZEN", "SUPPORT", "MANAGER", name="userrole", create_type=False
     )
     userrole_enum.create(op.get_bind(), checkfirst=True)
 
     ticketstatus_enum = postgresql.ENUM(
-        "new",
-        "in_progress",
-        "resolved",
-        "closed",
-        "escalated",
+        "NEW",
+        "IN_PROGRESS",
+        "RESOLVED",
+        "CLOSED",
+        "ESCALATED",
         name="ticketstatus",
         create_type=False,
     )
     ticketstatus_enum.create(op.get_bind(), checkfirst=True)
 
     phototype_enum = postgresql.ENUM(
-        "report", "proof", name="phototype", create_type=False
+        "REPORT", "PROOF", name="phototype", create_type=False
     )
     phototype_enum.create(op.get_bind(), checkfirst=True)
 
     escalationstatus_enum = postgresql.ENUM(
-        "pending", "approved", "rejected", name="escalationstatus", create_type=False
+        "PENDING", "APPROVED", "REJECTED", name="escalationstatus", create_type=False
     )
     escalationstatus_enum.create(op.get_bind(), checkfirst=True)
 
