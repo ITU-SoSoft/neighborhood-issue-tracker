@@ -198,7 +198,7 @@ export default function TeamsPage() {
         </Card>
 
         {/* Create Team Card */}
-        <Card>
+      <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Create Team</CardTitle>
             <Button
@@ -212,23 +212,23 @@ export default function TeamsPage() {
                 <ChevronDown className="h-4 w-4" />
               )}
             </Button>
-          </CardHeader>
+        </CardHeader>
 
           {showCreateTeamForm && (
-            <CardContent className="space-y-4">
+        <CardContent className="space-y-4">
               <div className="grid gap-2 sm:grid-cols-2">
-                <input
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="Team name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <input
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  placeholder="Description (optional)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
+            <input
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              placeholder="Team name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <input
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              placeholder="Description (optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
               </div>
 
             {/* Categories Multi-Select */}
@@ -297,16 +297,16 @@ export default function TeamsPage() {
               </div>
             </div>
 
-              <Button
-                onClick={onAddTeam}
-                disabled={createTeamMut.isPending || !name.trim()}
+            <Button
+              onClick={onAddTeam}
+              disabled={createTeamMut.isPending || !name.trim()}
                 className="w-full sm:w-auto"
-              >
-                {createTeamMut.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
+            >
+              {createTeamMut.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
                 Add Team
               </Button>
             </CardContent>
@@ -422,7 +422,7 @@ export default function TeamsPage() {
             ) : (
               <ChevronDown className="h-4 w-4" />
             )}
-          </Button>
+            </Button>
         </CardHeader>
 
         {showManageTeams && (
@@ -449,9 +449,9 @@ export default function TeamsPage() {
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
-            </div>
+          </div>
 
-            {/* teams list */}
+          {/* teams list */}
           {isLoadingList ? (
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -504,7 +504,7 @@ export default function TeamsPage() {
               })}
             </div>
           )}
-          </CardContent>
+        </CardContent>
         )}
       </Card>
 
@@ -686,19 +686,19 @@ function TeamRow(props: {
           </Button>
 
           {!props.hideDeleteButton && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={props.onDelete}
-              disabled={props.isDeleting}
-            >
-              {props.isDeletingThis ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
-              )}
-              Delete
-            </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={props.onDelete}
+            disabled={props.isDeleting}
+          >
+            {props.isDeletingThis ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            Delete
+          </Button>
           )}
         </div>
       </div>

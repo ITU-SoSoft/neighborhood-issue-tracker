@@ -253,6 +253,7 @@ async def get_team_performance(
                     team_name=team.name,
                     total_assigned=0,
                     total_resolved=0,
+                    open_tickets=0,
                     resolution_rate=0.0,
                     average_resolution_hours=None,
                     average_rating=None,
@@ -285,6 +286,18 @@ async def get_team_performance(
             )
         )
         total_resolved = total_resolved_result.scalar() or 0
+
+        # Open tickets (currently open)
+        open_tickets_result = await db.execute(
+            select(func.count(Ticket.id)).where(
+                and_(
+                    Ticket.team_id == team.id,
+                    Ticket.deleted_at.is_(None),
+                    Ticket.status.in_([TicketStatus.NEW, TicketStatus.IN_PROGRESS]),
+                )
+            )
+        )
+        open_tickets = open_tickets_result.scalar() or 0
 
         # Resolution rate
         resolution_rate = 0.0
@@ -330,6 +343,7 @@ async def get_team_performance(
                 team_name=team.name,
                 total_assigned=total_assigned,
                 total_resolved=total_resolved,
+                open_tickets=open_tickets,
                 resolution_rate=round(resolution_rate, 2),
                 average_resolution_hours=(
                     round(average_resolution_hours, 2)

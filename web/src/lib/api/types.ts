@@ -461,6 +461,7 @@ export interface TeamPerformance {
   team_name: string;
   total_assigned: number;
   total_resolved: number;
+  open_tickets: number;
   resolution_rate: number;
   average_resolution_hours: number | null;
   average_rating: number | null;
