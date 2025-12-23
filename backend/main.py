@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -52,8 +52,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def add_cors_headers(
-    response: JSONResponse, request: Request | None = None
-) -> JSONResponse:
+    response: JSONResponse | Response, request: Request | None = None
+) -> JSONResponse | Response:
     """Add CORS headers to error responses."""
     # Get origin from request or use first allowed origin
     origin = "*"
@@ -163,6 +163,17 @@ async def root() -> dict[str, str]:
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(request: Request) -> Response:
+    """Handle CORS preflight requests explicitly.
+
+    This ensures OPTIONS requests are handled before any route validation
+    occurs, preventing 400 errors on preflight requests.
+    """
+    response = Response(status_code=200)
+    return add_cors_headers(response, request)
 
 
 if __name__ == "__main__":
