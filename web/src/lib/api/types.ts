@@ -120,13 +120,13 @@ export interface TeamMemberResponse {
 }
 
 /**
- * For list page (/teams): TeamListResponse
+ * For list page (/teams): TeamListResponse (paginated)
  */
 export interface TeamListResponse {
-  id: string;
-  name: string;
-  description: string | null;
-  member_count: number;
+  items: TeamResponse[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 /**
@@ -138,6 +138,8 @@ export interface TeamResponse {
   description: string | null;
   created_at: string;
   updated_at: string;
+  member_count?: number;
+  active_ticket_count?: number;
 }
 
 /**

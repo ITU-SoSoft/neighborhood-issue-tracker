@@ -352,8 +352,8 @@ export async function deleteUser(userId: string): Promise<void> {
 // DELETE /teams/{team_id}/members/{user_id}
 //
 
-export async function getTeams(): Promise<TeamListResponse[]> {
-  return apiFetch<TeamListResponse[]>("/teams");
+export async function getTeams(): Promise<TeamListResponse> {
+  return apiFetch<TeamListResponse>("/teams");
 }
 
 export async function getTeamById(teamId: string): Promise<TeamDetailResponse> {

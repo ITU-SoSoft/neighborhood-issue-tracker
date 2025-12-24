@@ -32,7 +32,7 @@ type QueryOptions = { enabled?: boolean };
 
 // List
 export function useTeams(options?: QueryOptions) {
-  return useQuery<TeamListResponse[]>({
+  return useQuery<TeamListResponse>({
     queryKey: TEAM_KEYS.list(),
     queryFn: () => getTeams(),
     enabled: options?.enabled ?? true,
@@ -82,20 +82,26 @@ export function useCreateTeam() {
     onMutate: async (newTeam) => {
       await qc.cancelQueries({ queryKey: TEAM_KEYS.list() });
 
-      const previous = qc.getQueryData<TeamListResponse[]>(TEAM_KEYS.list());
+      const previous = qc.getQueryData<TeamListResponse>(TEAM_KEYS.list());
 
       // Optimistic: push a temporary item to list if list exists
       if (previous) {
-        qc.setQueryData<TeamListResponse[]>(TEAM_KEYS.list(), [
-          {
-            // temporary id (backend will overwrite on refetch)
-            id: `temp-${Date.now()}`,
-            name: newTeam.name,
-            description: newTeam.description ?? null,
-            member_count: 0,
-          },
+        qc.setQueryData<TeamListResponse>(TEAM_KEYS.list(), {
           ...previous,
-        ]);
+          items: [
+            {
+              // temporary id (backend will overwrite on refetch)
+              id: `temp-${Date.now()}`,
+              name: newTeam.name,
+              description: newTeam.description ?? null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              member_count: 0,
+            },
+            ...previous.items,
+          ],
+          total: previous.total + 1,
+        });
       }
 
       return { previous };
@@ -127,7 +133,7 @@ export function useUpdateTeam(teamId: string) {
       const prevDetail = qc.getQueryData<TeamDetailResponse>(
         TEAM_KEYS.detail(teamId),
       );
-      const prevList = qc.getQueryData<TeamListResponse[]>(TEAM_KEYS.list());
+      const prevList = qc.getQueryData<TeamListResponse>(TEAM_KEYS.list());
 
       // Optimistic detail
       if (prevDetail) {
@@ -140,9 +146,9 @@ export function useUpdateTeam(teamId: string) {
 
       // Optimistic list
       if (prevList) {
-        qc.setQueryData<TeamListResponse[]>(
-          TEAM_KEYS.list(),
-          prevList.map((t: TeamListResponse) =>
+        qc.setQueryData<TeamListResponse>(TEAM_KEYS.list(), {
+          ...prevList,
+          items: prevList.items.map((t) =>
             t.id === teamId
               ? {
                   ...t,
@@ -151,7 +157,7 @@ export function useUpdateTeam(teamId: string) {
                 }
               : t,
           ),
-        );
+        });
       }
 
       return { prevDetail, prevList };
@@ -179,13 +185,14 @@ export function useDeleteTeam() {
     onMutate: async (teamId) => {
       await qc.cancelQueries({ queryKey: TEAM_KEYS.list() });
 
-      const prevList = qc.getQueryData<TeamListResponse[]>(TEAM_KEYS.list());
+      const prevList = qc.getQueryData<TeamListResponse>(TEAM_KEYS.list());
 
       if (prevList) {
-        qc.setQueryData<TeamListResponse[]>(
-          TEAM_KEYS.list(),
-          prevList.filter((t: TeamListResponse) => t.id !== teamId),
-        );
+        qc.setQueryData<TeamListResponse>(TEAM_KEYS.list(), {
+          ...prevList,
+          items: prevList.items.filter((t) => t.id !== teamId),
+          total: prevList.total - 1,
+        });
       }
 
       return { prevList };
