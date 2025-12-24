@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // @ts-ignore - leaflet.heat doesn't have perfect type definitions
@@ -31,45 +31,69 @@ export function HeatmapVisualization({
   const mapRef = useRef<L.Map | null>(null);
   const heatLayerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Track when map is ready to ensure heatmap layer is added after map initialization
   const [mapReady, setMapReady] = useState(false);
+  // Generate unique ID for container to prevent Leaflet conflicts
+  const containerId = useId();
 
+  // Initialize map
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    // Clean up existing map if it exists
-    if (mapRef.current) {
-      mapRef.current.remove();
-      mapRef.current = null;
-      setMapReady(false);
-    }
+    // Small delay to ensure DOM is fully ready
+    const initTimeout = setTimeout(() => {
+      // Check if container already has a map (Leaflet adds _leaflet_id)
+      if ((container as any)._leaflet_id) {
+        // Container already has a map, skip initialization
+        return;
+      }
 
-    // Initialize map
-    const map = L.map(containerRef.current, {
-      scrollWheelZoom: true,
-      dragging: true,
-      zoomControl: true,
-    }).setView(center, zoom);
+      // Clean up any existing map on ref
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        mapRef.current = null;
+        setMapReady(false);
+      }
 
-    // Add tile layer (OpenStreetMap)
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 18,
-    }).addTo(map);
+      try {
+        // Initialize map
+        const map = L.map(container, {
+          scrollWheelZoom: true,
+          dragging: true,
+          zoomControl: true,
+        }).setView(center, zoom);
 
-    mapRef.current = map;
-    // Signal that the map is ready for the heatmap layer
-    setMapReady(true);
+        // Add tile layer (OpenStreetMap)
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 18,
+        }).addTo(map);
+
+        mapRef.current = map;
+        setMapReady(true);
+      } catch (e) {
+        console.error("Failed to initialize Leaflet map:", e);
+      }
+    }, 50);
 
     return () => {
+      clearTimeout(initTimeout);
       if (mapRef.current) {
-        mapRef.current.remove();
+        try {
+          mapRef.current.remove();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
         mapRef.current = null;
         setMapReady(false);
       }
     };
-  }, [center, zoom]);
+  }, [center, zoom, containerId]);
 
   // Update heatmap layer when points change or map becomes ready
   useEffect(() => {
@@ -77,7 +101,12 @@ export function HeatmapVisualization({
 
     // Remove existing heat layer
     if (heatLayerRef.current) {
-      mapRef.current.removeLayer(heatLayerRef.current);
+      try {
+        mapRef.current.removeLayer(heatLayerRef.current);
+      } catch (e) {
+        // Ignore if layer removal fails
+      }
+      heatLayerRef.current = null;
     }
 
     if (points.length === 0) {
@@ -110,37 +139,41 @@ export function HeatmapVisualization({
       ];
     });
 
-    // Create heat layer with custom options
-    // @ts-ignore - heatLayer is added by leaflet.heat plugin
-    const heatLayer = L.heatLayer(heatPoints, {
-      radius: 40, // Increased radius for better visibility when points are sparse
-      blur: 20, // Increased blur to make points blend together
-      maxZoom: 17, // Maximum zoom level where heatmap is visible
-      max: 1.0, // Maximum intensity (use full range)
-      minOpacity: 0.4, // Increased minimum opacity for better visibility
-      gradient: {
-        // Color gradient from low to high intensity (more vibrant colors)
-        0.0: "#0000FF", // Deep blue
-        0.2: "#00BFFF", // Deep sky blue
-        0.4: "#00FF00", // Lime green
-        0.6: "#FFFF00", // Yellow
-        0.8: "#FF6600", // Orange
-        1.0: "#FF0000", // Red
-      },
-    });
-
-    heatLayer.addTo(mapRef.current);
-    heatLayerRef.current = heatLayer;
-
-    // Auto-fit map bounds to show all points
-    if (points.length > 0) {
-      const bounds = L.latLngBounds(
-        points.map((p) => [p.latitude, p.longitude] as [number, number])
-      );
-      mapRef.current.fitBounds(bounds, {
-        padding: [50, 50],
-        maxZoom: 13,
+    try {
+      // Create heat layer with custom options
+      // @ts-ignore - heatLayer is added by leaflet.heat plugin
+      const heatLayer = L.heatLayer(heatPoints, {
+        radius: 40, // Increased radius for better visibility when points are sparse
+        blur: 20, // Increased blur to make points blend together
+        maxZoom: 17, // Maximum zoom level where heatmap is visible
+        max: 1.0, // Maximum intensity (use full range)
+        minOpacity: 0.4, // Increased minimum opacity for better visibility
+        gradient: {
+          // Color gradient from low to high intensity (more vibrant colors)
+          0.0: "#0000FF", // Deep blue
+          0.2: "#00BFFF", // Deep sky blue
+          0.4: "#00FF00", // Lime green
+          0.6: "#FFFF00", // Yellow
+          0.8: "#FF6600", // Orange
+          1.0: "#FF0000", // Red
+        },
       });
+
+      heatLayer.addTo(mapRef.current);
+      heatLayerRef.current = heatLayer;
+
+      // Auto-fit map bounds to show all points
+      if (points.length > 0 && mapRef.current) {
+        const bounds = L.latLngBounds(
+          points.map((p) => [p.latitude, p.longitude] as [number, number])
+        );
+        mapRef.current.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 13,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to add heatmap layer:", e);
     }
   }, [points, mapReady]);
 
