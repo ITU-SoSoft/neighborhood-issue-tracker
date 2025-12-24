@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft } from "lucide-react";
 import { login } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/context";
 import { LoginInput, loginSchema } from "@/lib/validators";
@@ -56,14 +57,24 @@ function SignInForm() {
     <div
       className="relative flex min-h-screen items-center justify-center px-4 py-16"
       style={{
-        backgroundImage: 'url("/auth-bg.png")',
+        backgroundImage: 'url("/background.png")',
+        backgroundAttachment: "fixed",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
-      <div className="absolute inset-0 bg-slate-950/70" aria-hidden />
+      <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" aria-hidden />
+      <Link
+        href="/"
+        className="absolute left-6 top-6 z-10"
+      >
+        <Button variant="ghost" size="sm" className="bg-background/90 backdrop-blur-sm">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Button>
+      </Link>
       <div className="relative grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
-        <div className="space-y-8 rounded-4xl border border-primary/20 bg-primary/10 p-10 text-foreground shadow-xl backdrop-blur">
+        <div className="space-y-8 rounded-4xl border border-border bg-card/95 p-10 text-foreground shadow-xl backdrop-blur">
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">
             Welcome back
           </p>
@@ -79,7 +90,7 @@ function SignInForm() {
             <li>Keep track of issues you care about.</li>
             <li>Coordinate volunteer efforts and community responses seamlessly.</li>
           </ul>
-          <div className="rounded-3xl border border-primary/15 bg-background/85 p-6">
+          <div className="rounded-3xl border border-border bg-muted/50 p-6">
             <p className="text-sm font-medium text-primary">New to the platform?</p>
             <p className="mt-2 text-sm text-muted-foreground">
               Create an account to access collaborative reporting tools and invite your neighbors to join you.
@@ -145,12 +156,22 @@ function SignInFormFallback() {
     <div
       className="relative flex min-h-screen items-center justify-center px-4 py-16"
       style={{
-        backgroundImage: 'url("/auth-bg.png")',
+        backgroundImage: 'url("/background.png")',
+        backgroundAttachment: "fixed",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
-      <div className="absolute inset-0 bg-slate-950/70" aria-hidden />
+      <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" aria-hidden />
+      <Link
+        href="/"
+        className="absolute left-6 top-6 z-10"
+      >
+        <Button variant="ghost" size="sm" className="bg-background/90 backdrop-blur-sm">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Button>
+      </Link>
       <div className="relative grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
         <div className="space-y-8 rounded-4xl border border-primary/20 bg-primary/10 p-10 backdrop-blur">
           <Skeleton className="h-4 w-24" />

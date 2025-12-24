@@ -14,47 +14,45 @@ export default function Home() {
   const [showContactModal, setShowContactModal] = useState(false);
 
   return (
-    <div className="relative min-h-screen overflow-hidden text-slate-100">
+    <div className="relative min-h-screen overflow-hidden">
       {/* ARKA PLAN: İstanbul Görseli */}
       <div
-        className="fixed inset-0 -z-20 bg-[url('https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center"
+        className="fixed inset-0 -z-20 bg-[url('/background.png')] bg-cover bg-center"
         style={{ backgroundAttachment: "fixed" }}
         aria-hidden
       />
       {/* KARARTMA: Yazıların okunması için Dashboard temasıyla uyumlu overlay */}
-      <div className="fixed inset-0 -z-10 bg-slate-950/70 backdrop-blur-[2px]" aria-hidden />
+      <div className="fixed inset-0 -z-10 bg-background/60 backdrop-blur-[2px]" aria-hidden />
 
       <header className="relative flex w-full items-center justify-between px-6 py-6 sm:px-12">
-        <div className="flex items-center gap-3 text-lg font-semibold rounded-full bg-slate-900/60 px-4 py-2 shadow-lg backdrop-blur-md border border-white/10">
-          {/* BUTON YEŞİLİ KORUNDU */}
-          <span className="grid h-10 w-10 place-content-center rounded-full bg-emerald-500 text-white">
+        <div className="flex items-center gap-3 text-lg font-semibold rounded-full bg-background/95 backdrop-blur-md px-4 py-2 shadow-lg border border-border">
+          <span className="grid h-10 w-10 place-content-center rounded-full bg-primary text-primary-foreground">
             NT
           </span>
-          <span className="text-white">Neighborhood Issue Tracker</span>
+          <span className="text-foreground">Neighborhood Issue Tracker</span>
         </div>
-        <nav className="hidden items-center gap-4 rounded-full bg-slate-900/60 px-6 py-3 text-sm font-medium shadow-lg backdrop-blur-md border border-white/10 md:flex">
-          <a href="#features" className="rounded-full px-3 py-1 transition hover:bg-white/10 text-slate-300">
+        <nav className="hidden items-center gap-4 rounded-full bg-background/95 backdrop-blur-md px-6 py-3 text-sm font-medium shadow-lg border border-border md:flex">
+          <a href="#features" className="rounded-full px-3 py-1 transition hover:bg-muted text-muted-foreground">
             Features
           </a>
-          <a href="#how-it-works" className="rounded-full px-3 py-1 transition hover:bg-white/10 text-slate-300">
+          <a href="#how-it-works" className="rounded-full px-3 py-1 transition hover:bg-muted text-muted-foreground">
             How it works
           </a>
           <button
             onClick={() => setShowContactModal(true)}
-            className="rounded-full px-3 py-1 transition hover:bg-white/10 text-slate-300"
+            className="rounded-full px-3 py-1 transition hover:bg-muted text-muted-foreground"
           >
             Contact
           </button>
-          {/* BUTON YEŞİLİ KORUNDU */}
           <a
             href="/sign-in"
-            className="rounded-full border border-emerald-500 px-4 py-1.5 text-emerald-400 transition hover:bg-emerald-500 hover:text-white"
+            className="rounded-full border border-primary px-4 py-1.5 text-primary transition hover:bg-primary hover:text-primary-foreground"
           >
             Sign in
           </a>
           <a
             href="/sign-up"
-            className="rounded-full bg-emerald-600 px-4 py-1.5 text-white transition hover:bg-emerald-700 shadow-md"
+            className="rounded-full bg-primary px-4 py-1.5 text-primary-foreground transition hover:bg-primary/90 shadow-md"
           >
             Create account
           </a>
@@ -63,29 +61,28 @@ export default function Home() {
 
       <main className="relative">
         <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col gap-8 px-6 pb-24 pt-20 sm:px-12">
-          {/* YEŞİL YERİNE LACİVERT (image_352fec'teki gibi) */}
-          <div className="space-y-6 rounded-[2.5rem] border border-white/10 bg-slate-900/80 p-10 shadow-2xl backdrop-blur-xl">
-            <span className="inline-flex w-fit items-center rounded-full bg-emerald-500/10 px-4 py-1 text-sm font-medium text-emerald-400 border border-emerald-500/20">
+          <div className="space-y-6 rounded-[2.5rem] border border-border bg-card/95 backdrop-blur-xl p-10 shadow-2xl">
+            <span className="inline-flex w-fit items-center rounded-full bg-primary/10 px-4 py-1 text-sm font-medium text-primary border border-primary/20">
               Community-powered reporting
             </span>
-            <h1 className="text-4xl font-bold leading-tight text-white sm:text-5xl">
+            <h1 className="text-4xl font-bold leading-tight text-foreground sm:text-5xl">
               Spot an issue in your neighborhood? <br />
-              <span className="text-emerald-400">Report it in seconds</span> and work with your community.
+              <span className="text-primary">Report it in seconds</span> and work with your community.
             </h1>
-            <p className="text-lg text-slate-300">
+            <p className="text-lg text-muted-foreground">
               Neighborhood Issue Tracker helps residents capture local problems — from flooding to street light outages —
               and share them with the right teams.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <a
                 href="/sign-up"
-                className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-emerald-700"
+                className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition hover:bg-primary/90"
               >
                 Get started
               </a>
               <a
                 href="#features"
-                className="inline-flex items-center justify-center rounded-full border border-emerald-400 px-6 py-3 text-base font-semibold text-emerald-400 transition hover:bg-emerald-500 hover:text-white"
+                className="inline-flex items-center justify-center rounded-full border border-primary px-6 py-3 text-base font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
               >
                 Explore features
               </a>
@@ -111,24 +108,22 @@ export default function Home() {
               description: "Upvote issues, share feedback, and help prioritize what needs attention first.",
             },
           ].map((feature) => (
-            /* KARTLARDA LACİVERT TEMA UYGULANDI */
             <div
               key={feature.title}
-              className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-xl backdrop-blur-md hover:border-emerald-500/30 transition-all group"
+              className="rounded-3xl border border-border bg-card/95 backdrop-blur-md p-6 shadow-xl hover:border-primary/30 transition-all group"
             >
-              <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors">{feature.title}</h3>
-              <p className="mt-3 text-sm text-slate-400 leading-relaxed">{feature.description}</p>
+              <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">{feature.title}</h3>
+              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
             </div>
           ))}
         </section>
 
         <section id="how-it-works" className="mx-auto max-w-5xl px-6 pb-24 sm:px-12">
-          {/* LACİVERT/BLUE-950 TEMA */}
-          <div className="rounded-[2.5rem] border border-white/10 bg-slate-900/60 p-10 shadow-2xl backdrop-blur-md">
+          <div className="rounded-[2.5rem] border border-border bg-card/95 p-10 shadow-2xl backdrop-blur-md">
             <div className="flex flex-col gap-8 sm:flex-row">
               <div className="sm:w-1/3">
-                <h2 className="text-3xl font-bold text-white">How it works</h2>
-                <p className="mt-3 text-sm text-slate-400">
+                <h2 className="text-3xl font-bold text-foreground">How it works</h2>
+                <p className="mt-3 text-sm text-muted-foreground">
                   Three simple steps to make your neighborhood safer and more livable.
                 </p>
               </div>
@@ -140,13 +135,13 @@ export default function Home() {
                 ].map((item) => (
                   <li
                     key={item.step}
-                    className="rounded-3xl border border-white/5 bg-slate-800/40 p-6 backdrop-blur-sm"
+                    className="rounded-3xl border border-border bg-muted/50 p-6"
                   >
-                    <span className="text-sm font-bold uppercase tracking-widest text-emerald-400">
+                    <span className="text-sm font-bold uppercase tracking-widest text-primary">
                       Step {item.step}
                     </span>
-                    <h3 className="mt-2 text-lg font-semibold text-white">{item.title}</h3>
-                    <p className="mt-2 text-sm text-slate-400">{item.description}</p>
+                    <h3 className="mt-2 text-lg font-semibold text-foreground">{item.title}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
                   </li>
                 ))}
               </ol>
@@ -155,44 +150,34 @@ export default function Home() {
         </section>
       </main>
 
-      <footer id="contact" className="relative border-t border-white/10 bg-slate-950/90 px-6 py-8 text-sm text-slate-500 backdrop-blur-md sm:px-12">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <footer id="contact" className="relative border-t border-border bg-background/95 backdrop-blur-md px-6 py-8 text-sm text-muted-foreground sm:px-12">
+        <div className="mx-auto flex max-w-5xl items-center justify-center">
           <p>&copy; {new Date().getFullYear()} Neighborhood Issue Tracker.</p>
-          <div className="flex gap-6">
-            <a href="/privacy" className="transition hover:text-emerald-400 text-slate-400">Privacy</a>
-            <a href="/terms" className="transition hover:text-emerald-400 text-slate-400">Terms</a>
-            <button
-              onClick={() => setShowContactModal(true)}
-              className="transition hover:text-emerald-400 text-emerald-500 font-medium"
-            >
-              Contact
-            </button>
-          </div>
         </div>
       </footer>
 
       {/* Contact Modal */}
       <Dialog open={showContactModal} onOpenChange={setShowContactModal}>
-        <DialogContent className="bg-slate-900 border-white/10 text-white">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-white flex items-center gap-2">
-              <Phone className="h-6 w-6 text-emerald-400" />
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Phone className="h-6 w-6 text-primary" />
               Contact Us
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription>
               Get in touch with our support team
             </DialogDescription>
           </DialogHeader>
           <div className="py-6">
             <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-800/50 border border-white/10">
-                <Phone className="h-5 w-5 text-emerald-400" />
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-muted border border-border">
+                <Phone className="h-5 w-5 text-primary" />
                 <div>
-                  <p className="text-sm text-slate-400">Phone Number</p>
-                  <p className="text-lg font-semibold text-white">+90 555 123 4567</p>
+                  <p className="text-sm text-muted-foreground">Phone Number</p>
+                  <p className="text-lg font-semibold text-foreground">+90 555 123 4567</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 text-center">
+              <p className="text-sm text-muted-foreground text-center">
                 Our support team is available Monday to Friday, 9:00 AM - 6:00 PM
               </p>
             </div>

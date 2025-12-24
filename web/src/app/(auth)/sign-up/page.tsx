@@ -11,6 +11,7 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
+import { ArrowLeft } from "lucide-react";
 import { register } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/context";
 import { RegisterInput, registerSchema } from "@/lib/validators";
@@ -60,12 +61,22 @@ export default function SignUpPage() {
     <div
       className="relative flex min-h-screen items-center justify-center px-4 py-16"
       style={{
-        backgroundImage: 'url("/auth-bg.png")',
+        backgroundImage: 'url("/background.png")',
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundAttachment: "fixed",
       }}
     >
-      <div className="absolute inset-0 bg-slate-950/70" aria-hidden />
+      <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" aria-hidden />
+      <Link
+        href="/"
+        className="absolute left-6 top-6 z-10"
+      >
+        <Button variant="ghost" size="sm" className="bg-background/90 backdrop-blur-sm">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Button>
+      </Link>
       <AuthCard
         title="Create an account"
         subtitle="Join the platform and start reporting issues in your community."
