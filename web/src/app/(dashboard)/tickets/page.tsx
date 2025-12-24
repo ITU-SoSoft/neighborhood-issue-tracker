@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -145,25 +145,9 @@ export default function TicketsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Initialize filters from URL params
-  useEffect(() => {
-    const status = searchParams.get("status") as TicketStatus | null;
-    const category = searchParams.get("category");
-    const team = searchParams.get("team");
-    const view = searchParams.get("view") as
-      | "all"
-      | "my"
-      | "assigned"
-      | "followed"
-      | null;
-    const page = searchParams.get("page");
-
-    if (status) setStatusFilter(status);
-    if (category) setCategoryFilter(category);
-    if (team) setTeamFilter(team);
-    if (view) setViewFilter(view);
-    if (page) setCurrentPage(parseInt(page, 10));
-  }, [searchParams]);
+  // Track if we're updating from URL to prevent loops
+  const isUpdatingFromUrl = useRef(false);
+  const previousSearchParams = useRef<string>("");
 
   // Queries
   const { data: categoriesData } = useCategories();
@@ -245,8 +229,57 @@ export default function TicketsPage() {
   const isLoading = activeQuery.isLoading;
   const isError = activeQuery.isError;
 
-  // Update URL when filters change
-  const updateUrl = useCallback(() => {
+  // Initialize filters from URL params
+  useEffect(() => {
+    const currentParams = searchParams.toString();
+    
+    // Only update if URL actually changed (not from our own update)
+    if (currentParams === previousSearchParams.current) {
+      return;
+    }
+    
+    previousSearchParams.current = currentParams;
+    isUpdatingFromUrl.current = true;
+    
+    const status = searchParams.get("status") as TicketStatus | null;
+    const category = searchParams.get("category");
+    const team = searchParams.get("team");
+    const view = searchParams.get("view") as
+      | "all"
+      | "my"
+      | "assigned"
+      | "followed"
+      | null;
+    const page = searchParams.get("page");
+
+    if (status) setStatusFilter(status);
+    else setStatusFilter("");
+    
+    if (category) setCategoryFilter(category);
+    else setCategoryFilter("");
+    
+    if (team) setTeamFilter(team);
+    else setTeamFilter("");
+    
+    // Set viewFilter - default to "all" if no view param
+    setViewFilter(view || "all");
+    
+    if (page) setCurrentPage(parseInt(page, 10));
+    else setCurrentPage(1);
+
+    // Reset flag after state updates
+    requestAnimationFrame(() => {
+      isUpdatingFromUrl.current = false;
+    });
+  }, [searchParams]);
+
+  // Update URL when filters change (but not when initializing from URL)
+  useEffect(() => {
+    // Don't update URL if we're currently initializing from URL
+    if (isUpdatingFromUrl.current) {
+      return;
+    }
+
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     if (categoryFilter) params.set("category", categoryFilter);
@@ -255,21 +288,15 @@ export default function TicketsPage() {
       params.set("view", viewFilter);
     if (currentPage > 1) params.set("page", currentPage.toString());
 
-    const query = params.toString();
-    router.push(`/tickets${query ? `?${query}` : ""}`, { scroll: false });
-  }, [
-    statusFilter,
-    categoryFilter,
-    teamFilter,
-    viewFilter,
-    currentPage,
-    user?.role,
-    router,
-  ]);
-
-  useEffect(() => {
-    updateUrl();
-  }, [updateUrl]);
+    const newQuery = params.toString();
+    const newUrl = `/tickets${newQuery ? `?${newQuery}` : ""}`;
+    
+    // Only update if URL is different from what we last set
+    if (newQuery !== previousSearchParams.current) {
+      previousSearchParams.current = newQuery;
+      router.push(newUrl, { scroll: false });
+    }
+  }, [statusFilter, categoryFilter, teamFilter, viewFilter, currentPage, user?.role, router]);
 
   const totalPages = Math.ceil(totalTickets / PAGE_SIZE);
 
@@ -284,7 +311,6 @@ export default function TicketsPage() {
   const hasActiveFilters =
     statusFilter ||
     categoryFilter ||
-    teamFilter ||
     (user?.role !== UserRole.MANAGER && viewFilter !== "all");
 
   // Filter tickets by search query (client-side)
@@ -357,7 +383,6 @@ export default function TicketsPage() {
                           [
                             statusFilter,
                             categoryFilter,
-                            teamFilter,
                             user?.role !== UserRole.MANAGER &&
                               viewFilter !== "all",
                           ].filter(Boolean).length
@@ -372,7 +397,6 @@ export default function TicketsPage() {
                           [
                             statusFilter,
                             categoryFilter,
-                            teamFilter,
                             user?.role !== UserRole.MANAGER &&
                               viewFilter !== "all",
                           ].filter(Boolean).length
@@ -412,15 +436,21 @@ export default function TicketsPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All Tickets</SelectItem>
-                            <SelectItem value="my">My Reports</SelectItem>
-                            <SelectItem value="followed">
-                              Followed Tickets
-                            </SelectItem>
-                            {user?.role === UserRole.SUPPORT && (
-                              <SelectItem value="assigned">
-                                Assigned to Me
-                              </SelectItem>
+                            {user?.role === UserRole.SUPPORT ? (
+                              <>
+                                <SelectItem value="all">All Tickets</SelectItem>
+                                <SelectItem value="assigned">
+                                  Assigned to Me
+                                </SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="all">All Tickets</SelectItem>
+                                <SelectItem value="my">My Reports</SelectItem>
+                                <SelectItem value="followed">
+                                  Followed Tickets
+                                </SelectItem>
+                              </>
                             )}
                           </SelectContent>
                         </Select>
@@ -497,33 +527,6 @@ export default function TicketsPage() {
                       </Select>
                     </div>
 
-                    {/* Team filter - only for staff */}
-                    {isStaff && (
-                      <div className="min-w-[160px]">
-                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                          Team
-                        </label>
-                        <Select
-                          value={teamFilter || "all-teams"}
-                          onValueChange={(value: string) => {
-                            setTeamFilter(value === "all-teams" ? "" : value);
-                            setCurrentPage(1);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all-teams">All Teams</SelectItem>
-                            {teams.map((team: any) => (
-                              <SelectItem key={team.id} value={team.id}>
-                                {team.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
 
                     {/* Clear filters */}
                     {hasActiveFilters && (
