@@ -1,6 +1,18 @@
 "use client";
 
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Phone } from "lucide-react";
+
 export default function Home() {
+  const [showContactModal, setShowContactModal] = useState(false);
+
   return (
     <div className="relative min-h-screen overflow-hidden text-slate-100">
       {/* ARKA PLAN: İstanbul Görseli */}
@@ -27,9 +39,12 @@ export default function Home() {
           <a href="#how-it-works" className="rounded-full px-3 py-1 transition hover:bg-white/10 text-slate-300">
             How it works
           </a>
-          <a href="#contact" className="rounded-full px-3 py-1 transition hover:bg-white/10 text-slate-300">
+          <button
+            onClick={() => setShowContactModal(true)}
+            className="rounded-full px-3 py-1 transition hover:bg-white/10 text-slate-300"
+          >
             Contact
-          </a>
+          </button>
           {/* BUTON YEŞİLİ KORUNDU */}
           <a
             href="/sign-in"
@@ -146,10 +161,44 @@ export default function Home() {
           <div className="flex gap-6">
             <a href="/privacy" className="transition hover:text-emerald-400 text-slate-400">Privacy</a>
             <a href="/terms" className="transition hover:text-emerald-400 text-slate-400">Terms</a>
-            <a href="/contact" className="transition hover:text-emerald-400 text-emerald-500 font-medium">Contact</a>
+            <button
+              onClick={() => setShowContactModal(true)}
+              className="transition hover:text-emerald-400 text-emerald-500 font-medium"
+            >
+              Contact
+            </button>
           </div>
         </div>
       </footer>
+
+      {/* Contact Modal */}
+      <Dialog open={showContactModal} onOpenChange={setShowContactModal}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-white flex items-center gap-2">
+              <Phone className="h-6 w-6 text-emerald-400" />
+              Contact Us
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Get in touch with our support team
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-800/50 border border-white/10">
+                <Phone className="h-5 w-5 text-emerald-400" />
+                <div>
+                  <p className="text-sm text-slate-400">Phone Number</p>
+                  <p className="text-lg font-semibold text-white">+90 555 123 4567</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-400 text-center">
+                Our support team is available Monday to Friday, 9:00 AM - 6:00 PM
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
