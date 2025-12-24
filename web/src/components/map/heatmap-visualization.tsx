@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // @ts-ignore - leaflet.heat doesn't have perfect type definitions
@@ -31,6 +31,8 @@ export function HeatmapVisualization({
   const mapRef = useRef<L.Map | null>(null);
   const heatLayerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Track when map is ready to ensure heatmap layer is added after map initialization
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -39,6 +41,7 @@ export function HeatmapVisualization({
     if (mapRef.current) {
       mapRef.current.remove();
       mapRef.current = null;
+      setMapReady(false);
     }
 
     // Initialize map
@@ -56,18 +59,21 @@ export function HeatmapVisualization({
     }).addTo(map);
 
     mapRef.current = map;
+    // Signal that the map is ready for the heatmap layer
+    setMapReady(true);
 
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        setMapReady(false);
       }
     };
   }, [center, zoom]);
 
-  // Update heatmap layer when points change
+  // Update heatmap layer when points change or map becomes ready
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mapReady) return;
 
     // Remove existing heat layer
     if (heatLayerRef.current) {
@@ -80,7 +86,7 @@ export function HeatmapVisualization({
 
     // Calculate max count for normalization
     const maxCount = Math.max(...points.map((p) => p.count), 1);
-    
+
     // Convert points to format expected by leaflet.heat
     // Format: [lat, lng, intensity]
     const heatPoints = points.map((point) => {
@@ -96,7 +102,7 @@ export function HeatmapVisualization({
         // Ensure minimum intensity for visibility
         intensity = Math.max(intensity, 0.2);
       }
-      
+
       return [
         point.latitude,
         point.longitude,
@@ -136,7 +142,7 @@ export function HeatmapVisualization({
         maxZoom: 13,
       });
     }
-  }, [points]);
+  }, [points, mapReady]);
 
   return (
     <div
