@@ -354,7 +354,7 @@ async def get_team_performance(
             )
         )
 
-    return TeamPerformanceResponse(teams=team_performances)
+    return TeamPerformanceResponse(items=team_performances)
 
 
 @router.get("/teams/{team_id}/members", response_model=MemberPerformanceResponse)

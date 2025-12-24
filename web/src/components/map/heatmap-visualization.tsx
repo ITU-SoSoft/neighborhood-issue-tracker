@@ -78,22 +78,40 @@ export function HeatmapVisualization({
       return;
     }
 
+    // Calculate max count for normalization
+    const maxCount = Math.max(...points.map((p) => p.count), 1);
+    
     // Convert points to format expected by leaflet.heat
     // Format: [lat, lng, intensity]
-    const heatPoints = points.map((point) => [
-      point.latitude,
-      point.longitude,
-      point.intensity, // Use intensity (0-1) for better visualization
-    ]);
+    const heatPoints = points.map((point) => {
+      // If all points have the same count (max_count = 1), give them a visible intensity
+      // Otherwise, normalize based on count
+      let intensity: number;
+      if (maxCount === 1) {
+        // All points have count 1, use a fixed visible intensity
+        intensity = 0.4; // Medium intensity so it's visible
+      } else {
+        // Normalize count to 0-1 range with square root for better distribution
+        intensity = Math.sqrt(point.count / maxCount);
+        // Ensure minimum intensity for visibility
+        intensity = Math.max(intensity, 0.2);
+      }
+      
+      return [
+        point.latitude,
+        point.longitude,
+        intensity,
+      ];
+    });
 
     // Create heat layer with custom options
     // @ts-ignore - heatLayer is added by leaflet.heat plugin
     const heatLayer = L.heatLayer(heatPoints, {
-      radius: 30, // Radius of each point in pixels (increased for better visibility)
-      blur: 12, // Amount of blur (decreased for sharper colors)
+      radius: 40, // Increased radius for better visibility when points are sparse
+      blur: 20, // Increased blur to make points blend together
       maxZoom: 17, // Maximum zoom level where heatmap is visible
-      max: 0.8, // Maximum intensity (lowered to make colors more intense)
-      minOpacity: 0.5, // Minimum opacity for better visibility
+      max: 1.0, // Maximum intensity (use full range)
+      minOpacity: 0.4, // Increased minimum opacity for better visibility
       gradient: {
         // Color gradient from low to high intensity (more vibrant colors)
         0.0: "#0000FF", // Deep blue

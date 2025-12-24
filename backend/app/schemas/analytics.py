@@ -53,7 +53,7 @@ class TeamPerformance(BaseSchema):
 class TeamPerformanceResponse(BaseSchema):
     """Response for team performance."""
 
-    teams: list[TeamPerformance]
+    items: list[TeamPerformance]
 
 
 class MemberPerformance(BaseSchema):

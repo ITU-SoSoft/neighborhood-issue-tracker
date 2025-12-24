@@ -525,9 +525,9 @@ function SupportDashboard() {
 
 function ManagerDashboard() {
   const [days, setDays] = useState(30);
-  const [heatmapFilter, setHeatmapFilter] = useState<"all" | "in_progress">(
-    "all",
-  );
+  const [heatmapFilter, setHeatmapFilter] = useState<
+    "all" | TicketStatus
+  >("all");
 
   const kpisQuery = useDashboardKPIs(days);
   const ticketsQuery = useTickets({ page: 1, page_size: 3 });
@@ -538,8 +538,7 @@ function ManagerDashboard() {
 
   const heatmapQuery = useHeatmap({
     days,
-    status:
-      heatmapFilter === "in_progress" ? TicketStatus.IN_PROGRESS : undefined,
+    status: heatmapFilter === "all" ? undefined : heatmapFilter,
   });
 
   const categoryStatsQuery = useCategoryStats(days);
@@ -1056,15 +1055,23 @@ function ManagerDashboard() {
               <Select
                 value={heatmapFilter}
                 onValueChange={(v) =>
-                  setHeatmapFilter(v as "all" | "in_progress")
+                  setHeatmapFilter(v as "all" | TicketStatus)
                 }
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[1000]">
                   <SelectItem value="all">All Created</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value={TicketStatus.NEW}>New</SelectItem>
+                  <SelectItem value={TicketStatus.IN_PROGRESS}>
+                    In Progress
+                  </SelectItem>
+                  <SelectItem value={TicketStatus.RESOLVED}>Resolved</SelectItem>
+                  <SelectItem value={TicketStatus.CLOSED}>Closed</SelectItem>
+                  <SelectItem value={TicketStatus.ESCALATED}>
+                    Escalated
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1085,7 +1092,10 @@ function ManagerDashboard() {
               <div className="h-[400px] rounded-xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center p-8 text-center">
                 <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-sm text-muted-foreground">
-                  No {heatmapFilter === "in_progress" ? "in-progress" : ""}{" "}
+                  No{" "}
+                  {heatmapFilter !== "all"
+                    ? `${getStatusLabel(heatmapFilter as TicketStatus).toLowerCase()} `
+                    : ""}
                   tickets found in the {getTimeRangeLabel(days)}.
                   <br />
                   The heatmap will appear once issues are reported.
