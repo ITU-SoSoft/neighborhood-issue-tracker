@@ -40,7 +40,11 @@ import {
   useSubmitFeedback,
 } from "@/lib/queries/tickets";
 import { useCreateEscalation } from "@/lib/queries/escalations";
-import { TicketStatus, UserRole, Comment as TicketComment } from "@/lib/api/types";
+import {
+  TicketStatus,
+  UserRole,
+  Comment as TicketComment,
+} from "@/lib/api/types";
 import {
   formatRelativeTime,
   formatDateTime,
@@ -83,7 +87,7 @@ const TicketMap = dynamic(
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     ),
-  }
+  },
 );
 
 function getStatusIcon(status: TicketStatus) {
@@ -144,7 +148,7 @@ export default function TicketDetailPage({
   // Handlers
   const handleFollow = async () => {
     // Only citizens can follow/unfollow tickets
-    if (!ticket || user.role !== UserRole.CITIZEN) return;
+    if (!ticket || !user || user.role !== UserRole.CITIZEN) return;
     try {
       if (ticket.is_following) {
         await unfollowMutation.mutateAsync(ticket.id);
@@ -257,7 +261,11 @@ export default function TicketDetailPage({
     return (
       <ErrorState
         title="Ticket Not Found"
-        message={error instanceof Error ? error.message : "The ticket you're looking for doesn't exist."}
+        message={
+          error instanceof Error
+            ? error.message
+            : "The ticket you're looking for doesn't exist."
+        }
         action={
           <Link href="/tickets">
             <Button>Back to Tickets</Button>
@@ -267,17 +275,18 @@ export default function TicketDetailPage({
     );
   }
 
-  const isFollowPending = followMutation.isPending || unfollowMutation.isPending;
+  const isFollowPending =
+    followMutation.isPending || unfollowMutation.isPending;
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
       {/* Header */}
-      <motion.div 
+      <motion.div
         className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
         variants={fadeInUp}
       >
@@ -289,14 +298,20 @@ export default function TicketDetailPage({
           </Link>
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-semibold text-foreground">{ticket.title}</h1>
-              <Badge variant={getStatusVariant(ticket.status)} className="flex items-center gap-1">
+              <h1 className="text-2xl font-semibold text-foreground">
+                {ticket.title}
+              </h1>
+              <Badge
+                variant={getStatusVariant(ticket.status)}
+                className="flex items-center gap-1"
+              >
                 {getStatusIcon(ticket.status)}
                 {getStatusLabel(ticket.status)}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Reported {formatRelativeTime(ticket.created_at)} by {ticket.reporter_name || "Anonymous"}
+              Reported {formatRelativeTime(ticket.created_at)} by{" "}
+              {ticket.reporter_name || "Anonymous"}
             </p>
           </div>
         </div>
@@ -311,13 +326,19 @@ export default function TicketDetailPage({
               {isFollowPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Heart className={`mr-2 h-4 w-4 ${ticket.is_following ? "fill-current" : ""}`} />
+                <Heart
+                  className={`mr-2 h-4 w-4 ${ticket.is_following ? "fill-current" : ""}`}
+                />
               )}
               {ticket.is_following ? "Following" : "Follow"}
             </Button>
           )}
           {canUpdateStatus && (
-            <Button variant="outline" size="sm" onClick={() => setShowStatusModal(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStatusModal(true)}
+            >
               Update Status
             </Button>
           )}
@@ -326,15 +347,19 @@ export default function TicketDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main content */}
-        <motion.div 
+        <motion.div
           className="lg:col-span-2 space-y-6"
           variants={staggerContainer}
         >
           {/* Description */}
           <motion.div variants={staggerItem}>
             <Card className="p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Description</h2>
-              <p className="text-muted-foreground whitespace-pre-wrap">{ticket.description}</p>
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                Description
+              </h2>
+              <p className="text-muted-foreground whitespace-pre-wrap">
+                {ticket.description}
+              </p>
             </Card>
           </motion.div>
 
@@ -349,7 +374,9 @@ export default function TicketDetailPage({
                 <div className="space-y-4">
                   {ticket.status_logs.map((log, index) => {
                     // Convert string status to TicketStatus enum
-                    const stringToStatus = (status: string | null): TicketStatus | null => {
+                    const stringToStatus = (
+                      status: string | null,
+                    ): TicketStatus | null => {
                       if (!status) return null;
                       return status as TicketStatus;
                     };
@@ -373,33 +400,48 @@ export default function TicketDetailPage({
                                   <>
                                     Status changed from{" "}
                                     {oldStatus ? (
-                                      <Badge variant={getStatusVariant(oldStatus)} className="flex items-center gap-1">
+                                      <Badge
+                                        variant={getStatusVariant(oldStatus)}
+                                        className="flex items-center gap-1"
+                                      >
                                         {getStatusIcon(oldStatus)}
                                         {getStatusLabel(oldStatus)}
                                       </Badge>
                                     ) : (
-                                      <span className="font-semibold">{log.old_status}</span>
+                                      <span className="font-semibold">
+                                        {log.old_status}
+                                      </span>
                                     )}{" "}
                                     to{" "}
                                     {newStatus ? (
-                                      <Badge variant={getStatusVariant(newStatus)} className="flex items-center gap-1">
+                                      <Badge
+                                        variant={getStatusVariant(newStatus)}
+                                        className="flex items-center gap-1"
+                                      >
                                         {getStatusIcon(newStatus)}
                                         {getStatusLabel(newStatus)}
                                       </Badge>
                                     ) : (
-                                      <span className="font-semibold">{log.new_status}</span>
+                                      <span className="font-semibold">
+                                        {log.new_status}
+                                      </span>
                                     )}
                                   </>
                                 ) : (
                                   <>
                                     Ticket created with status{" "}
                                     {newStatus ? (
-                                      <Badge variant={getStatusVariant(newStatus)} className="flex items-center gap-1">
+                                      <Badge
+                                        variant={getStatusVariant(newStatus)}
+                                        className="flex items-center gap-1"
+                                      >
                                         {getStatusIcon(newStatus)}
                                         {getStatusLabel(newStatus)}
                                       </Badge>
                                     ) : (
-                                      <span className="font-semibold">{log.new_status}</span>
+                                      <span className="font-semibold">
+                                        {log.new_status}
+                                      </span>
                                     )}
                                   </>
                                 )}
@@ -436,7 +478,7 @@ export default function TicketDetailPage({
                   <ImageIcon className="h-5 w-5" />
                   Photos ({ticket.photos.length})
                 </h2>
-                <motion.div 
+                <motion.div
                   className="grid grid-cols-2 gap-3 sm:grid-cols-3"
                   variants={staggerContainer}
                 >
@@ -472,9 +514,11 @@ export default function TicketDetailPage({
 
               {/* Comments list */}
               {ticket.comments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">No comments yet</p>
+                <p className="text-muted-foreground text-center py-4">
+                  No comments yet
+                </p>
               ) : (
-                <motion.div 
+                <motion.div
                   className="space-y-4 mb-6"
                   variants={staggerContainer}
                   initial="hidden"
@@ -533,7 +577,8 @@ export default function TicketDetailPage({
                   rows={3}
                 />
                 <div className="flex items-center justify-between">
-                  {(user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) && (
+                  {(user?.role === UserRole.SUPPORT ||
+                    user?.role === UserRole.MANAGER) && (
                     <label className="flex items-center gap-2 text-sm text-muted-foreground">
                       <input
                         id="internal-comment"
@@ -547,7 +592,9 @@ export default function TicketDetailPage({
                   )}
                   <Button
                     type="submit"
-                    disabled={!newComment.trim() || createCommentMutation.isPending}
+                    disabled={
+                      !newComment.trim() || createCommentMutation.isPending
+                    }
                     className="ml-auto"
                   >
                     {createCommentMutation.isPending ? (
@@ -564,46 +611,58 @@ export default function TicketDetailPage({
         </motion.div>
 
         {/* Sidebar */}
-        <motion.div 
-          className="space-y-6"
-          variants={staggerContainer}
-        >
+        <motion.div className="space-y-6" variants={staggerContainer}>
           {/* Details */}
           <motion.div variants={staggerItem}>
             <Card className="p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Details</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                Details
+              </h2>
               <dl className="space-y-4">
                 <div>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase">Category</dt>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase">
+                    Category
+                  </dt>
                   <dd className="mt-1">
                     <Badge variant="secondary">{ticket.category_name}</Badge>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase">Status</dt>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase">
+                    Status
+                  </dt>
                   <dd className="mt-1">
-                    <Badge variant={getStatusVariant(ticket.status)} className="flex items-center gap-1 w-fit">
+                    <Badge
+                      variant={getStatusVariant(ticket.status)}
+                      className="flex items-center gap-1 w-fit"
+                    >
                       {getStatusIcon(ticket.status)}
                       {getStatusLabel(ticket.status)}
                     </Badge>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase">Reporter</dt>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase">
+                    Reporter
+                  </dt>
                   <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
                     <UserIcon className="h-4 w-4 text-muted-foreground" />
                     {ticket.reporter_name || "Anonymous"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase">Assigned Team</dt>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase">
+                    Assigned Team
+                  </dt>
                   <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     {ticket.team_name || "Unassigned"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase">Created</dt>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase">
+                    Created
+                  </dt>
                   <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     {formatDateTime(ticket.created_at)}
@@ -611,7 +670,9 @@ export default function TicketDetailPage({
                 </div>
                 {ticket.resolved_at && (
                   <div>
-                    <dt className="text-xs font-medium text-muted-foreground uppercase">Resolved</dt>
+                    <dt className="text-xs font-medium text-muted-foreground uppercase">
+                      Resolved
+                    </dt>
                     <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
                       {formatDateTime(ticket.resolved_at)}
@@ -619,7 +680,9 @@ export default function TicketDetailPage({
                   </div>
                 )}
                 <div>
-                  <dt className="text-xs font-medium text-muted-foreground uppercase">Followers</dt>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase">
+                    Followers
+                  </dt>
                   <dd className="mt-1 flex items-center gap-2 text-sm text-foreground">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     {ticket.follower_count}
@@ -641,7 +704,9 @@ export default function TicketDetailPage({
                 longitude={ticket.location.longitude}
               />
               {ticket.location.address && (
-                <p className="mt-3 text-sm text-muted-foreground">{ticket.location.address}</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {ticket.location.address}
+                </p>
               )}
             </Card>
           </motion.div>
@@ -650,7 +715,9 @@ export default function TicketDetailPage({
           {user?.role !== UserRole.CITIZEN && (
             <motion.div variants={staggerItem}>
               <Card className="p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  Actions
+                </h2>
                 <div className="space-y-3">
                   {canGiveFeedback && (
                     <Button
@@ -703,13 +770,22 @@ export default function TicketDetailPage({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>New Status</Label>
-              <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as TicketStatus)}>
+              <Select
+                value={selectedStatus}
+                onValueChange={(value) =>
+                  setSelectedStatus(value as TicketStatus)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={TicketStatus.IN_PROGRESS}>In Progress</SelectItem>
-                  <SelectItem value={TicketStatus.RESOLVED}>Resolved</SelectItem>
+                  <SelectItem value={TicketStatus.IN_PROGRESS}>
+                    In Progress
+                  </SelectItem>
+                  <SelectItem value={TicketStatus.RESOLVED}>
+                    Resolved
+                  </SelectItem>
                   <SelectItem value={TicketStatus.CLOSED}>Closed</SelectItem>
                 </SelectContent>
               </Select>
@@ -728,11 +804,13 @@ export default function TicketDetailPage({
             <Button variant="outline" onClick={() => setShowStatusModal(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleStatusUpdate} 
+            <Button
+              onClick={handleStatusUpdate}
               disabled={!selectedStatus || updateStatusMutation.isPending}
             >
-              {updateStatusMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {updateStatusMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Update
             </Button>
           </DialogFooter>
@@ -751,7 +829,11 @@ export default function TicketDetailPage({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label id="rating-label">Rating</Label>
-              <div className="flex items-center gap-2" role="group" aria-labelledby="rating-label">
+              <div
+                className="flex items-center gap-2"
+                role="group"
+                aria-labelledby="rating-label"
+              >
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
@@ -784,14 +866,19 @@ export default function TicketDetailPage({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFeedbackModal(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowFeedbackModal(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSubmitFeedback} 
+            <Button
+              onClick={handleSubmitFeedback}
               disabled={submitFeedbackMutation.isPending}
             >
-              {submitFeedbackMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {submitFeedbackMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Submit Feedback
             </Button>
           </DialogFooter>
@@ -804,7 +891,8 @@ export default function TicketDetailPage({
           <DialogHeader>
             <DialogTitle>Request Escalation</DialogTitle>
             <DialogDescription>
-              Escalation requests will be reviewed by a manager. Please provide a detailed reason.
+              Escalation requests will be reviewed by a manager. Please provide
+              a detailed reason.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -819,14 +907,21 @@ export default function TicketDetailPage({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEscalationModal(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowEscalationModal(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleSubmitEscalation}
-              disabled={!escalationReason.trim() || createEscalationMutation.isPending}
+              disabled={
+                !escalationReason.trim() || createEscalationMutation.isPending
+              }
             >
-              {createEscalationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {createEscalationMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Submit Request
             </Button>
           </DialogFooter>
@@ -834,7 +929,10 @@ export default function TicketDetailPage({
       </Dialog>
 
       {/* Photo Dialog */}
-      <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
+      <Dialog
+        open={!!selectedPhoto}
+        onOpenChange={() => setSelectedPhoto(null)}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Photo</DialogTitle>
