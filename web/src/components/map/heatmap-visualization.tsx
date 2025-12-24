@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useId } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // @ts-ignore - leaflet.heat doesn't have perfect type definitions
@@ -31,84 +31,62 @@ export function HeatmapVisualization({
   const mapRef = useRef<L.Map | null>(null);
   const heatLayerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mapReady, setMapReady] = useState(false);
-  // Generate unique ID for container to prevent Leaflet conflicts
-  const containerId = useId();
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
 
-  // Initialize map
+  // Initialize map once on mount
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    // Skip if no container or map already exists
+    if (!containerRef.current || mapRef.current) {
+      return;
+    }
 
-    // Small delay to ensure DOM is fully ready
-    const initTimeout = setTimeout(() => {
-      // Check if container already has a map (Leaflet adds _leaflet_id)
-      if ((container as any)._leaflet_id) {
-        // Container already has a map, skip initialization
-        return;
-      }
+    // Create the map
+    const map = L.map(containerRef.current, {
+      scrollWheelZoom: true,
+      dragging: true,
+      zoomControl: true,
+    }).setView(center, zoom);
 
-      // Clean up any existing map on ref
-      if (mapRef.current) {
-        try {
-          mapRef.current.remove();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-        mapRef.current = null;
-        setMapReady(false);
-      }
+    // Add tile layer (OpenStreetMap)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 18,
+    }).addTo(map);
 
-      try {
-        // Initialize map
-        const map = L.map(container, {
-          scrollWheelZoom: true,
-          dragging: true,
-          zoomControl: true,
-        }).setView(center, zoom);
+    mapRef.current = map;
+    setIsMapInitialized(true);
 
-        // Add tile layer (OpenStreetMap)
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 18,
-        }).addTo(map);
-
-        mapRef.current = map;
-        setMapReady(true);
-      } catch (e) {
-        console.error("Failed to initialize Leaflet map:", e);
-      }
-    }, 50);
-
+    // Cleanup on unmount
     return () => {
-      clearTimeout(initTimeout);
       if (mapRef.current) {
-        try {
-          mapRef.current.remove();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
+        mapRef.current.remove();
         mapRef.current = null;
-        setMapReady(false);
       }
+      setIsMapInitialized(false);
     };
-  }, [center, zoom, containerId]);
+  }, []); // Empty dependency - only run on mount
 
-  // Update heatmap layer when points change or map becomes ready
+  // Update center/zoom when props change
   useEffect(() => {
-    if (!mapRef.current || !mapReady) return;
+    if (mapRef.current && isMapInitialized) {
+      mapRef.current.setView(center, zoom);
+    }
+  }, [center, zoom, isMapInitialized]);
+
+  // Update heatmap layer when points change
+  useEffect(() => {
+    if (!mapRef.current || !isMapInitialized) {
+      return;
+    }
 
     // Remove existing heat layer
     if (heatLayerRef.current) {
-      try {
-        mapRef.current.removeLayer(heatLayerRef.current);
-      } catch (e) {
-        // Ignore if layer removal fails
-      }
+      mapRef.current.removeLayer(heatLayerRef.current);
       heatLayerRef.current = null;
     }
 
+    // If no points, just show the map without heatmap
     if (points.length === 0) {
       return;
     }
@@ -119,63 +97,49 @@ export function HeatmapVisualization({
     // Convert points to format expected by leaflet.heat
     // Format: [lat, lng, intensity]
     const heatPoints = points.map((point) => {
-      // If all points have the same count (max_count = 1), give them a visible intensity
-      // Otherwise, normalize based on count
       let intensity: number;
       if (maxCount === 1) {
         // All points have count 1, use a fixed visible intensity
-        intensity = 0.4; // Medium intensity so it's visible
+        intensity = 0.4;
       } else {
         // Normalize count to 0-1 range with square root for better distribution
         intensity = Math.sqrt(point.count / maxCount);
-        // Ensure minimum intensity for visibility
         intensity = Math.max(intensity, 0.2);
       }
 
-      return [
-        point.latitude,
-        point.longitude,
-        intensity,
-      ];
+      return [point.latitude, point.longitude, intensity];
     });
 
-    try {
-      // Create heat layer with custom options
-      // @ts-ignore - heatLayer is added by leaflet.heat plugin
-      const heatLayer = L.heatLayer(heatPoints, {
-        radius: 40, // Increased radius for better visibility when points are sparse
-        blur: 20, // Increased blur to make points blend together
-        maxZoom: 17, // Maximum zoom level where heatmap is visible
-        max: 1.0, // Maximum intensity (use full range)
-        minOpacity: 0.4, // Increased minimum opacity for better visibility
-        gradient: {
-          // Color gradient from low to high intensity (more vibrant colors)
-          0.0: "#0000FF", // Deep blue
-          0.2: "#00BFFF", // Deep sky blue
-          0.4: "#00FF00", // Lime green
-          0.6: "#FFFF00", // Yellow
-          0.8: "#FF6600", // Orange
-          1.0: "#FF0000", // Red
-        },
-      });
+    // Create heat layer with custom options
+    // @ts-ignore - heatLayer is added by leaflet.heat plugin
+    const heatLayer = L.heatLayer(heatPoints, {
+      radius: 40,
+      blur: 20,
+      maxZoom: 17,
+      max: 1.0,
+      minOpacity: 0.4,
+      gradient: {
+        0.0: "#0000FF",
+        0.2: "#00BFFF",
+        0.4: "#00FF00",
+        0.6: "#FFFF00",
+        0.8: "#FF6600",
+        1.0: "#FF0000",
+      },
+    });
 
-      heatLayer.addTo(mapRef.current);
-      heatLayerRef.current = heatLayer;
+    heatLayer.addTo(mapRef.current);
+    heatLayerRef.current = heatLayer;
 
-      // Auto-fit map bounds to show all points
-      if (points.length > 0 && mapRef.current) {
-        const bounds = L.latLngBounds(
-          points.map((p) => [p.latitude, p.longitude] as [number, number])
-        );
-        mapRef.current.fitBounds(bounds, {
-          padding: [50, 50],
-          maxZoom: 13,
-        });
-      }
-    } catch (e) {
-      console.error("Failed to add heatmap layer:", e);
-    }
-  }, [points, mapReady]);
+    // Auto-fit map bounds to show all points
+    const bounds = L.latLngBounds(
+      points.map((p) => [p.latitude, p.longitude] as [number, number])
+    );
+    mapRef.current.fitBounds(bounds, {
+      padding: [50, 50],
+      maxZoom: 13,
+    });
+  }, [points, isMapInitialized]);
 
   return (
     <div
