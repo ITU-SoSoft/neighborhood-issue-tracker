@@ -11,7 +11,7 @@ from app.core.exceptions import (
     ForbiddenException,
     UserNotFoundException,
 )
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.models.user import User, UserRole
 from app.schemas.user import (
     UserCreateRequest,
@@ -175,9 +175,22 @@ async def update_user(
     """Update a user's profile.
 
     Users can only update their own profile.
+    Password can be updated by providing current_password and new_password.
     """
     if current_user.id != user_id:
         raise ForbiddenException(detail="Cannot update other users' profiles")
+
+    # Update password if provided
+    if request.new_password is not None:
+        if request.current_password is None:
+            raise BadRequestException(
+                detail="Current password is required to change password"
+            )
+        # Verify current password
+        if not verify_password(request.current_password, current_user.password_hash):
+            raise BadRequestException(detail="Current password is incorrect")
+        # Hash and set new password
+        current_user.password_hash = hash_password(request.new_password)
 
     # Update fields
     if request.name is not None:
@@ -194,7 +207,6 @@ async def update_user(
             )
         )
         if existing.scalar_one_or_none():
-            from app.core.exceptions import BadRequestException
             raise BadRequestException(detail="Phone number is already in use")
         current_user.phone_number = request.phone_number
 

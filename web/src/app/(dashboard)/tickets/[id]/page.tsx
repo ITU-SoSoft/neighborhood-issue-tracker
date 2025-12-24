@@ -143,7 +143,8 @@ export default function TicketDetailPage({
 
   // Handlers
   const handleFollow = async () => {
-    if (!ticket) return;
+    // Only citizens can follow/unfollow tickets
+    if (!ticket || user.role !== UserRole.CITIZEN) return;
     try {
       if (ticket.is_following) {
         await unfollowMutation.mutateAsync(ticket.id);
@@ -244,6 +245,8 @@ export default function TicketDetailPage({
     (user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) &&
     ticket?.can_escalate;
 
+  const canFollow = user && user.role === UserRole.CITIZEN;
+
   // Loading state
   if (isLoading) {
     return <TicketDetailSkeleton />;
@@ -298,19 +301,21 @@ export default function TicketDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={ticket.is_following ? "default" : "outline"}
-            size="sm"
-            onClick={handleFollow}
-            disabled={isFollowPending}
-          >
-            {isFollowPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Heart className={`mr-2 h-4 w-4 ${ticket.is_following ? "fill-current" : ""}`} />
-            )}
-            {ticket.is_following ? "Following" : "Follow"}
-          </Button>
+          {canFollow && (
+            <Button
+              variant={ticket.is_following ? "default" : "outline"}
+              size="sm"
+              onClick={handleFollow}
+              disabled={isFollowPending}
+            >
+              {isFollowPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Heart className={`mr-2 h-4 w-4 ${ticket.is_following ? "fill-current" : ""}`} />
+              )}
+              {ticket.is_following ? "Following" : "Follow"}
+            </Button>
+          )}
           {canUpdateStatus && (
             <Button variant="outline" size="sm" onClick={() => setShowStatusModal(true)}>
               Update Status

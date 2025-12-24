@@ -97,6 +97,18 @@ class UserUpdate(BaseSchema):
     name: str | None = Field(default=None, min_length=2, max_length=100)
     email: str | None = None
     phone_number: str | None = Field(default=None, pattern=r"^\+90[0-9]{10}$")
+    current_password: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=128,
+        description="Current password (required when changing password)",
+    )
+    new_password: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=128,
+        description="New password (min 8 chars)",
+    )
 
 
 class UserRoleUpdate(BaseSchema):
