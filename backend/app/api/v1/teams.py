@@ -112,18 +112,26 @@ async def list_teams(
     result = await db.execute(stmt)
     rows = result.all()
 
-    items = [
-        TeamResponse(
-            id=team.id,
-            name=team.name,
-            description=team.description,
-            created_at=team.created_at,
-            updated_at=team.updated_at,
-            member_count=int(member_count or 0),
-            active_ticket_count=0,  # TODO: Ticket join varsa ekleriz
+    # Get district IDs for each team
+    items = []
+    for team, member_count in rows:
+        # Get district IDs for this team
+        district_stmt = select(TeamDistrict.district_id).where(TeamDistrict.team_id == team.id)
+        district_result = await db.execute(district_stmt)
+        district_ids = [row[0] for row in district_result.all()]
+        
+        items.append(
+            TeamResponse(
+                id=team.id,
+                name=team.name,
+                description=team.description,
+                created_at=team.created_at,
+                updated_at=team.updated_at,
+                member_count=int(member_count or 0),
+                active_ticket_count=0,  # TODO: Ticket join varsa ekleriz
+                district_ids=district_ids,
+            )
         )
-        for team, member_count in rows
-    ]
 
     return TeamListResponse(
         items=items,

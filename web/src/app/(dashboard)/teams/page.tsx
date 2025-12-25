@@ -29,6 +29,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Trash2,
   Users,
@@ -38,6 +45,8 @@ import {
   ChevronUp,
   Loader2,
   Ticket,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 import { TeamTicketsPanel } from "./team-tickets-panel";
 
@@ -92,6 +101,16 @@ export default function TeamsPage() {
   const [categorySearchTerm, setCategorySearchTerm] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryDesc, setNewCategoryDesc] = useState("");
+
+  // Advanced filters for teams
+  const [districtFilter, setDistrictFilter] = useState<string>("all");
+  const [memberCountFilter, setMemberCountFilter] = useState<string>("all");
+  const [openTicketFilter, setOpenTicketFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("name-asc");
+
+  // Advanced filters for staff
+  const [staffTeamFilter, setStaffTeamFilter] = useState<string>("all");
+  const [staffSortBy, setStaffSortBy] = useState<string>("name-asc");
 
   const createCategoryMut = useCreateCategory();
   const deleteCategoryMut = useDeleteCategory();
@@ -181,10 +200,74 @@ export default function TeamsPage() {
   const fallbackTeam = teams.find((t: any) => t.name === FALLBACK_TEAM_NAME);
   const regularTeams = teams.filter((t: any) => t.name !== FALLBACK_TEAM_NAME);
 
-  // Filter regular teams by search term
-  const filteredTeams = regularTeams.filter((t: any) =>
-    t.name.toLowerCase().includes(teamSearchTerm.toLowerCase()),
-  );
+  // Advanced filtering and sorting
+  const filteredTeams = useMemo(() => {
+    let filtered = regularTeams.filter((t: any) =>
+      t.name.toLowerCase().includes(teamSearchTerm.toLowerCase()),
+    );
+
+    // Filter by district
+    if (districtFilter && districtFilter !== "all") {
+      filtered = filtered.filter((t: any) => {
+        const teamDistrictIds = t.district_ids || [];
+        return teamDistrictIds.includes(districtFilter);
+      });
+    }
+
+    // Filter by member count
+    if (memberCountFilter === "no-members") {
+      filtered = filtered.filter((t: any) => {
+        const count = t.member_count ?? t.memberCount ?? 0;
+        return count === 0;
+      });
+    } else if (memberCountFilter === "understaffed") {
+      filtered = filtered.filter((t: any) => {
+        const count = t.member_count ?? t.memberCount ?? 0;
+        return count > 0 && count < 3;
+      });
+    }
+
+    // Filter by open ticket count
+    if (openTicketFilter === "high-workload") {
+      filtered = filtered.filter((t: any) => {
+        const openTickets = openByTeamId.get(t.id) ?? 0;
+        return openTickets > 10;
+      });
+    } else if (openTicketFilter === "no-workload") {
+      filtered = filtered.filter((t: any) => {
+        const openTickets = openByTeamId.get(t.id) ?? 0;
+        return openTickets === 0;
+      });
+    }
+
+    // Sort
+    filtered = [...filtered].sort((a: any, b: any) => {
+      if (sortBy === "name-asc") {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === "name-desc") {
+        return b.name.localeCompare(a.name);
+      } else if (sortBy === "member-count") {
+        const aCount = a.member_count ?? a.memberCount ?? 0;
+        const bCount = b.member_count ?? b.memberCount ?? 0;
+        return bCount - aCount;
+      } else if (sortBy === "open-tickets") {
+        const aOpen = openByTeamId.get(a.id) ?? 0;
+        const bOpen = openByTeamId.get(b.id) ?? 0;
+        return bOpen - aOpen;
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [
+    regularTeams,
+    teamSearchTerm,
+    districtFilter,
+    memberCountFilter,
+    openTicketFilter,
+    sortBy,
+    openByTeamId,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -451,7 +534,62 @@ export default function TeamsPage() {
               </svg>
             </div>
 
-            <StaffManagementPanel teams={teams} searchTerm={staffSearchTerm} />
+            {/* Advanced Filters */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Team Filter */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  Team
+                </label>
+                <Select
+                  value={staffTeamFilter}
+                  onValueChange={setStaffTeamFilter}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All teams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All teams</SelectItem>
+                    <SelectItem value="no-team">No team</SelectItem>
+                    {teams
+                      .filter((team: any) => team.id && team.id !== "")
+                      .map((team: any) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <ArrowUpDown className="h-3 w-3" />
+                  Sort by
+                </label>
+                <Select value={staffSortBy} onValueChange={setStaffSortBy}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="email-asc">Email (A-Z)</SelectItem>
+                    <SelectItem value="email-desc">Email (Z-A)</SelectItem>
+                    <SelectItem value="team">Team</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <StaffManagementPanel
+              teams={teams}
+              searchTerm={staffSearchTerm}
+              teamFilter={staffTeamFilter}
+              sortBy={staffSortBy}
+            />
           </CardContent>
         )}
       </Card>
@@ -497,6 +635,93 @@ export default function TeamsPage() {
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
+            </div>
+
+            {/* Advanced Filters */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {/* District Filter */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Filter className="h-3 w-3" />
+                  District
+                </label>
+                <Select value={districtFilter} onValueChange={setDistrictFilter}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All districts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All districts</SelectItem>
+                    {districts
+                      .filter((district: any) => district.id && district.id !== "")
+                      .map((district: any) => (
+                        <SelectItem key={district.id} value={district.id}>
+                          {district.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Member Count Filter */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  Members
+                </label>
+                <Select
+                  value={memberCountFilter}
+                  onValueChange={setMemberCountFilter}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All teams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All teams</SelectItem>
+                    <SelectItem value="no-members">No members</SelectItem>
+                    <SelectItem value="understaffed">Understaffed (&lt; 3)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Open Ticket Filter */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <Ticket className="h-3 w-3" />
+                  Workload
+                </label>
+                <Select
+                  value={openTicketFilter}
+                  onValueChange={setOpenTicketFilter}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All teams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All teams</SelectItem>
+                    <SelectItem value="high-workload">High workload (&gt; 10)</SelectItem>
+                    <SelectItem value="no-workload">No open tickets</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <ArrowUpDown className="h-3 w-3" />
+                  Sort by
+                </label>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="member-count">Member count</SelectItem>
+                    <SelectItem value="open-tickets">Open tickets</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* teams list */}
@@ -962,9 +1187,13 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
 function StaffManagementPanel({
   teams,
   searchTerm,
+  teamFilter = "all",
+  sortBy = "name-asc",
 }: {
   teams: any[];
   searchTerm: string;
+  teamFilter?: string;
+  sortBy?: string;
 }) {
   const supportUsersQuery = useUsers({
     role: UserRole.SUPPORT,
@@ -975,10 +1204,47 @@ function StaffManagementPanel({
 
   const supportUsers = supportUsersQuery.data?.items ?? [];
 
-  // Filter users by search term
-  const filteredUsers = supportUsers.filter((user: any) =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  // Filter and sort users
+  const filteredUsers = useMemo(() => {
+    let filtered = supportUsers.filter((user: any) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone_number?.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+
+    // Filter by team
+    if (teamFilter && teamFilter !== "all") {
+      if (teamFilter === "no-team") {
+        filtered = filtered.filter((user: any) => !user.team_id);
+      } else {
+        filtered = filtered.filter((user: any) => user.team_id === teamFilter);
+      }
+    }
+
+    // Sort
+    filtered = [...filtered].sort((a: any, b: any) => {
+      if (sortBy === "name-asc") {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === "name-desc") {
+        return b.name.localeCompare(a.name);
+      } else if (sortBy === "email-asc") {
+        const aEmail = a.email || "";
+        const bEmail = b.email || "";
+        return aEmail.localeCompare(bEmail);
+      } else if (sortBy === "email-desc") {
+        const aEmail = a.email || "";
+        const bEmail = b.email || "";
+        return bEmail.localeCompare(aEmail);
+      } else if (sortBy === "team") {
+        const aTeam = teams.find((t) => t.id === a.team_id)?.name || "";
+        const bTeam = teams.find((t) => t.id === b.team_id)?.name || "";
+        return aTeam.localeCompare(bTeam);
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [supportUsers, searchTerm, teamFilter, sortBy, teams]);
 
   async function handleTeamChange(
     userId: string,

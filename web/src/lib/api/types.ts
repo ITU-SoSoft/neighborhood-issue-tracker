@@ -134,6 +134,7 @@ export interface TeamListResponse {
  * Basic team response after create/update: TeamResponse
  */
 export interface TeamResponse {
+  district_ids?: string[];
   id: string;
   name: string;
   description: string | null;

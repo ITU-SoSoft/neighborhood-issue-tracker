@@ -117,11 +117,13 @@ export function TeamTicketsPanel({
                 <SelectValue placeholder="Reassign to..." />
               </SelectTrigger>
               <SelectContent>
-                {otherTeams.map((team: any) => (
-                  <SelectItem key={team.id} value={team.id}>
-                    {team.name}
-                  </SelectItem>
-                ))}
+                {otherTeams
+                  .filter((team: any) => team.id && team.id !== "")
+                  .map((team: any) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             {reassigningTicketId === ticket.id && (
