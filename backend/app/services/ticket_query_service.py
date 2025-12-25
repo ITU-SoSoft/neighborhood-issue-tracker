@@ -20,7 +20,7 @@ VALID_TRANSITIONS = {
     TicketStatus.IN_PROGRESS: [TicketStatus.RESOLVED, TicketStatus.ESCALATED],
     TicketStatus.ESCALATED: [TicketStatus.IN_PROGRESS],
     TicketStatus.RESOLVED: [TicketStatus.CLOSED, TicketStatus.IN_PROGRESS],
-    TicketStatus.CLOSED: [],  # Final state
+    TicketStatus.CLOSED: [TicketStatus.IN_PROGRESS],  # Allow going back to IN_PROGRESS
 }
 
 

@@ -47,9 +47,9 @@ class TestValidTransitions:
         """RESOLVED tickets can be reopened (IN_PROGRESS)."""
         assert TicketStatus.IN_PROGRESS in VALID_TRANSITIONS[TicketStatus.RESOLVED]
 
-    def test_closed_is_final_state(self):
-        """CLOSED tickets cannot transition to any other state."""
-        assert VALID_TRANSITIONS[TicketStatus.CLOSED] == []
+    def test_closed_can_transition_to_in_progress(self):
+        """CLOSED tickets can transition back to IN_PROGRESS."""
+        assert TicketStatus.IN_PROGRESS in VALID_TRANSITIONS[TicketStatus.CLOSED]
 
 
 def create_mock_location():
