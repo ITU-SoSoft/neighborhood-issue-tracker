@@ -38,6 +38,7 @@ export function LocationPicker({
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -149,6 +150,25 @@ export function LocationPicker({
       resizeObserver.disconnect();
     };
   }, [userLocation]);
+
+  // Handle click outside to close search results
+  useEffect(() => {
+    if (!showResults) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowResults(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showResults]);
 
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
@@ -357,7 +377,7 @@ export function LocationPicker({
   return (
     <div className={`relative ${className} space-y-3`}>
       {/* Search input */}
-      <div className="relative z-10">
+      <div ref={searchContainerRef} className="relative z-[5]">
         <div className="relative">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
@@ -375,10 +395,10 @@ export function LocationPicker({
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             onFocus={() => setShowResults(searchResults.length > 0)}
-            className="w-full pl-10 pr-10 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent relative z-10"
+            className="w-full pl-10 pr-10 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent relative z-[5]"
           />
           {isSearching && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-[6]">
               <div className="w-4 h-4 border-2 border-muted-foreground/20 border-t-primary rounded-full animate-spin" />
             </div>
           )}
@@ -386,7 +406,7 @@ export function LocationPicker({
 
         {/* Search results dropdown */}
         {showResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-20 max-h-96 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[25] max-h-96 overflow-y-auto">
             {searchResults.map((result, index) => {
               const address = result.address || {};
               const mainName = address.road || address.suburb || address.neighbourhood || address.district || result.name || "Unknown";
@@ -433,7 +453,7 @@ export function LocationPicker({
 
         {/* No results message */}
         {showResults && searchResults.length === 0 && !isSearching && searchQuery.length >= 3 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-20 p-4 text-center">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[25] p-4 text-center">
             <p className="text-sm text-muted-foreground">No addresses found</p>
             <p className="text-xs text-muted-foreground mt-1">Try searching with street name, neighborhood, or district</p>
           </div>
@@ -500,13 +520,6 @@ export function LocationPicker({
         )}
       </div>
 
-      {/* Click outside to close results */}
-      {showResults && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => setShowResults(false)}
-        />
-      )}
     </div>
   );
 }
