@@ -1,5 +1,6 @@
 """Shared API dependencies."""
 
+from datetime import datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -68,6 +69,20 @@ async def get_current_user(
 
     if not user.is_active:
         raise UnauthorizedException(detail="User account is deactivated")
+
+    # Check if password was changed after token was issued
+    token_pwd_changed = payload.get("pwd_changed")
+    if user.password_changed_at and token_pwd_changed:
+        try:
+            token_pwd_dt = datetime.fromisoformat(token_pwd_changed)
+            # Allow 1 second tolerance for timing issues
+            if user.password_changed_at > token_pwd_dt + timedelta(seconds=1):
+                raise UnauthorizedException(
+                    detail="Password was changed. Please log in again."
+                )
+        except (ValueError, TypeError):
+            # Invalid timestamp format in token, reject it
+            raise UnauthorizedException(detail="Invalid token")
 
     return user
 

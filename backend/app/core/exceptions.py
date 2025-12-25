@@ -1,6 +1,5 @@
 """Custom exceptions for the application."""
 
-
 from fastapi import HTTPException, status
 
 
@@ -186,3 +185,49 @@ class NotStaffException(ForbiddenException):
         super().__init__(
             detail="Access denied. Staff login is only for support and manager roles."
         )
+
+
+class EmailVerificationTokenExpiredException(BadRequestException):
+    """Exception when email verification token has expired."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            detail="Verification link has expired. Please request a new one."
+        )
+
+
+class EmailVerificationTokenInvalidException(BadRequestException):
+    """Exception when email verification token is invalid or already used."""
+
+    def __init__(self) -> None:
+        super().__init__(detail="Invalid or expired verification link")
+
+
+class EmailAlreadyVerifiedException(BadRequestException):
+    """Exception when user's email is already verified."""
+
+    def __init__(self) -> None:
+        super().__init__(detail="Email is already verified")
+
+
+class PhoneNumberMismatchException(BadRequestException):
+    """Exception when phone number doesn't match during password setup."""
+
+    def __init__(self) -> None:
+        super().__init__(detail="Phone number doesn't match our records")
+
+
+class PasswordResetTokenExpiredException(BadRequestException):
+    """Exception when password reset token has expired."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            detail="Password reset link has expired. Please request a new one."
+        )
+
+
+class PasswordResetTokenInvalidException(BadRequestException):
+    """Exception when password reset token is invalid or already used."""
+
+    def __init__(self) -> None:
+        super().__init__(detail="Invalid or expired password reset link")

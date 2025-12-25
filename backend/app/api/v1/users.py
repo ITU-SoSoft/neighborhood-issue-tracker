@@ -1,18 +1,21 @@
 """User management API routes."""
 
+import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DatabaseSession, ManagerUser
+from app.config import settings
 from app.core.exceptions import (
     BadRequestException,
     ForbiddenException,
     UserNotFoundException,
 )
 from app.core.security import hash_password, verify_password
-from app.models.user import User, UserRole
+from app.models.user import EmailVerificationToken, User, UserRole
 from app.schemas.user import (
     UserCreateRequest,
     UserListResponse,
@@ -20,6 +23,7 @@ from app.schemas.user import (
     UserRoleUpdate,
     UserUpdate,
 )
+from app.services.email import email_service
 
 router = APIRouter()
 
@@ -34,14 +38,21 @@ async def create_user(
     current_user: ManagerUser,
     db: DatabaseSession,
 ) -> UserResponse:
-    """Create a new user (manager only).
+    """Create a new staff user (manager only).
 
-    Used to create support staff and managers.
+    Creates a support staff or manager user. An invite email will be sent
+    to the user's email address with a link to set their password.
+
+    The user must verify their phone number when setting their password
+    as a security measure.
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    logger.info(f"Creating user: {request.email}, phone: {request.phone_number}, role: {request.role}")
-    
+    logger.info(
+        f"Creating user: {request.email}, phone: {request.phone_number}, role: {request.role}"
+    )
+
     # Check if email already exists
     existing_email = await db.execute(
         select(User).where(User.email == request.email, User.deleted_at.is_(None))
@@ -58,24 +69,44 @@ async def create_user(
     if existing_phone.scalar_one_or_none():
         raise BadRequestException(detail="Phone number is already registered")
 
-    # Hash password
-    hashed_password = hash_password(request.password)
-
-    # Create user
+    # Create user without password (will be set via invite flow)
     new_user = User(
         name=request.name,
         email=request.email,
         phone_number=request.phone_number,
-        password_hash=hashed_password,
+        password_hash="",  # Will be set when user accepts invite
         role=request.role,
         team_id=request.team_id,
-        is_verified=True,  # Staff users are pre-verified
+        is_verified=False,  # Will be verified when user sets password
         is_active=True,
     )
 
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
+
+    # Generate invite token
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        hours=settings.email_verification_expire_hours
+    )
+
+    invite_token = EmailVerificationToken(
+        user_id=new_user.id,
+        token=token,
+        token_type="invite",
+        expires_at=expires_at,
+    )
+    db.add(invite_token)
+    await db.commit()
+
+    # Send invite email
+    await email_service.send_staff_invite_email(
+        to_email=new_user.email,
+        user_name=new_user.name,
+        role=new_user.role.value,
+        token=token,
+    )
 
     return UserResponse.model_validate(new_user)
 
@@ -98,9 +129,12 @@ async def list_users(
     Supports filtering by role and team.
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    logger.info(f"Listing users: role={role}, team_id={team_id}, page={page}, page_size={page_size}")
-    
+    logger.info(
+        f"Listing users: role={role}, team_id={team_id}, page={page}, page_size={page_size}"
+    )
+
     # Build query
     query = select(User).where(User.deleted_at.is_(None))
 
@@ -110,6 +144,7 @@ async def list_users(
             query = query.where(User.role == role_enum)
         except ValueError:
             from app.core.exceptions import BadRequestException
+
             raise BadRequestException(detail=f"Invalid role: {role}")
     if team_id:
         query = query.where(User.team_id == team_id)
