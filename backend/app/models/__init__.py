@@ -11,7 +11,7 @@ from app.models.photo import Photo, PhotoType
 from app.models.team import Team, TeamCategory, TeamDistrict
 from app.models.notification import Notification, NotificationType
 from app.models.ticket import Location, StatusLog, Ticket, TicketFollower, TicketStatus
-from app.models.user import OTPCode, User, UserRole
+from app.models.user import EmailVerificationToken, OTPCode, User, UserRole
 
 __all__ = [
     # Base mixins
@@ -22,6 +22,7 @@ __all__ = [
     "User",
     "UserRole",
     "OTPCode",
+    "EmailVerificationToken",
     "SavedAddress",
     "Team",
     "TeamCategory",
