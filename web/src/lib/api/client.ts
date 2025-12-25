@@ -84,27 +84,59 @@ const API_BASE_URL =
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 
-// Token management
+// In-memory fallback for when localStorage is unavailable
+// (e.g., cross-origin iframes, privacy mode, storage disabled)
+let memoryTokens: { access: string | null; refresh: string | null } = {
+  access: null,
+  refresh: null,
+};
+
+// Token management with try/catch for DOMException handling
+// Browsers may throw "The operation is insecure" when:
+// - Running in cross-origin iframes
+// - Privacy/incognito mode with strict settings
+// - User has disabled cookies/storage
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch {
+    return memoryTokens.access;
+  }
 }
 
 export function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return memoryTokens.refresh;
+  }
 }
 
 export function setTokens(accessToken: string, refreshToken: string): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  // Always update memory fallback
+  memoryTokens = { access: accessToken, refresh: refreshToken };
+  try {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  } catch {
+    // Storage unavailable - tokens stored in memory only
+    // Session won't persist across page reloads
+  }
 }
 
 export function clearTokens(): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  // Always clear memory fallback
+  memoryTokens = { access: null, refresh: null };
+  try {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    // Ignore - memory already cleared
+  }
 }
 
 // API Error handling
