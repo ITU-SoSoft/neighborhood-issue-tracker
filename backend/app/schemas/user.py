@@ -125,6 +125,7 @@ class UserResponse(UserBase, TimestampSchema):
     is_verified: bool
     is_active: bool
     team_id: UUID | None = None
+    team_name: str | None = None
 
 
 class UserListResponse(BaseSchema):

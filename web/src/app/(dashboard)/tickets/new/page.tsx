@@ -19,10 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/lib/auth/context";
 import { useCategories } from "@/lib/queries/categories";
 import { useCreateTicket, useUploadTicketPhoto } from "@/lib/queries/tickets";
 import { useSavedAddresses } from "@/lib/queries/addresses";
-import { PhotoType, LocationCreate, SavedAddress, NearbyTicket } from "@/lib/api/types";
+import { PhotoType, LocationCreate, SavedAddress, NearbyTicket, UserRole } from "@/lib/api/types";
 import { getNearbyTickets } from "@/lib/api/client";
 import {
   fadeInUp,
@@ -62,9 +63,27 @@ interface PhotoPreview {
   preview: string;
 }
 
+// İstanbul sınırları (yaklaşık) - Silivri dahil, Kocaeli hariç
+const ISTANBUL_BOUNDS = {
+  minLat: 40.80,
+  maxLat: 41.40,
+  minLng: 28.00,
+  maxLng: 29.45, // Gebze/Şile sınırı - Kocaeli'yi hariç tutar
+};
+
+function isWithinIstanbulBounds(latitude: number, longitude: number): boolean {
+  return (
+    latitude >= ISTANBUL_BOUNDS.minLat &&
+    latitude <= ISTANBUL_BOUNDS.maxLat &&
+    longitude >= ISTANBUL_BOUNDS.minLng &&
+    longitude <= ISTANBUL_BOUNDS.maxLng
+  );
+}
+
 export default function CreateTicketPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
 
   // TanStack Query hooks
   const { data: categoriesData, isLoading: isLoadingCategories } = useCategories();
@@ -95,10 +114,12 @@ export default function CreateTicketPage() {
 
   // Validation error state
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Handle saved address selection
   const handleSavedAddressSelect = (addressId: string) => {
     setSelectedAddressId(addressId);
+    setLocationError(null);
     if (addressId === "map") {
       setLocationMode("map");
       setLocation(null);
@@ -106,6 +127,13 @@ export default function CreateTicketPage() {
       setLocationMode("saved");
       const address = savedAddresses.find((a) => a.id === addressId);
       if (address) {
+        // Citizen için İstanbul sınır kontrolü
+        const isCitizen = user?.role === UserRole.CITIZEN;
+        if (isCitizen && !isWithinIstanbulBounds(address.latitude, address.longitude)) {
+          setLocationError("You can only create tickets within Istanbul city limits.");
+          setLocation(null);
+          return;
+        }
         setLocation({
           latitude: address.latitude,
           longitude: address.longitude,
@@ -114,6 +142,24 @@ export default function CreateTicketPage() {
         });
       }
     }
+  };
+
+  // Handle location selection from map
+  const handleLocationSelect = (selectedLocation: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    district_id?: string;
+  }) => {
+    setLocationError(null);
+    // Citizen için İstanbul sınır kontrolü
+    const isCitizen = user?.role === UserRole.CITIZEN;
+    if (isCitizen && !isWithinIstanbulBounds(selectedLocation.latitude, selectedLocation.longitude)) {
+      setLocationError("You can only create tickets within Istanbul city limits.");
+      setLocation(null);
+      return;
+    }
+    setLocation(selectedLocation);
   };
 
   // Clean up photo previews on unmount
@@ -188,6 +234,7 @@ export default function CreateTicketPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
+    setLocationError(null);
 
     // Validation
     if (!title.trim()) {
@@ -204,6 +251,14 @@ export default function CreateTicketPage() {
     }
     if (!location) {
       setValidationError("Please select a location on the map");
+      return;
+    }
+
+    // Citizen için İstanbul sınır kontrolü
+    const isCitizen = user?.role === UserRole.CITIZEN;
+    if (isCitizen && !isWithinIstanbulBounds(location.latitude, location.longitude)) {
+      setLocationError("You can only create tickets within Istanbul city limits.");
+      setValidationError("Location must be within Istanbul city limits.");
       return;
     }
 
@@ -358,7 +413,7 @@ export default function CreateTicketPage() {
             
             {/* Saved addresses quick select */}
             {savedAddresses.length > 0 && (
-              <div className="space-y-2 relative z-[1100]">
+              <div className="space-y-2 relative z-10">
                 <Label className="text-sm text-muted-foreground flex items-center gap-2">
                   <Home className="h-4 w-4" />
                   Use a saved address
@@ -367,7 +422,7 @@ export default function CreateTicketPage() {
                   <SelectTrigger className="relative z-10 bg-background">
                     <SelectValue placeholder="Select a saved address or pick on map" />
                   </SelectTrigger>
-                  <SelectContent className="z-[1200] shadow-xl">
+                  <SelectContent className="z-20 shadow-xl">
                     <SelectItem value="map">
                       <div className="flex items-center gap-2">
                         <Navigation className="h-4 w-4" />
@@ -387,6 +442,12 @@ export default function CreateTicketPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {locationError && locationMode === "saved" && (
+                  <div className="mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{locationError}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -399,7 +460,13 @@ export default function CreateTicketPage() {
                     Or pick a location on the map
                   </Label>
                 )}
-                <LocationPicker onLocationSelect={setLocation} />
+                <LocationPicker onLocationSelect={handleLocationSelect} />
+                {locationError && locationMode === "map" && (
+                  <div className="mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{locationError}</span>
+                  </div>
+                )}
               </div>
             )}
 

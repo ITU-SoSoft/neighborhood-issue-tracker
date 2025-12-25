@@ -269,11 +269,21 @@ function TicketListCard({
 // ============================================================================
 
 function CitizenDashboard() {
-  const { data, isLoading, isError, refetch } = useMyTickets({ page_size: 5 });
+  // Get all tickets for stats (use max page size to get accurate counts)
+  // Backend limit is 100, so we use that
+  const { data, isLoading, isError, refetch } = useMyTickets({ page_size: 100 });
   const tickets = data?.items ?? [];
-
+  
+  // Use API total for accurate total count - if not available, use items length
+  // But note: items length might be limited by page_size, so prefer API total
+  const totalTickets = data?.total !== undefined && data.total > 0 
+    ? data.total 
+    : tickets.length > 0 
+      ? tickets.length 
+      : 0;
+  
   const stats = {
-    total: tickets.length,
+    total: totalTickets,
     inProgress: tickets.filter((t) => t.status === TicketStatus.IN_PROGRESS)
       .length,
     resolved: tickets.filter(
@@ -282,6 +292,9 @@ function CitizenDashboard() {
     ).length,
     pending: tickets.filter((t) => t.status === TicketStatus.NEW).length,
   };
+
+  // Show only first 5 tickets for display
+  const recentTickets = tickets.slice(0, 5);
 
   return (
     <motion.div
@@ -349,7 +362,7 @@ function CitizenDashboard() {
       <TicketListCard
         title="Recent Reports"
         viewAllHref="/tickets"
-        tickets={tickets}
+        tickets={recentTickets}
         isLoading={isLoading}
         isError={isError}
         refetch={refetch}
@@ -365,6 +378,7 @@ function CitizenDashboard() {
 
 function SupportDashboard() {
   const [days, setDays] = useState(30);
+  const { user } = useAuth();
 
   const ticketsQuery = useAssignedTickets({ page_size: 5 });
   const escalationsQuery = useEscalations({
@@ -376,6 +390,7 @@ function SupportDashboard() {
   const assignedTickets = ticketsQuery.data?.items ?? [];
   const escalations = escalationsQuery.data?.items ?? [];
   const kpis = kpisQuery.data;
+  const teamName = user?.team_name;
 
   const isLoading =
     ticketsQuery.isLoading || escalationsQuery.isLoading || kpisQuery.isLoading;
@@ -394,7 +409,14 @@ function SupportDashboard() {
               Support Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Manage assigned tickets and escalations
+              {teamName ? (
+                <>
+                  Manage assigned tickets and escalations • Team:{" "}
+                  <span className="font-medium text-foreground">{teamName}</span>
+                </>
+              ) : (
+                "Manage assigned tickets and escalations"
+              )}
             </p>
           </div>
 
@@ -1020,19 +1042,13 @@ function ManagerDashboard() {
               <Link href="/teams">
                 <Button variant="outline">
                   <Users className="mr-2 h-4 w-4" />
-                  Manage Teams
+                  Manage Teams and Categories
                 </Button>
               </Link>
               <Link href="/escalations">
                 <Button variant="outline">
                   <AlertTriangle className="mr-2 h-4 w-4" />
                   Review Escalations
-                </Button>
-              </Link>
-              <Link href="/categories">
-                <Button variant="outline">
-                  <TicketIcon className="mr-2 h-4 w-4" />
-                  Manage Categories
                 </Button>
               </Link>
             </div>

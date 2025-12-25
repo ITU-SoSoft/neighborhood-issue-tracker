@@ -397,6 +397,33 @@ async def refresh_token(
 )
 async def get_current_user_info(
     current_user: CurrentUser,
+    db: DatabaseSession,
 ) -> UserResponse:
     """Get the current authenticated user's profile."""
-    return UserResponse.model_validate(current_user)
+    # Reload user with team relationship to get team name
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+    from app.models.user import User
+    
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.team))
+        .where(User.id == current_user.id)
+    )
+    user_with_team = result.scalar_one()
+    
+    # Create response with team_name
+    user_dict = {
+        "id": user_with_team.id,
+        "phone_number": user_with_team.phone_number,
+        "name": user_with_team.name,
+        "email": user_with_team.email,
+        "role": user_with_team.role,
+        "is_verified": user_with_team.is_verified,
+        "is_active": user_with_team.is_active,
+        "team_id": user_with_team.team_id,
+        "team_name": user_with_team.team.name if user_with_team.team else None,
+        "created_at": user_with_team.created_at,
+        "updated_at": user_with_team.updated_at,
+    }
+    return UserResponse.model_validate(user_dict)

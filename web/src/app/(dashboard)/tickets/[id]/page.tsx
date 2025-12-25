@@ -41,11 +41,12 @@ import {
   useSubmitFeedback,
   useUpdateFeedback,
 } from "@/lib/queries/tickets";
-import { useCreateEscalation } from "@/lib/queries/escalations";
+import { useCreateEscalation, useEscalations } from "@/lib/queries/escalations";
 import {
   TicketStatus,
   UserRole,
   Comment as TicketComment,
+  EscalationStatus,
 } from "@/lib/api/types";
 import {
   formatRelativeTime,
@@ -284,20 +285,51 @@ export default function TicketDetailPage({
       setEscalationReason("");
       toast.success("Escalation request submitted");
     } catch (err) {
-      toast.error("Failed to submit escalation");
+      console.error("Escalation error:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to submit escalation";
+      toast.error(errorMessage);
     }
   };
 
   // Permission checks
+  // Support user sadece kendi takımına assign olan ticketlar için status değiştirebilir
+  const isSupportUser = user?.role === UserRole.SUPPORT;
+  const isManagerUser = user?.role === UserRole.MANAGER;
+  const isTicketFromUsersTeam = ticket?.team_id && ticket.team_id === user?.team_id;
+  
   const canUpdateStatus =
-    user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
+    isManagerUser || (isSupportUser && isTicketFromUsersTeam);
+  
   const canGiveFeedback =
     ticket?.status === TicketStatus.RESOLVED &&
     !ticket.has_feedback &&
     ticket.reporter_id === user?.id;
+  
+  // Support user sadece kendi takımına assign olan ticketlar için escalation request yapabilir
   const canEscalate =
-    (user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) &&
+    isSupportUser &&
+    isTicketFromUsersTeam &&
     ticket?.can_escalate;
+
+  // Manager için escalation request kontrolü
+  const isManager = user?.role === UserRole.MANAGER;
+  const hasEscalationForManager = isManager && ticket?.has_escalation;
+
+  // Ticket için escalation request'leri al (sadece manager için ve escalation varsa)
+  const { data: ticketEscalations } = useEscalations(
+    isManager && ticket?.has_escalation && ticket?.id
+      ? { 
+          ticket_id: ticket.id,
+          page_size: 10 
+        }
+      : undefined
+  );
+
+  // Manager için pending escalation bul
+  const pendingEscalation = isManager && ticketEscalations?.items?.find(
+    (e) => e.status === EscalationStatus.PENDING
+  );
 
   const canFollow = user && user.role === UserRole.CITIZEN;
 
@@ -769,6 +801,7 @@ export default function TicketDetailPage({
                   Actions
                 </h2>
                 <div className="space-y-3">
+                  {/* Support için Request Escalation butonu */}
                   {canEscalate && (
                     <Button
                       variant="outline"
@@ -779,7 +812,35 @@ export default function TicketDetailPage({
                       Request Escalation
                     </Button>
                   )}
-                  {!ticket.can_escalate && ticket.has_escalation && (
+                  
+                  {/* Manager için escalation değerlendirme linki - pending varsa */}
+                  {isManager && hasEscalationForManager && pendingEscalation && (
+                    <Link href={`/escalations/${pendingEscalation.id}`}>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-amber-600 hover:bg-amber-50"
+                      >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Review Escalation Request
+                      </Button>
+                    </Link>
+                  )}
+                  
+                  {/* Manager için escalation varsa ama pending değilse */}
+                  {isManager && hasEscalationForManager && !pendingEscalation && ticketEscalations?.items && ticketEscalations.items.length > 0 && (
+                    <Link href={`/escalations/${ticketEscalations.items[0].id}`}>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-amber-600 hover:bg-amber-50"
+                      >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        View Escalation
+                      </Button>
+                    </Link>
+                  )}
+                  
+                  {/* Support için escalation durumu */}
+                  {!isManager && !ticket.can_escalate && ticket.has_escalation && (
                     <p className="text-sm text-amber-600 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
                       Can't escalate
