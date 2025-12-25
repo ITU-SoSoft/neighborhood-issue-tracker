@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home,
   Ticket,
@@ -84,6 +84,7 @@ interface SidebarProps {
 
 export function Sidebar({ isStaff = false }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, logout } = useAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -128,10 +129,29 @@ export function Sidebar({ isStaff = false }: SidebarProps) {
         {filteredNavItems.map((item) => {
           // Handle query params for active state
           const itemPath = item.href.split("?")[0];
-          const isActive =
-            pathname === itemPath ||
-            (pathname.startsWith(`${itemPath}/`) && itemPath !== "/tickets") ||
-            (item.href.includes("?") && pathname === itemPath);
+          const itemQuery = item.href.includes("?") 
+            ? new URLSearchParams(item.href.split("?")[1])
+            : null;
+          
+          // Check if pathname matches
+          const pathMatches = pathname === itemPath || 
+            (pathname.startsWith(`${itemPath}/`) && itemPath !== "/tickets");
+          
+          // Check if query params match (if item has query params)
+          let queryMatches = true;
+          if (itemQuery) {
+            // Item has query params, check if current URL has matching params
+            const currentView = searchParams.get("view");
+            const itemView = itemQuery.get("view");
+            queryMatches = currentView === itemView;
+          } else {
+            // Item has no query params, check if current URL also has no view param
+            // or if it's "all" view (default)
+            const currentView = searchParams.get("view");
+            queryMatches = !currentView || currentView === "all";
+          }
+          
+          const isActive = pathMatches && queryMatches;
           return (
             <Link
               key={item.href}
