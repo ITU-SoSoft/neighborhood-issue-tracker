@@ -269,11 +269,21 @@ function TicketListCard({
 // ============================================================================
 
 function CitizenDashboard() {
-  const { data, isLoading, isError, refetch } = useMyTickets({ page_size: 5 });
+  // Get all tickets for stats (use max page size to get accurate counts)
+  // Backend limit is 100, so we use that
+  const { data, isLoading, isError, refetch } = useMyTickets({ page_size: 100 });
   const tickets = data?.items ?? [];
-
+  
+  // Use API total for accurate total count - if not available, use items length
+  // But note: items length might be limited by page_size, so prefer API total
+  const totalTickets = data?.total !== undefined && data.total > 0 
+    ? data.total 
+    : tickets.length > 0 
+      ? tickets.length 
+      : 0;
+  
   const stats = {
-    total: tickets.length,
+    total: totalTickets,
     inProgress: tickets.filter((t) => t.status === TicketStatus.IN_PROGRESS)
       .length,
     resolved: tickets.filter(
@@ -282,6 +292,9 @@ function CitizenDashboard() {
     ).length,
     pending: tickets.filter((t) => t.status === TicketStatus.NEW).length,
   };
+
+  // Show only first 5 tickets for display
+  const recentTickets = tickets.slice(0, 5);
 
   return (
     <motion.div
@@ -349,7 +362,7 @@ function CitizenDashboard() {
       <TicketListCard
         title="Recent Reports"
         viewAllHref="/tickets"
-        tickets={tickets}
+        tickets={recentTickets}
         isLoading={isLoading}
         isError={isError}
         refetch={refetch}
