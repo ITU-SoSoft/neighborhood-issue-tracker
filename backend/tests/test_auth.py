@@ -204,7 +204,7 @@ class TestRegister:
     """Tests for POST /api/v1/auth/register."""
 
     async def test_register_new_user(self, client: AsyncClient):
-        """Should register a new user successfully."""
+        """Should register a new user successfully and return verification message."""
         response = await client.post(
             "/api/v1/auth/register",
             json={
@@ -216,9 +216,12 @@ class TestRegister:
         )
         assert response.status_code == 201
         data = response.json()
-        assert "access_token" in data
-        assert "refresh_token" in data
-        assert "user_id" in data
+        # New behavior: returns message instead of tokens (email verification required)
+        assert "message" in data
+        assert (
+            "verification" in data["message"].lower()
+            or "email" in data["message"].lower()
+        )
 
     async def test_register_duplicate_email(self, client: AsyncClient, db_session):
         """Should reject registration with duplicate email."""

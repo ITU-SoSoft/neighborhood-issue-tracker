@@ -171,10 +171,7 @@ class RegisterRequest(PhoneNumberMixin, BaseSchema):
 class RegisterResponse(BaseSchema):
     """Response after successful registration."""
 
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    user_id: str
+    message: str
 
 
 class StaffLoginRequest(BaseSchema):
@@ -216,3 +213,131 @@ class TokenResponse(BaseSchema):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class VerifyEmailResponse(BaseSchema):
+    """Response after successful email verification."""
+
+    message: str
+
+
+class ResendVerificationRequest(BaseSchema):
+    """Request to resend verification email."""
+
+    email: str = Field(
+        ...,
+        description="Email address",
+        examples=["ahmet@example.com"],
+    )
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """Validate and normalize email address."""
+        from email_validator import EmailNotValidError, validate_email
+
+        try:
+            validated = validate_email(v, check_deliverability=False)
+            return validated.normalized
+        except EmailNotValidError as e:
+            raise ValueError(str(e))
+
+
+class ResendVerificationResponse(BaseSchema):
+    """Response after resending verification email."""
+
+    message: str
+
+
+class SetPasswordRequest(PhoneNumberMixin, BaseSchema):
+    """Request to set password for staff invite flow."""
+
+    token: str = Field(
+        ...,
+        description="The invite token from the email link",
+    )
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="New password (min 8 chars, must include letter, number, and special character)",
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """Validate password meets complexity requirements."""
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("Password must contain at least one letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one number")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Password must contain at least one special character")
+        return v
+
+
+class SetPasswordResponse(BaseSchema):
+    """Response after successfully setting password."""
+
+    message: str
+
+
+class ForgotPasswordRequest(BaseSchema):
+    """Request to initiate password reset."""
+
+    email: str = Field(
+        ...,
+        description="Email address",
+        examples=["ahmet@example.com"],
+    )
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """Validate and normalize email address."""
+        from email_validator import EmailNotValidError, validate_email
+
+        try:
+            validated = validate_email(v, check_deliverability=False)
+            return validated.normalized
+        except EmailNotValidError as e:
+            raise ValueError(str(e))
+
+
+class ForgotPasswordResponse(BaseSchema):
+    """Response after password reset request."""
+
+    message: str
+
+
+class ResetPasswordRequest(BaseSchema):
+    """Request to reset password with token."""
+
+    token: str = Field(
+        ...,
+        description="The password reset token from the email link",
+    )
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="New password (min 8 chars, must include letter, number, and special character)",
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """Validate password meets complexity requirements."""
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("Password must contain at least one letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one number")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Password must contain at least one special character")
+        return v
+
+
+class ResetPasswordResponse(BaseSchema):
+    """Response after successful password reset."""
+
+    message: str

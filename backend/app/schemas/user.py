@@ -29,7 +29,11 @@ class UserCreate(BaseSchema):
 
 
 class UserCreateRequest(BaseSchema):
-    """Schema for creating a new user (manager only)."""
+    """Schema for creating a new staff user (manager only).
+
+    Note: Password is not included. Staff members will receive an invite
+    email and set their own password.
+    """
 
     name: str = Field(
         ...,
@@ -40,12 +44,6 @@ class UserCreateRequest(BaseSchema):
     email: str = Field(
         ...,
         description="Email address",
-    )
-    password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="User password (min 8 chars)",
     )
     phone_number: str = Field(
         ...,
@@ -81,14 +79,6 @@ class UserCreateRequest(BaseSchema):
             return validated.normalized
         except EmailNotValidError as e:
             raise ValueError(str(e))
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        """Validate password meets complexity requirements."""
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
 
 
 class UserUpdate(BaseSchema):
