@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.config import settings
-from app.database import create_tables, engine
+from app.database import engine
 from app.scripts.seed import seed_categories, seed_users
 from app.scripts.seed_teams import seed_teams
 
@@ -25,11 +25,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Sets up resources on startup and cleans up on shutdown.
     """
-    # Startup: Try to create tables and seed data if in development mode
+    # Startup: Seed data if in development mode
+    # NOTE: Tables should be created via Alembic migrations first
+    # Run: docker exec sosoft-backend uv run alembic upgrade head
     if settings.debug:
         try:
-            await create_tables()
-            logger.info("Database tables created/verified")
             # Seed default categories
             await seed_categories()
             logger.info("Default categories seeded")
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await seed_teams()
             logger.info("Default teams seeded")
         except Exception as e:
-            logger.warning(f"Could not create tables (DB may not be available): {e}")
+            logger.warning(f"Could not seed data (DB may not be ready): {e}")
 
     yield
 
@@ -52,8 +52,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def add_cors_headers(
-    response: JSONResponse, request: Request | None = None
-) -> JSONResponse:
+    response: JSONResponse | Response, request: Request | None = None
+) -> JSONResponse | Response:
     """Add CORS headers to error responses."""
     # Get origin from request or use first allowed origin
     origin = "*"
@@ -163,6 +163,17 @@ async def root() -> dict[str, str]:
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(request: Request) -> Response:
+    """Handle CORS preflight requests explicitly.
+
+    This ensures OPTIONS requests are handled before any route validation
+    occurs, preventing 400 errors on preflight requests.
+    """
+    response = Response(status_code=200)
+    return add_cors_headers(response, request)
 
 
 if __name__ == "__main__":

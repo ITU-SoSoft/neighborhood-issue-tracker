@@ -44,6 +44,13 @@ class TicketService:
         Raises:
             CategoryNotFoundException: If the category doesn't exist or is inactive.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Creating ticket: {request.title}")
+        logger.info(f"  Category ID: {request.category_id}")
+        logger.info(f"  Location - district_id: {request.location.district_id}")
+        logger.info(f"  Location - coordinates: ({request.location.latitude}, {request.location.longitude})")
+        
         # Verify category exists
         result = await db.execute(
             select(Category).where(
@@ -58,25 +65,26 @@ class TicketService:
         # Handle location creation based on input type
         district_name = None
         city = request.location.city
-        
+
+        # Always prefer user-provided GPS coordinates if available
+        if request.location.latitude is not None and request.location.longitude is not None:
+            latitude = request.location.latitude
+            longitude = request.location.longitude
+        else:
+            # Fallback to Istanbul center only if no GPS coordinates provided
+            latitude = 41.0082  # Istanbul center (fallback)
+            longitude = 28.9784
+
+        # If district_id provided, get the district name for display
         if request.location.district_id:
-            # Get district details from database
             district_result = await db.execute(
                 select(District).where(District.id == request.location.district_id)
             )
             district_obj = district_result.scalar_one_or_none()
-            if not district_obj:
-                raise NotFoundException(f"District with id {request.location.district_id} not found")
-            
-            district_name = district_obj.name
-            city = district_obj.city
-            # Use default coordinates for district center (approximate)
-            latitude = 41.0082  # Istanbul center
-            longitude = 28.9784
-        else:
-            # Use provided GPS coordinates
-            latitude = request.location.latitude
-            longitude = request.location.longitude
+            if district_obj:
+                district_name = district_obj.name
+                if not city:
+                    city = district_obj.city
             
         # Create location with PostGIS point
         location = Location(
@@ -148,11 +156,17 @@ class TicketService:
         )
         ticket = result.scalar_one()
 
-        # Send notification
-        from app.services.notification_service import notify_ticket_created
+        # Send notifications
+        from app.services.notification_service import (
+            notify_ticket_created,
+            notify_new_ticket_for_team,
+        )
 
         try:
             await notify_ticket_created(db, ticket)
+            # Notify team members if ticket was assigned
+            if ticket.team_id:
+                await notify_new_ticket_for_team(db, ticket)
         except Exception:
             # Don't fail ticket creation if notification fails
             pass
@@ -258,7 +272,19 @@ class TicketService:
 
         Raises:
             InvalidStatusTransitionException: If the transition is not allowed.
+            ForbiddenException: If support user tries to update ticket from another team.
         """
+        # Support users can only update tickets from their own team
+        if current_user.role == UserRole.SUPPORT:
+            if ticket.team_id is None:
+                raise ForbiddenException(
+                    detail="Cannot update status of unassigned tickets"
+                )
+            if ticket.team_id != current_user.team_id:
+                raise ForbiddenException(
+                    detail="You can only update status of tickets assigned to your team"
+                )
+        
         # Validate transition
         allowed = VALID_TRANSITIONS.get(ticket.status, [])
         if new_status not in allowed:
@@ -331,6 +357,15 @@ class TicketService:
 
         await db.commit()
         await db.refresh(ticket)
+
+        # Send notification to team members
+        from app.services.notification_service import notify_ticket_assigned
+        
+        try:
+            await notify_ticket_assigned(db, ticket)
+        except Exception:
+            # Don't fail assignment if notification fails
+            pass
 
         return ticket
 

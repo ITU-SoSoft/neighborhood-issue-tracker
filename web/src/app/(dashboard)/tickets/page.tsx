@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,7 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TicketListSkeleton } from "@/components/shared/skeletons";
-import { EmptyTickets, EmptySearchResults } from "@/components/shared/empty-state";
+import {
+  EmptyTickets,
+  EmptySearchResults,
+} from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import {
   useTickets,
@@ -26,12 +29,9 @@ import {
   useFollowedTickets,
   useAllUserTickets,
   useCategories,
+  useTeams,
 } from "@/lib/queries";
-import {
-  Ticket,
-  TicketStatus,
-  UserRole,
-} from "@/lib/api/types";
+import { Ticket, TicketStatus, UserRole } from "@/lib/api/types";
 import {
   formatRelativeTime,
   getStatusVariant,
@@ -55,6 +55,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Check,
+  EyeOff,
 } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -79,12 +81,19 @@ function TicketCard({ ticket }: TicketCardProps) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-start gap-3">
-                <h3 className="font-semibold text-foreground line-clamp-1">{ticket.title}</h3>
-                <Badge variant={getStatusVariant(ticket.status)} className="shrink-0">
+                <h3 className="font-semibold text-foreground line-clamp-1">
+                  {ticket.title}
+                </h3>
+                <Badge
+                  variant={getStatusVariant(ticket.status)}
+                  className="shrink-0"
+                >
                   {getStatusLabel(ticket.status)}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-2">{ticket.description}</p>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {ticket.description}
+              </p>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" />
@@ -130,145 +139,238 @@ export default function TicketsPage() {
   // Filter state
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "">("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [viewFilter, setViewFilter] = useState<"all" | "my" | "assigned" | "followed">("all");
+  const [teamFilter, setTeamFilter] = useState<string>("");
+  const [viewFilter, setViewFilter] = useState<
+    "all" | "my" | "assigned" | "followed"
+  >("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [hideClosed, setHideClosed] = useState(false);
 
-  // Initialize filters from URL params
-  useEffect(() => {
-    const status = searchParams.get("status") as TicketStatus | null;
-    const category = searchParams.get("category");
-    const view = searchParams.get("view") as "all" | "my" | "assigned" | "followed" | null;
-    const page = searchParams.get("page");
-
-    if (status) setStatusFilter(status);
-    if (category) setCategoryFilter(category);
-    if (view) setViewFilter(view);
-    if (page) setCurrentPage(parseInt(page, 10));
-  }, [searchParams]);
+  // Track if we're updating from URL to prevent loops
+  const isUpdatingFromUrl = useRef(false);
+  const previousSearchParams = useRef<string>("");
 
   // Queries
   const { data: categoriesData } = useCategories();
   const categories = categoriesData?.items ?? [];
+  const { data: teamsData } = useTeams();
+  const teams = teamsData?.items ?? [];
 
   // Check if user is support/manager (can see all tickets)
-  const isStaff = user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
+  const isStaff =
+    user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
 
   // Select the right query based on view filter
   // For "all" view: staff users see all tickets, citizens see own + followed tickets
-  const allTicketsQuery = useTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "all" && isStaff });
+  const allTicketsQuery = useTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      team_id: teamFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "all" && isStaff },
+  );
 
-  const allUserTicketsQuery = useAllUserTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "all" && !isStaff });
+  const allUserTicketsQuery = useAllUserTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "all" && !isStaff },
+  );
 
-  const myTicketsQuery = useMyTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "my" });
+  const myTicketsQuery = useMyTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "my" },
+  );
 
-  const assignedTicketsQuery = useAssignedTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "assigned" && isStaff });
+  const assignedTicketsQuery = useAssignedTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "assigned" && isStaff },
+  );
 
-  const followedTicketsQuery = useFollowedTickets({
-    status_filter: statusFilter || undefined,
-    category_id: categoryFilter || undefined,
-    page: currentPage,
-    page_size: PAGE_SIZE,
-  }, { enabled: viewFilter === "followed" });
+  const followedTicketsQuery = useFollowedTickets(
+    {
+      status_filter: statusFilter || undefined,
+      category_id: categoryFilter || undefined,
+      page: currentPage,
+      page_size: PAGE_SIZE,
+    },
+    { enabled: viewFilter === "followed" },
+  );
 
   // Get the active query
-  const activeQuery = viewFilter === "my" 
-    ? myTicketsQuery 
-    : viewFilter === "assigned" 
-      ? assignedTicketsQuery 
-      : viewFilter === "followed"
-        ? followedTicketsQuery
-        : isStaff
-          ? allTicketsQuery
-          : allUserTicketsQuery;
+  const activeQuery =
+    viewFilter === "my"
+      ? myTicketsQuery
+      : viewFilter === "assigned"
+        ? assignedTicketsQuery
+        : viewFilter === "followed"
+          ? followedTicketsQuery
+          : isStaff
+            ? allTicketsQuery
+            : allUserTicketsQuery;
 
   const tickets = activeQuery.data?.items ?? [];
   const totalTickets = activeQuery.data?.total ?? 0;
   const isLoading = activeQuery.isLoading;
   const isError = activeQuery.isError;
 
-  // Update URL when filters change
-  const updateUrl = useCallback(() => {
+  // Initialize filters from URL params
+  useEffect(() => {
+    const currentParams = searchParams.toString();
+    
+    // Only update if URL actually changed (not from our own update)
+    if (currentParams === previousSearchParams.current) {
+      return;
+    }
+    
+    previousSearchParams.current = currentParams;
+    isUpdatingFromUrl.current = true;
+    
+    const status = searchParams.get("status") as TicketStatus | null;
+    const category = searchParams.get("category");
+    const team = searchParams.get("team");
+    const view = searchParams.get("view") as
+      | "all"
+      | "my"
+      | "assigned"
+      | "followed"
+      | null;
+    const page = searchParams.get("page");
+    const hideClosedParam = searchParams.get("hideClosed");
+
+    if (status) setStatusFilter(status);
+    else setStatusFilter("");
+    
+    if (category) setCategoryFilter(category);
+    else setCategoryFilter("");
+    
+    if (team) setTeamFilter(team);
+    else setTeamFilter("");
+    
+    // Set viewFilter - default to "all" if no view param
+    setViewFilter(view || "all");
+    
+    if (page) setCurrentPage(parseInt(page, 10));
+    else setCurrentPage(1);
+
+    // Set hideClosed from URL param
+    setHideClosed(hideClosedParam === "true");
+
+    // Reset flag after state updates
+    requestAnimationFrame(() => {
+      isUpdatingFromUrl.current = false;
+    });
+  }, [searchParams]);
+
+  // Update URL when filters change (but not when initializing from URL)
+  useEffect(() => {
+    // Don't update URL if we're currently initializing from URL
+    if (isUpdatingFromUrl.current) {
+      return;
+    }
+
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     if (categoryFilter) params.set("category", categoryFilter);
-    if (viewFilter !== "all") params.set("view", viewFilter);
+    if (teamFilter) params.set("team", teamFilter);
+    if (user?.role !== UserRole.MANAGER && viewFilter !== "all")
+      params.set("view", viewFilter);
     if (currentPage > 1) params.set("page", currentPage.toString());
+    if (hideClosed) params.set("hideClosed", "true");
 
-    const query = params.toString();
-    router.push(`/tickets${query ? `?${query}` : ""}`, { scroll: false });
-  }, [statusFilter, categoryFilter, viewFilter, currentPage, router]);
-
-  useEffect(() => {
-    updateUrl();
-  }, [updateUrl]);
+    const newQuery = params.toString();
+    const newUrl = `/tickets${newQuery ? `?${newQuery}` : ""}`;
+    
+    // Only update if URL is different from what we last set
+    if (newQuery !== previousSearchParams.current) {
+      previousSearchParams.current = newQuery;
+      router.push(newUrl, { scroll: false });
+    }
+  }, [statusFilter, categoryFilter, teamFilter, viewFilter, currentPage, hideClosed, user?.role, router]);
 
   const totalPages = Math.ceil(totalTickets / PAGE_SIZE);
 
   const clearFilters = () => {
     setStatusFilter("");
     setCategoryFilter("");
+    setTeamFilter("");
     setViewFilter("all");
+    setHideClosed(false);
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = statusFilter || categoryFilter || viewFilter !== "all";
+  const hasActiveFilters =
+    statusFilter ||
+    categoryFilter ||
+    (user?.role === UserRole.MANAGER && teamFilter) ||
+    (user?.role !== UserRole.MANAGER && viewFilter !== "all");
 
-  // Filter tickets by search query (client-side)
-  const filteredTickets = searchQuery
-    ? tickets.filter(
-        (t) =>
-          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.category_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : tickets;
+  // Filter tickets by search query and hide closed (client-side)
+  let filteredTickets = tickets;
+  
+  // Filter out closed tickets if hideClosed is enabled
+  if (hideClosed) {
+    filteredTickets = filteredTickets.filter(
+      (t) => t.status !== TicketStatus.CLOSED
+    );
+  }
+  
+  // Filter by search query
+  if (searchQuery) {
+    filteredTickets = filteredTickets.filter(
+      (t) =>
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.category_name?.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
       {/* Header */}
-      <motion.div 
+      <motion.div
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
         variants={fadeInUp}
       >
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Tickets</h1>
           <p className="text-muted-foreground">
-            {totalTickets} {totalTickets === 1 ? "ticket" : "tickets"} found
+            {hideClosed || searchQuery
+              ? `${filteredTickets.length} ${filteredTickets.length === 1 ? "ticket" : "tickets"} found`
+              : `${totalTickets} ${totalTickets === 1 ? "ticket" : "tickets"} found`}
           </p>
         </div>
-        <Link href="/tickets/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Report Issue
-          </Button>
-        </Link>
+        {user?.role !== UserRole.MANAGER && (
+          <Link href="/tickets/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Report Issue
+            </Button>
+          </Link>
+        )}
       </motion.div>
 
       {/* Search and Filters */}
@@ -290,17 +392,39 @@ export default function TicketsPage() {
                 <Button
                   variant="outline"
                   onClick={() => setShowFilters(!showFilters)}
-                  className={showFilters ? "bg-primary/10 border-primary/30" : ""}
+                  className={
+                    showFilters ? "bg-primary/10 border-primary/30" : ""
+                  }
                 >
                   <Filter className="mr-2 h-4 w-4" />
                   Filters
                   {hasActiveFilters && (
                     <>
                       <span className="sr-only">
-                        {[statusFilter, categoryFilter, viewFilter !== "all"].filter(Boolean).length} active filters
+                        {
+                          [
+                            statusFilter,
+                            categoryFilter,
+                            user?.role === UserRole.MANAGER && teamFilter,
+                            user?.role !== UserRole.MANAGER &&
+                              viewFilter !== "all",
+                          ].filter(Boolean).length
+                        }{" "}
+                        active filters
                       </span>
-                      <span aria-hidden="true" className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                        {[statusFilter, categoryFilter, viewFilter !== "all"].filter(Boolean).length}
+                      <span
+                        aria-hidden="true"
+                        className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground"
+                      >
+                        {
+                          [
+                            statusFilter,
+                            categoryFilter,
+                            user?.role === UserRole.MANAGER && teamFilter,
+                            user?.role !== UserRole.MANAGER &&
+                              viewFilter !== "all",
+                          ].filter(Boolean).length
+                        }
                       </span>
                     </>
                   )}
@@ -310,44 +434,66 @@ export default function TicketsPage() {
               {/* Filter options */}
               <AnimatePresence>
                 {showFilters && (
-                  <motion.div 
+                  <motion.div
                     className="flex flex-wrap gap-3 border-t border-border pt-4"
                     initial="hidden"
                     animate="visible"
                     exit="exit"
                     variants={accordionVariants}
                   >
-                    {/* View filter */}
-                    <div className="min-w-[140px]">
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">View</label>
-                      <Select
-                        value={viewFilter}
-                        onValueChange={(value: string) => {
-                          setViewFilter(value as "all" | "my" | "assigned" | "followed");
-                          setCurrentPage(1);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Tickets</SelectItem>
-                          <SelectItem value="my">My Reports</SelectItem>
-                          <SelectItem value="followed">Followed Tickets</SelectItem>
-                          {(user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) && (
-                            <SelectItem value="assigned">Assigned to Me</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* View filter - Hidden for Manager */}
+                    {user?.role !== UserRole.MANAGER && (
+                      <div className="min-w-[140px]">
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          View
+                        </label>
+                        <Select
+                          value={viewFilter}
+                          onValueChange={(value: string) => {
+                            setViewFilter(
+                              value as "all" | "my" | "assigned" | "followed",
+                            );
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {user?.role === UserRole.SUPPORT ? (
+                              <>
+                                <SelectItem value="all">All Tickets</SelectItem>
+                                <SelectItem value="assigned">
+                                  Assigned to Me
+                                </SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="all">All Tickets</SelectItem>
+                                <SelectItem value="my">My Reports</SelectItem>
+                                <SelectItem value="followed">
+                                  Followed Tickets
+                                </SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     {/* Status filter */}
                     <div className="min-w-[140px]">
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">Status</label>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Status
+                      </label>
                       <Select
                         value={statusFilter || "all-statuses"}
                         onValueChange={(value: string) => {
-                          setStatusFilter(value === "all-statuses" ? "" : value as TicketStatus);
+                          setStatusFilter(
+                            value === "all-statuses"
+                              ? ""
+                              : (value as TicketStatus),
+                          );
                           setCurrentPage(1);
                         }}
                       >
@@ -355,23 +501,37 @@ export default function TicketsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all-statuses">All Statuses</SelectItem>
+                          <SelectItem value="all-statuses">
+                            All Statuses
+                          </SelectItem>
                           <SelectItem value={TicketStatus.NEW}>New</SelectItem>
-                          <SelectItem value={TicketStatus.IN_PROGRESS}>In Progress</SelectItem>
-                          <SelectItem value={TicketStatus.RESOLVED}>Resolved</SelectItem>
-                          <SelectItem value={TicketStatus.CLOSED}>Closed</SelectItem>
-                          <SelectItem value={TicketStatus.ESCALATED}>Escalated</SelectItem>
+                          <SelectItem value={TicketStatus.IN_PROGRESS}>
+                            In Progress
+                          </SelectItem>
+                          <SelectItem value={TicketStatus.RESOLVED}>
+                            Resolved
+                          </SelectItem>
+                          <SelectItem value={TicketStatus.CLOSED}>
+                            Closed
+                          </SelectItem>
+                          <SelectItem value={TicketStatus.ESCALATED}>
+                            Escalated
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     {/* Category filter */}
                     <div className="min-w-[160px]">
-                      <label className="mb-1 block text-xs font-medium text-muted-foreground">Category</label>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                        Category
+                      </label>
                       <Select
                         value={categoryFilter || "all-categories"}
                         onValueChange={(value: string) => {
-                          setCategoryFilter(value === "all-categories" ? "" : value);
+                          setCategoryFilter(
+                            value === "all-categories" ? "" : value,
+                          );
                           setCurrentPage(1);
                         }}
                       >
@@ -379,7 +539,9 @@ export default function TicketsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all-categories">All Categories</SelectItem>
+                          <SelectItem value="all-categories">
+                            All Categories
+                          </SelectItem>
                           {categories.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
                               {category.name}
@@ -389,10 +551,68 @@ export default function TicketsPage() {
                       </Select>
                     </div>
 
+                    {/* Team filter - only for manager */}
+                    {user?.role === UserRole.MANAGER && (
+                      <div className="min-w-[160px]">
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Team
+                        </label>
+                        <Select
+                          value={teamFilter || "all-teams"}
+                          onValueChange={(value: string) => {
+                            setTeamFilter(value === "all-teams" ? "" : value);
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all-teams">All Teams</SelectItem>
+                            {teams.map((team: any) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Hide Closed Tickets toggle */}
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant={hideClosed ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setHideClosed(!hideClosed);
+                          setCurrentPage(1);
+                        }}
+                        className="gap-2"
+                      >
+                        {hideClosed ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Hide Closed Tickets
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="h-4 w-4" />
+                            Hide Closed Tickets
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
                     {/* Clear filters */}
                     {hasActiveFilters && (
                       <div className="flex items-end">
-                        <Button variant="ghost" size="sm" onClick={clearFilters}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearFilters}
+                        >
                           <X className="mr-1 h-4 w-4" />
                           Clear
                         </Button>
@@ -428,7 +648,9 @@ export default function TicketsPage() {
           <motion.div variants={fadeInUp}>
             <Card>
               <CardContent className="py-12">
-                <EmptyTickets onCreateTicket={() => router.push("/tickets/new")} />
+                <EmptyTickets
+                  onCreateTicket={() => router.push("/tickets/new")}
+                />
                 {hasActiveFilters && (
                   <div className="flex justify-center mt-4">
                     <Button variant="outline" onClick={clearFilters}>
@@ -441,12 +663,12 @@ export default function TicketsPage() {
           </motion.div>
         )
       ) : (
-        <motion.div 
+        <motion.div
           className="space-y-4"
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
-          key={`${viewFilter}-${statusFilter}-${categoryFilter}-${currentPage}`}
+          key={`${viewFilter}-${statusFilter}-${categoryFilter}-${currentPage}-${hideClosed}`}
         >
           <AnimatePresence mode="popLayout">
             {filteredTickets.map((ticket) => (
@@ -458,7 +680,7 @@ export default function TicketsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && !isLoading && (
-        <motion.div 
+        <motion.div
           className="flex items-center justify-between"
           variants={fadeInUp}
         >

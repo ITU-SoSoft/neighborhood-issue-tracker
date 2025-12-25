@@ -1,8 +1,9 @@
 """Team schemas."""
 
 from uuid import UUID
+import uuid
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from app.schemas.base import BaseSchema, TimestampSchema
 
@@ -12,6 +13,8 @@ class TeamCreate(BaseSchema):
 
     name: str = Field(..., min_length=3, max_length=100)
     description: str | None = Field(default=None, max_length=500)
+    category_ids: list[UUID] = Field(default_factory=list, description="List of category IDs this team handles")
+    district_ids: list[UUID] = Field(default_factory=list, description="List of district IDs this team covers")
 
 
 class TeamUpdate(BaseSchema):
@@ -71,20 +74,11 @@ class TeamMemberResponse(BaseSchema):
 
 
 class TeamDetailResponse(TeamResponse):
-    """Detailed team response with assignments."""
+    """Detailed team response with assignments + members."""
 
     districts: list[TeamDistrictResponse] = []
     categories: list[TeamCategoryResponse] = []
     members: list[TeamMemberResponse] = []
-
-
-class TeamListItem(BaseSchema):
-    """Individual team item in list response."""
-
-    id: UUID
-    name: str
-    description: str | None
-    member_count: int = 0
 
 
 class TeamListResponse(BaseSchema):
@@ -94,3 +88,12 @@ class TeamListResponse(BaseSchema):
     total: int
     page: int = 1
     page_size: int = 20
+
+
+class UnassignedMemberResponse(BaseModel):
+    """Simple response for listing users that are not assigned to any team."""
+
+    id: uuid.UUID
+    name: str
+    phone_number: str | None = None
+    role: str

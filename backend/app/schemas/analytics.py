@@ -43,6 +43,7 @@ class TeamPerformance(BaseSchema):
     team_name: str
     total_assigned: int
     total_resolved: int
+    open_tickets: int
     resolution_rate: float
     average_resolution_hours: float | None
     average_rating: float | None
@@ -52,7 +53,7 @@ class TeamPerformance(BaseSchema):
 class TeamPerformanceResponse(BaseSchema):
     """Response for team performance."""
 
-    teams: list[TeamPerformance]
+    items: list[TeamPerformance]
 
 
 class MemberPerformance(BaseSchema):

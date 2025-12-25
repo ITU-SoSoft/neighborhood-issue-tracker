@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getDistricts } from "@/lib/api/client";
+import type { District } from "@/lib/api/types";
 
 // Fix for default marker icons in Leaflet with Next.js
 const defaultIcon = L.icon({
@@ -23,6 +25,7 @@ interface LocationPickerProps {
     latitude: number;
     longitude: number;
     address?: string;
+    district_id?: string;
   }) => void;
   className?: string;
 }
@@ -35,6 +38,7 @@ export function LocationPicker({
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -46,9 +50,23 @@ export function LocationPicker({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [districts, setDistricts] = useState<District[]>([]);
 
   // Default to Istanbul if no location provided
   const defaultCenter = { lat: 41.0082, lng: 28.9784 };
+
+  // Fetch districts on mount
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      try {
+        const response = await getDistricts();
+        setDistricts(response.items);
+      } catch (error) {
+        console.error("Failed to fetch districts:", error);
+      }
+    };
+    fetchDistricts();
+  }, []);
 
   useEffect(() => {
     // Request user's current location
@@ -133,6 +151,25 @@ export function LocationPicker({
     };
   }, [userLocation]);
 
+  // Handle click outside to close search results
+  useEffect(() => {
+    if (!showResults) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowResults(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showResults]);
+
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
       const response = await fetch(
@@ -145,10 +182,41 @@ export function LocationPicker({
       );
       const data = await response.json();
       
+      // Extract district name from Nominatim response
+      // Priority: county (ilçe), town (ilçe), then others
+      // Note: suburb is usually a neighborhood (mahalle), not a district
+      const districtName = 
+        data.address?.county ||      // Primary: county is usually the district
+        data.address?.town ||        // Secondary: town is often the district in Turkey  
+        data.address?.district ||    // Tertiary: explicit district field
+        data.address?.city_district; // Last: city_district as fallback
+        // Note: Explicitly NOT using suburb as it's typically a neighborhood
+      
+      // Match district name with our districts database
+      let districtId: string | undefined;
+      if (districtName && districts.length > 0) {
+        // Try exact match first
+        let matchedDistrict = districts.find(
+          (d) => d.name.toLowerCase() === districtName.toLowerCase()
+        );
+        
+        // If no exact match, try partial match
+        if (!matchedDistrict) {
+          matchedDistrict = districts.find(
+            (d) => 
+              d.name.toLowerCase().includes(districtName.toLowerCase()) ||
+              districtName.toLowerCase().includes(d.name.toLowerCase())
+          );
+        }
+        
+        districtId = matchedDistrict?.id;
+      }
+      
       onLocationSelect({
         latitude: lat,
         longitude: lng,
         address: data.display_name || undefined,
+        district_id: districtId,
       });
     } catch {
       onLocationSelect({
@@ -309,7 +377,7 @@ export function LocationPicker({
   return (
     <div className={`relative ${className} space-y-3`}>
       {/* Search input */}
-      <div className="relative z-[1100]">
+      <div ref={searchContainerRef} className="relative z-[5]">
         <div className="relative">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
@@ -327,10 +395,10 @@ export function LocationPicker({
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             onFocus={() => setShowResults(searchResults.length > 0)}
-            className="w-full pl-10 pr-10 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent relative z-10"
+            className="w-full pl-10 pr-10 py-2.5 border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent relative z-[5]"
           />
           {isSearching && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-[6]">
               <div className="w-4 h-4 border-2 border-muted-foreground/20 border-t-primary rounded-full animate-spin" />
             </div>
           )}
@@ -338,7 +406,7 @@ export function LocationPicker({
 
         {/* Search results dropdown */}
         {showResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[1200] max-h-96 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[25] max-h-96 overflow-y-auto">
             {searchResults.map((result, index) => {
               const address = result.address || {};
               const mainName = address.road || address.suburb || address.neighbourhood || address.district || result.name || "Unknown";
@@ -385,7 +453,7 @@ export function LocationPicker({
 
         {/* No results message */}
         {showResults && searchResults.length === 0 && !isSearching && searchQuery.length >= 3 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[1200] p-4 text-center">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[25] p-4 text-center">
             <p className="text-sm text-muted-foreground">No addresses found</p>
             <p className="text-xs text-muted-foreground mt-1">Try searching with street name, neighborhood, or district</p>
           </div>
@@ -401,7 +469,7 @@ export function LocationPicker({
         />
         
         {/* Help text overlay - top center */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full pointer-events-none">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full pointer-events-none">
           Click to set location
         </div>
 
@@ -414,7 +482,7 @@ export function LocationPicker({
           }}
           disabled={isLocating}
           title="Use my current location"
-          className="absolute top-3 right-3 z-[1000] bg-white rounded-lg p-2.5 shadow-md hover:bg-slate-50 hover:shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          className="absolute top-3 right-3 z-10 bg-white rounded-lg p-2.5 shadow-md hover:bg-slate-50 hover:shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
         >
           {isLocating ? (
             <div className="w-5 h-5 border-2 border-slate-300 border-t-emerald-600 rounded-full animate-spin" />
@@ -434,7 +502,7 @@ export function LocationPicker({
 
         {/* Error toast - bottom center, inside map */}
         {locationError && (
-          <div className="absolute bottom-3 left-3 right-3 z-[1000] bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="absolute bottom-3 left-3 right-3 z-10 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4m0 4h.01" />
@@ -452,13 +520,6 @@ export function LocationPicker({
         )}
       </div>
 
-      {/* Click outside to close results */}
-      {showResults && (
-        <div
-          className="fixed inset-0 z-[1050]"
-          onClick={() => setShowResults(false)}
-        />
-      )}
     </div>
   );
 }

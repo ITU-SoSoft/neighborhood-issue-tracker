@@ -49,7 +49,9 @@ COPY --from=builder /app /app
 
 # Copy entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+# Fix line endings for Windows (CRLF -> LF) and set executable
+RUN sed -i 's/\r$//' /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
 
 # Set PATH for uv virtual environment
 ENV PATH="/app/.venv/bin:$PATH"

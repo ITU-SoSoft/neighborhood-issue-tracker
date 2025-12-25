@@ -73,9 +73,16 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
         >
           <Bell className="h-5 w-5" aria-hidden="true" />
           {unreadCount > 0 && (
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive">
+            <>
+              {/* Animated pulse ring */}
+              <span className="absolute right-0 top-0 flex h-5 w-5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center text-[10px] font-bold text-white shadow-lg">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              </span>
               <span className="sr-only">You have {unreadCount} new notifications</span>
-            </span>
+            </>
           )}
         </Button>
 

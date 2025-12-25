@@ -1,0 +1,137 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      
+      - name: Set up Python
+        run: uv python install 3.13
+      
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --dev
+      
+      - name: Run linting (ruff)
+        working-directory: backend
+        run: uv run ruff check .
+      
+      - name: Run type checking (mypy)
+        working-directory: backend
+        run: uv run mypy app --ignore-missing-imports
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgis/postgis:15-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sosoft_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      
+      - name: Set up Python
+        run: uv python install 3.13
+      
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --dev
+      
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+      
+      - name: Run tests with coverage
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/sosoft_test
+          JWT_SECRET_KEY: test-secret-key-for-ci-testing-only
+          TWILIO_ENABLED: "false"
+          MINIO_ENDPOINT: localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          MINIO_BUCKET_NAME: test-bucket
+          DEBUG: "false"
+        run: |
+          uv run pytest \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            -v \
+            --tb=short
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      
+      - name: Set up Python
+        run: uv python install 3.13
+      
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --dev
+      
+      - name: Run security scan (bandit)
+        working-directory: backend
+        run: |
+          uv pip install bandit
+          uv run bandit -r app -ll -ii
+        continue-on-error: true

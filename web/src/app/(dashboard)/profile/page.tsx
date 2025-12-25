@@ -17,7 +17,7 @@ import {
   useCreateSavedAddress,
   useDeleteSavedAddress,
 } from "@/lib/queries/addresses";
-import { SavedAddress } from "@/lib/api/types";
+import { SavedAddress, UserRole } from "@/lib/api/types";
 import {
   formatDate,
   getRoleVariant,
@@ -43,6 +43,9 @@ import {
   Plus,
   Trash2,
   Home,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
@@ -63,9 +66,9 @@ export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const updateUserMutation = useUpdateUser();
 
-  // Saved addresses queries
+  // Saved addresses queries (disabled for managers)
   const { data: addressesData, isLoading: isLoadingAddresses } =
-    useSavedAddresses();
+    useSavedAddresses({ enabled: user?.role !== UserRole.MANAGER });
   const createAddressMutation = useCreateSavedAddress();
   const deleteAddressMutation = useDeleteSavedAddress();
 
@@ -74,6 +77,14 @@ export default function ProfilePage() {
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [phoneNumber, setPhoneNumber] = useState(user?.phone_number || "");
+  
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Add address state
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -88,27 +99,77 @@ export default function ProfilePage() {
     setName(user?.name || "");
     setEmail(user?.email || "");
     setPhoneNumber(user?.phone_number || "");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
     setIsEditing(true);
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const handleSave = async () => {
     if (!user) return;
 
+    // Validate password change if password fields are filled
+    const isChangingPassword = currentPassword || newPassword || confirmPassword;
+    if (isChangingPassword) {
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        toast.error("Please fill in all password fields to change password");
+        return;
+      }
+      if (newPassword.length < 8) {
+        toast.error("New password must be at least 8 characters");
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        toast.error("New passwords do not match");
+        return;
+      }
+      if (newPassword === currentPassword) {
+        toast.error("New password must be different from current password");
+        return;
+      }
+    }
+
     try {
+      const updateData: {
+        name?: string;
+        email?: string;
+        phone_number?: string;
+        current_password?: string;
+        new_password?: string;
+      } = {
+        name: name.trim() || undefined,
+        email: email.trim() || undefined,
+        phone_number: phoneNumber.trim() || undefined,
+      };
+
+      // Add password fields if all are provided
+      if (currentPassword && newPassword && confirmPassword) {
+        updateData.current_password = currentPassword;
+        updateData.new_password = newPassword;
+      }
+
       await updateUserMutation.mutateAsync({
         userId: user.id,
-        data: {
-          name: name.trim() || undefined,
-          email: email.trim() || undefined,
-          phone_number: phoneNumber.trim() || undefined,
-        },
+        data: updateData,
       });
       await refreshUser();
       setIsEditing(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
       toast.success("Profile updated successfully!");
     } catch (err) {
       toast.error(
@@ -293,6 +354,137 @@ export default function ProfilePage() {
                 )}
               </motion.div>
 
+              {/* Password Change - Only visible in edit mode */}
+              {isEditing && (
+                <>
+                  {/* Old Password */}
+                  <motion.div 
+                    className="space-y-2" 
+                    variants={staggerItem}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    <Label htmlFor="currentPassword" className="flex items-center gap-2 text-muted-foreground">
+                      <Lock className="h-4 w-4" />
+                      Old Password
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="currentPassword"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter current password"
+                        className="pr-10 w-full"
+                        style={{ display: "block" }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      >
+                        {showCurrentPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </motion.div>
+
+                  {/* New Password */}
+                  <motion.div 
+                    className="space-y-2" 
+                    variants={staggerItem}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    <Label htmlFor="newPassword" className="flex items-center gap-2 text-muted-foreground">
+                      <Lock className="h-4 w-4" />
+                      New Password
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min 8 characters)"
+                        className="pr-10 w-full"
+                        style={{ display: "block" }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    {newPassword && newPassword.length < 8 && (
+                      <p className="text-xs text-destructive">
+                        Password must be at least 8 characters long
+                      </p>
+                    )}
+                    {newPassword && currentPassword && newPassword === currentPassword && (
+                      <p className="text-xs text-destructive">
+                        New password must be different from current password
+                      </p>
+                    )}
+                  </motion.div>
+
+                  {/* New Password Again */}
+                  <motion.div 
+                    className="space-y-2" 
+                    variants={staggerItem}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    <Label htmlFor="confirmPassword" className="flex items-center gap-2 text-muted-foreground">
+                      <Lock className="h-4 w-4" />
+                      New Password Again
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="pr-10 w-full"
+                        style={{ display: "block" }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full w-10 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    {confirmPassword && newPassword && confirmPassword !== newPassword && (
+                      <p className="text-xs text-destructive">
+                        Passwords do not match
+                      </p>
+                    )}
+                  </motion.div>
+                </>
+              )}
+
               {/* Member since */}
               <motion.div className="space-y-2" variants={staggerItem}>
                 <Label className="flex items-center gap-2 text-muted-foreground">
@@ -350,9 +542,10 @@ export default function ProfilePage() {
         </Card>
       </motion.div>
 
-      {/* Saved Addresses Card */}
-      <motion.div variants={staggerItem}>
-        <Card className="p-6">
+      {/* Saved Addresses Card - Hidden for Manager */}
+      {user.role !== UserRole.MANAGER && (
+        <motion.div variants={staggerItem}>
+          <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Home className="h-5 w-5" />
@@ -493,9 +686,11 @@ export default function ProfilePage() {
           )}
         </Card>
       </motion.div>
+      )}
 
-      {/* Account Status Card */}
-      <motion.div variants={staggerItem}>
+      {/* Account Status Card - Hidden for Manager */}
+      {user.role !== UserRole.MANAGER && (
+        <motion.div variants={staggerItem}>
         <Card className="p-6">
           <h3 className="mb-4 text-lg font-semibold text-foreground">
             Account Status
@@ -516,6 +711,7 @@ export default function ProfilePage() {
           </div>
         </Card>
       </motion.div>
+      )}
     </motion.div>
   );
 }

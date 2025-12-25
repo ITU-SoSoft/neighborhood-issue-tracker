@@ -9,13 +9,14 @@ import {
   PhotoType,
   CommentCreate,
   FeedbackCreate,
+  FeedbackUpdate,
 } from "@/lib/api/types";
 
 // ============================================================================
-// TICKET QUERIES
+// TYPES
 // ============================================================================
 
-interface TicketListParams {
+export interface TicketListParams {
   status_filter?: TicketStatus;
   category_id?: string;
   team_id?: string;
@@ -23,11 +24,18 @@ interface TicketListParams {
   page_size?: number;
 }
 
-interface QueryOptions {
+export interface QueryOptions {
   enabled?: boolean;
 }
 
-export function useTickets(params: TicketListParams = {}, options?: QueryOptions) {
+// ============================================================================
+// TICKET QUERIES
+// ============================================================================
+
+export function useTickets(
+  params: TicketListParams = {},
+  options?: QueryOptions,
+) {
   return useQuery({
     queryKey: queryKeys.tickets.list(params),
     queryFn: () => api.getTickets(params),
@@ -43,12 +51,15 @@ export function useTicket(ticketId: string) {
   });
 }
 
-export function useMyTickets(params?: {
-  status_filter?: TicketStatus;
-  category_id?: string;
-  page?: number;
-  page_size?: number;
-}, options?: QueryOptions) {
+export function useMyTickets(
+  params?: {
+    status_filter?: TicketStatus;
+    category_id?: string;
+    page?: number;
+    page_size?: number;
+  },
+  options?: QueryOptions,
+) {
   return useQuery({
     queryKey: queryKeys.tickets.my(params),
     queryFn: () => api.getMyTickets(params),
@@ -56,12 +67,15 @@ export function useMyTickets(params?: {
   });
 }
 
-export function useAssignedTickets(params?: {
-  status_filter?: TicketStatus;
-  category_id?: string;
-  page?: number;
-  page_size?: number;
-}, options?: QueryOptions) {
+export function useAssignedTickets(
+  params?: {
+    status_filter?: TicketStatus;
+    category_id?: string;
+    page?: number;
+    page_size?: number;
+  },
+  options?: QueryOptions,
+) {
   return useQuery({
     queryKey: queryKeys.tickets.assigned(params),
     queryFn: () => api.getAssignedTickets(params),
@@ -69,12 +83,15 @@ export function useAssignedTickets(params?: {
   });
 }
 
-export function useFollowedTickets(params?: {
-  status_filter?: TicketStatus;
-  category_id?: string;
-  page?: number;
-  page_size?: number;
-}, options?: QueryOptions) {
+export function useFollowedTickets(
+  params?: {
+    status_filter?: TicketStatus;
+    category_id?: string;
+    page?: number;
+    page_size?: number;
+  },
+  options?: QueryOptions,
+) {
   return useQuery({
     queryKey: queryKeys.tickets.followed(params),
     queryFn: () => api.getFollowedTickets(params),
@@ -82,12 +99,15 @@ export function useFollowedTickets(params?: {
   });
 }
 
-export function useAllUserTickets(params?: {
-  status_filter?: TicketStatus;
-  category_id?: string;
-  page?: number;
-  page_size?: number;
-}, options?: QueryOptions) {
+export function useAllUserTickets(
+  params?: {
+    status_filter?: TicketStatus;
+    category_id?: string;
+    page?: number;
+    page_size?: number;
+  },
+  options?: QueryOptions,
+) {
   return useQuery({
     queryKey: queryKeys.tickets.allUser(params),
     queryFn: () => api.getAllUserTickets(params),
@@ -108,6 +128,27 @@ export function useNearbyTickets(params: {
   });
 }
 
+/**
+ * Helper: fetch tickets for a specific team (nice for manager UI filters).
+ * Example usage:
+ *   useTicketsByTeam(teamId, { status_filter: TicketStatus.IN_PROGRESS })
+ */
+export function useTicketsByTeam(
+  teamId: string | null | undefined,
+  params?: Omit<TicketListParams, "team_id">,
+  options?: QueryOptions,
+) {
+  return useTickets(
+    {
+      ...(params ?? {}),
+      team_id: teamId ?? undefined,
+    },
+    {
+      enabled: (options?.enabled ?? true) && !!teamId,
+    },
+  );
+}
+
 // ============================================================================
 // TICKET MUTATIONS
 // ============================================================================
@@ -118,12 +159,18 @@ export function useCreateTicket() {
   return useMutation({
     mutationFn: (data: TicketCreate) => api.createTicket(data),
     onSuccess: () => {
-      // Invalidate all ticket lists
+      // Tickets
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.my() });
-      // Invalidate notifications as a new ticket creates a notification
+
+      // Analytics (KPIs/heatmap/etc can change)
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+
+      // Notifications
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(),
+      });
     },
   });
 }
@@ -140,18 +187,24 @@ export function useUpdateTicketStatus() {
       data: TicketStatusUpdate;
     }) => api.updateTicketStatus(ticketId, data),
     onSuccess: (_, { ticketId }) => {
-      // Invalidate the specific ticket and all lists
+      // Ticket detail + lists
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticketId),
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.my() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.assigned() });
-      // Also invalidate analytics as status changes affect KPIs
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.followed() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.allUser() });
+
+      // Analytics
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
-      // Invalidate notifications as status change creates notifications
+
+      // Notifications
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(),
+      });
     },
   });
 }
@@ -168,11 +221,22 @@ export function useAssignTicket() {
       data: TicketAssignUpdate;
     }) => api.assignTicket(ticketId, data),
     onSuccess: (_, { ticketId }) => {
+      // Ticket detail + lists
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticketId),
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.assigned() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.my() });
+
+      // Analytics (team workload changes)
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+
+      // Notifications (assignment generally creates notifications)
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(),
+      });
     },
   });
 }
@@ -209,9 +273,12 @@ export function useFollowTicket() {
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.followed() });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.allUser() });
-      // Invalidate notifications as following a ticket creates a notification
+
+      // Notifications
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(),
+      });
     },
   });
 }
@@ -232,7 +299,7 @@ export function useUnfollowTicket() {
 }
 
 // ============================================================================
-// COMMENT MUTATIONS
+// COMMENTS
 // ============================================================================
 
 export function useTicketComments(ticketId: string) {
@@ -261,15 +328,18 @@ export function useCreateComment() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticketId),
       });
-      // Invalidate notifications as adding a comment may create notifications
+
+      // Notifications
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(),
+      });
     },
   });
 }
 
 // ============================================================================
-// FEEDBACK MUTATIONS
+// FEEDBACK
 // ============================================================================
 
 export function useTicketFeedback(ticketId: string) {
@@ -277,7 +347,7 @@ export function useTicketFeedback(ticketId: string) {
     queryKey: queryKeys.feedback.byTicket(ticketId),
     queryFn: () => api.getTicketFeedback(ticketId),
     enabled: !!ticketId,
-    retry: false, // Don't retry on 404 (no feedback yet)
+    retry: false,
   });
 }
 
@@ -299,7 +369,37 @@ export function useSubmitFeedback() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticketId),
       });
-      // Feedback affects analytics
+
+      // Analytics (ratings change)
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.analytics.feedbackTrends(),
+      });
+    },
+  });
+}
+
+export function useUpdateFeedback() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      ticketId,
+      data,
+    }: {
+      ticketId: string;
+      data: FeedbackUpdate;
+    }) => api.updateFeedback(ticketId, data),
+    onSuccess: (_, { ticketId }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.feedback.byTicket(ticketId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tickets.detail(ticketId),
+      });
+
+      // Analytics (ratings change)
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
       queryClient.invalidateQueries({
         queryKey: queryKeys.analytics.feedbackTrends(),
       });

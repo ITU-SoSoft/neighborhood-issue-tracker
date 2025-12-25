@@ -15,6 +15,7 @@ import {
   EscalationStatus,
   Feedback,
   FeedbackCreate,
+  FeedbackUpdate,
   FeedbackTrendsResponse,
   HeatmapResponse,
   LoginRequest,
@@ -46,6 +47,7 @@ import {
   TicketStatusUpdate,
   TokenResponse,
   User,
+  UserCreateRequest,
   UserListResponse,
   UserRole,
   UserRoleUpdate,
@@ -54,6 +56,15 @@ import {
   VerifyOTPResponse,
   CategoryStatsResponse,
   NeighborhoodStatsResponse,
+
+  // ✅ TEAMS (EĞER types.ts içinde tanımlıysa kullan)
+  TeamListResponse,
+  TeamDetailResponse,
+  TeamResponse,
+  TeamCreate,
+  TeamUpdate,
+  District,
+  DistrictListResponse,
 } from "./types";
 
 const API_BASE_URL =
@@ -130,8 +141,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   try {
-    return (await response.json()) as T;
-  } catch {
+    const text = await response.text();
+    if (!text) {
+      return {} as T;
+    }
+    return JSON.parse(text) as T;
+  } catch (error) {
+    console.error("Failed to parse response:", error, "Response status:", response.status);
     return {} as T;
   }
 }
@@ -288,11 +304,18 @@ export async function getUsers(params?: {
     searchParams.set("page_size", params.page_size.toString());
 
   const query = searchParams.toString();
-  return apiFetch<UserListResponse>(`/users${query ? `?${query}` : ""}`);
+  return apiFetch<UserListResponse>(`/users/${query ? `?${query}` : ""}`);
 }
 
 export async function getUserById(userId: string): Promise<User> {
   return apiFetch<User>(`/users/${userId}`);
+}
+
+export async function createUser(data: UserCreateRequest): Promise<User> {
+  return apiFetch<User>("/users/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function updateUser(
@@ -317,6 +340,82 @@ export async function updateUserRole(
 
 export async function deleteUser(userId: string): Promise<void> {
   return apiFetch<void>(`/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+// ============================================================================
+// ✅ TEAMS API  (manager-only endpoints)
+// ============================================================================
+//
+// Backend routes'in senin teams.py ile uyumlu:
+// GET    /teams
+// GET    /teams/{team_id}
+// POST   /teams
+// PUT    /teams/{team_id}
+// DELETE /teams/{team_id}
+// POST   /teams/{team_id}/members/{user_id}
+// DELETE /teams/{team_id}/members/{user_id}
+//
+
+export async function getTeams(): Promise<TeamListResponse> {
+  return apiFetch<TeamListResponse>("/teams");
+}
+
+export async function getTeamById(teamId: string): Promise<TeamDetailResponse> {
+  return apiFetch<TeamDetailResponse>(`/teams/${teamId}`);
+}
+
+export async function createTeam(data: TeamCreate): Promise<TeamResponse> {
+  return apiFetch<TeamResponse>("/teams", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateTeam(
+  teamId: string,
+  data: TeamUpdate,
+): Promise<TeamResponse> {
+  return apiFetch<TeamResponse>(`/teams/${teamId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTeam(teamId: string): Promise<void> {
+  return apiFetch<void>(`/teams/${teamId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getTicketsByTeam(
+  teamId: string,
+  page: number = 1,
+  pageSize: number = 100
+): Promise<TicketListResponse> {
+  const params = new URLSearchParams({
+    team_id: teamId,
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  return apiFetch<TicketListResponse>(`/tickets/?${params.toString()}`);
+}
+
+export async function addTeamMember(
+  teamId: string,
+  userId: string,
+): Promise<TeamDetailResponse> {
+  return apiFetch<TeamDetailResponse>(`/teams/${teamId}/members/${userId}`, {
+    method: "POST",
+  });
+}
+
+export async function removeTeamMember(
+  teamId: string,
+  userId: string,
+): Promise<void> {
+  return apiFetch<void>(`/teams/${teamId}/members/${userId}`, {
     method: "DELETE",
   });
 }
@@ -351,6 +450,20 @@ export async function updateCategory(
     method: "PUT",
     body: JSON.stringify(data),
   });
+}
+
+export async function deleteCategory(categoryId: string): Promise<void> {
+  return apiFetch<void>(`/categories/${categoryId}`, {
+    method: "DELETE",
+  });
+}
+
+// ============================================================================
+// DISTRICTS
+// ============================================================================
+
+export async function getDistricts(): Promise<DistrictListResponse> {
+  return apiFetch<DistrictListResponse>("/districts", {}, false);
 }
 
 // ============================================================================
@@ -391,7 +504,8 @@ export async function getMyTickets(params?: {
   page_size?: number;
 }): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
-  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.status_filter)
+    searchParams.set("status_filter", params.status_filter);
   if (params?.category_id) searchParams.set("category_id", params.category_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
@@ -408,7 +522,8 @@ export async function getAssignedTickets(params?: {
   page_size?: number;
 }): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
-  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.status_filter)
+    searchParams.set("status_filter", params.status_filter);
   if (params?.category_id) searchParams.set("category_id", params.category_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
@@ -427,7 +542,8 @@ export async function getFollowedTickets(params?: {
   page_size?: number;
 }): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
-  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.status_filter)
+    searchParams.set("status_filter", params.status_filter);
   if (params?.category_id) searchParams.set("category_id", params.category_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
@@ -446,7 +562,8 @@ export async function getAllUserTickets(params?: {
   page_size?: number;
 }): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
-  if (params?.status_filter) searchParams.set("status_filter", params.status_filter);
+  if (params?.status_filter)
+    searchParams.set("status_filter", params.status_filter);
   if (params?.category_id) searchParams.set("category_id", params.category_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
@@ -471,7 +588,9 @@ export async function getNearbyTickets(params: {
     searchParams.set("radius_meters", params.radius_meters.toString());
   if (params.category_id) searchParams.set("category_id", params.category_id);
 
-  return apiFetch<NearbyTicket[]>(`/tickets/nearby?${searchParams.toString()}`);
+  return apiFetch<NearbyTicket[]>(
+    `/tickets/nearby?${searchParams.toString()}`,
+  );
 }
 
 export async function getTicketById(ticketId: string): Promise<TicketDetail> {
@@ -569,6 +688,16 @@ export async function getTicketFeedback(ticketId: string): Promise<Feedback> {
   return apiFetch<Feedback>(`/feedback/tickets/${ticketId}`);
 }
 
+export async function updateFeedback(
+  ticketId: string,
+  data: FeedbackUpdate,
+): Promise<Feedback> {
+  return apiFetch<Feedback>(`/feedback/tickets/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 // ============================================================================
 // ESCALATIONS API
 // ============================================================================
@@ -584,12 +713,15 @@ export async function createEscalation(
 
 export async function getEscalations(params?: {
   status_filter?: EscalationStatus;
+  ticket_id?: string;
   page?: number;
   page_size?: number;
 }): Promise<EscalationListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.status_filter)
     searchParams.set("status_filter", params.status_filter);
+  if (params?.ticket_id)
+    searchParams.set("ticket_id", params.ticket_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
     searchParams.set("page_size", params.page_size.toString());
@@ -650,9 +782,7 @@ export async function getHeatmap(params?: {
   );
 }
 
-export async function getTeamPerformance(
-  days = 30,
-): Promise<TeamPerformanceResponse> {
+export async function getTeamPerformance(days = 30): Promise<TeamPerformanceResponse> {
   return apiFetch<TeamPerformanceResponse>(`/analytics/teams?days=${days}`);
 }
 
@@ -665,9 +795,7 @@ export async function getMemberPerformance(
   );
 }
 
-export async function getCategoryStats(
-  days = 30,
-): Promise<CategoryStatsResponse> {
+export async function getCategoryStats(days = 30): Promise<CategoryStatsResponse> {
   return apiFetch<CategoryStatsResponse>(`/analytics/categories?days=${days}`);
 }
 
@@ -675,7 +803,9 @@ export async function getNeighborhoodStats(
   days = 30,
   limit = 5,
 ): Promise<NeighborhoodStatsResponse> {
-  return apiFetch<NeighborhoodStatsResponse>(`/analytics/neighborhoods?days=${days}&limit=${limit}`);
+  return apiFetch<NeighborhoodStatsResponse>(
+    `/analytics/neighborhoods?days=${days}&limit=${limit}`,
+  );
 }
 
 export async function getFeedbackTrends(
@@ -703,9 +833,7 @@ export async function getSavedAddresses(): Promise<SavedAddressListResponse> {
   return apiFetch<SavedAddressListResponse>("/addresses");
 }
 
-export async function getSavedAddressById(
-  addressId: string,
-): Promise<SavedAddress> {
+export async function getSavedAddressById(addressId: string): Promise<SavedAddress> {
   return apiFetch<SavedAddress>(`/addresses/${addressId}`);
 }
 
@@ -770,5 +898,13 @@ export async function markNotificationAsRead(
 export async function markAllNotificationsAsRead(): Promise<{ message: string }> {
   return apiFetch<{ message: string }>("/notifications/read-all", {
     method: "PATCH",
+  });
+}
+
+export async function deleteNotification(
+  notificationId: string,
+): Promise<void> {
+  return apiFetch<void>(`/notifications/${notificationId}`, {
+    method: "DELETE",
   });
 }

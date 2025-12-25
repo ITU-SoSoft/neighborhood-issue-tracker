@@ -24,6 +24,8 @@ export function useNotifications(
     queryKey: queryKeys.notifications.list(params),
     queryFn: () => api.getNotifications(params),
     enabled: options?.enabled ?? true,
+    refetchInterval: 10000,
+    staleTime: 5000,
   });
 }
 
@@ -62,6 +64,22 @@ export function useMarkAllNotificationsAsRead() {
 
   return useMutation({
     mutationFn: () => api.markAllNotificationsAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.lists(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notifications.unreadCount(),
+      });
+    },
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) => api.deleteNotification(notificationId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.notifications.lists(),

@@ -7,10 +7,11 @@ import { SavedAddressCreate, SavedAddressUpdate } from "@/lib/api/types";
 // SAVED ADDRESS QUERIES
 // ============================================================================
 
-export function useSavedAddresses() {
+export function useSavedAddresses(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.addresses.list(),
     queryFn: () => api.getSavedAddresses(),
+    enabled: options?.enabled ?? true,
   });
 }
 

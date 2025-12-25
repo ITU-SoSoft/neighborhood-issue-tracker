@@ -21,6 +21,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Create notifications table."""
+    conn = op.get_bind()
+
+    # Check if table exists using raw SQL (more reliable in Alembic context)
+    result = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'notifications')"
+        )
+    )
+    table_exists = result.scalar()
+
+    if table_exists:
+        # Table already exists, skip migration
+        return
 
     # Create NotificationType enum
     notificationtype_enum = postgresql.ENUM(
@@ -32,7 +45,7 @@ def upgrade() -> None:
         name="notificationtype",
         create_type=False,
     )
-    notificationtype_enum.create(op.get_bind(), checkfirst=True)
+    notificationtype_enum.create(conn, checkfirst=True)
 
     # Create notifications table
     op.create_table(

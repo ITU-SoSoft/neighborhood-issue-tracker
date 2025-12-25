@@ -122,7 +122,19 @@ async def create_escalation(
     )
     escalation = result.scalar_one()
 
-    return _build_escalation_response(escalation)
+    # Build response first
+    response = _build_escalation_response(escalation)
+
+    # Send notification to managers (after response is built)
+    from app.services.notification_service import notify_escalation_requested
+    
+    try:
+        await notify_escalation_requested(db, ticket, request.reason, current_user)
+    except Exception:
+        # Don't fail escalation creation if notification fails
+        pass
+
+    return response
 
 
 @router.get(
@@ -261,6 +273,16 @@ async def approve_escalation(
     await db.commit()
     await db.refresh(escalation)
 
+    # Send notification to reporter and requester
+    from app.services.notification_service import notify_escalation_decision
+    
+    try:
+        if escalation.ticket:
+            await notify_escalation_decision(db, escalation.ticket, approved=True, decided_by=current_user)
+    except Exception:
+        # Don't fail approval if notification fails
+        pass
+
     return _build_escalation_response(escalation)
 
 
@@ -314,5 +336,15 @@ async def reject_escalation(
 
     await db.commit()
     await db.refresh(escalation)
+
+    # Send notification to reporter and requester
+    from app.services.notification_service import notify_escalation_decision
+    
+    try:
+        if escalation.ticket:
+            await notify_escalation_decision(db, escalation.ticket, approved=False, decided_by=current_user)
+    except Exception:
+        # Don't fail rejection if notification fails
+        pass
 
     return _build_escalation_response(escalation)

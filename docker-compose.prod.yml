@@ -1,5 +1,5 @@
 # Docker Compose for SoSoft Production Environment
-# Usage with Dokploy - auto-deployed on push to main
+# Usage with Dokploy - domains and networking handled via Dokploy UI
 
 services:
   # PostgreSQL with PostGIS
@@ -37,23 +37,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    labels:
-      - "traefik.enable=true"
-      # MinIO API
-      - "traefik.http.routers.minio-api.rule=Host(`storage.${DOMAIN:-help.sagbas.io}`)"
-      - "traefik.http.routers.minio-api.entrypoints=websecure"
-      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.minio-api.service=minio-api"
-      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
-      # MinIO Console
-      - "traefik.http.routers.minio-console.rule=Host(`console.storage.${DOMAIN:-help.sagbas.io}`)"
-      - "traefik.http.routers.minio-console.entrypoints=websecure"
-      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.minio-console.service=minio-console"
-      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+    expose:
+      - "9000"
+      - "9001"
     networks:
       - sosoft-network
-      - dokploy-network
 
   # MinIO setup - creates bucket on startup
   minio-setup:
@@ -116,19 +104,14 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET_NAME: "sosoft-uploads"
       MINIO_SECURE: "false"
-      MINIO_PUBLIC_ENDPOINT: "storage.${DOMAIN:-help.sagbas.io}"
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
       
-      # CORS (comma-separated list)
-      CORS_ORIGINS: "https://${DOMAIN:-help.sagbas.io},https://www.${DOMAIN:-help.sagbas.io}"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.${DOMAIN:-help.sagbas.io}`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      # CORS (comma-separated list - set in Dokploy environment)
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    expose:
+      - "8000"
     networks:
       - sosoft-network
-      - dokploy-network
 
   # Frontend (Next.js)
   frontend:
@@ -136,7 +119,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_BASE_URL=https://api.${DOMAIN:-help.sagbas.io}/api/v1
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
     container_name: sosoft-frontend
     restart: unless-stopped
     depends_on:
@@ -144,21 +127,11 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_API_BASE_URL: https://api.${DOMAIN:-help.sagbas.io}/api/v1
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-help.sagbas.io}`) || Host(`www.${DOMAIN:-help.sagbas.io}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
-      # Redirect www to non-www
-      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.(.+)"
-      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
-      - "traefik.http.middlewares.www-redirect.redirectregex.permanent=true"
-      - "traefik.http.routers.frontend.middlewares=www-redirect"
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    expose:
+      - "3000"
     networks:
       - sosoft-network
-      - dokploy-network
 
 volumes:
   postgres_data:
@@ -167,5 +140,3 @@ volumes:
 networks:
   sosoft-network:
     driver: bridge
-  dokploy-network:
-    external: true

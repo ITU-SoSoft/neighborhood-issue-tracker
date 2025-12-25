@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // @ts-ignore - leaflet.heat doesn't have perfect type definitions
@@ -31,17 +31,16 @@ export function HeatmapVisualization({
   const mapRef = useRef<L.Map | null>(null);
   const heatLayerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
 
+  // Initialize map once on mount
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Clean up existing map if it exists
-    if (mapRef.current) {
-      mapRef.current.remove();
-      mapRef.current = null;
+    // Skip if no container or map already exists
+    if (!containerRef.current || mapRef.current) {
+      return;
     }
 
-    // Initialize map
+    // Create the map
     const map = L.map(containerRef.current, {
       scrollWheelZoom: true,
       dragging: true,
@@ -56,51 +55,76 @@ export function HeatmapVisualization({
     }).addTo(map);
 
     mapRef.current = map;
+    setIsMapInitialized(true);
 
+    // Cleanup on unmount
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      setIsMapInitialized(false);
     };
-  }, [center, zoom]);
+  }, []); // Empty dependency - only run on mount
+
+  // Update center/zoom when props change
+  useEffect(() => {
+    if (mapRef.current && isMapInitialized) {
+      mapRef.current.setView(center, zoom);
+    }
+  }, [center, zoom, isMapInitialized]);
 
   // Update heatmap layer when points change
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !isMapInitialized) {
+      return;
+    }
 
     // Remove existing heat layer
     if (heatLayerRef.current) {
       mapRef.current.removeLayer(heatLayerRef.current);
+      heatLayerRef.current = null;
     }
 
+    // If no points, just show the map without heatmap
     if (points.length === 0) {
       return;
     }
 
+    // Calculate max count for normalization
+    const maxCount = Math.max(...points.map((p) => p.count), 1);
+
     // Convert points to format expected by leaflet.heat
     // Format: [lat, lng, intensity]
-    const heatPoints = points.map((point) => [
-      point.latitude,
-      point.longitude,
-      point.intensity, // Use intensity (0-1) for better visualization
-    ]);
+    const heatPoints = points.map((point) => {
+      let intensity: number;
+      if (maxCount === 1) {
+        // All points have count 1, use a fixed visible intensity
+        intensity = 0.4;
+      } else {
+        // Normalize count to 0-1 range with square root for better distribution
+        intensity = Math.sqrt(point.count / maxCount);
+        intensity = Math.max(intensity, 0.2);
+      }
+
+      return [point.latitude, point.longitude, intensity];
+    });
 
     // Create heat layer with custom options
     // @ts-ignore - heatLayer is added by leaflet.heat plugin
     const heatLayer = L.heatLayer(heatPoints, {
-      radius: 25, // Radius of each point in pixels
-      blur: 15, // Amount of blur
-      maxZoom: 17, // Maximum zoom level where heatmap is visible
-      max: 1.0, // Maximum intensity (we use normalized intensity)
+      radius: 40,
+      blur: 20,
+      maxZoom: 17,
+      max: 1.0,
+      minOpacity: 0.4,
       gradient: {
-        // Color gradient from low to high intensity
-        0.0: "blue",
-        0.2: "cyan",
-        0.4: "lime",
-        0.6: "yellow",
-        0.8: "orange",
-        1.0: "red",
+        0.0: "#0000FF",
+        0.2: "#00BFFF",
+        0.4: "#00FF00",
+        0.6: "#FFFF00",
+        0.8: "#FF6600",
+        1.0: "#FF0000",
       },
     });
 
@@ -108,16 +132,14 @@ export function HeatmapVisualization({
     heatLayerRef.current = heatLayer;
 
     // Auto-fit map bounds to show all points
-    if (points.length > 0) {
-      const bounds = L.latLngBounds(
-        points.map((p) => [p.latitude, p.longitude] as [number, number])
-      );
-      mapRef.current.fitBounds(bounds, {
-        padding: [50, 50],
-        maxZoom: 13,
-      });
-    }
-  }, [points]);
+    const bounds = L.latLngBounds(
+      points.map((p) => [p.latitude, p.longitude] as [number, number])
+    );
+    mapRef.current.fitBounds(bounds, {
+      padding: [50, 50],
+      maxZoom: 13,
+    });
+  }, [points, isMapInitialized]);
 
   return (
     <div

@@ -130,3 +130,69 @@ async def update_category(
     await db.refresh(category)
 
     return CategoryResponse.model_validate(category)
+
+
+@router.delete(
+    "/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_category(
+    category_id: UUID,
+    current_user: ManagerUser,
+    db: DatabaseSession,
+) -> None:
+    """Delete a category (manager only).
+    
+    All tickets with this category will be reassigned to 'Other' category.
+    The 'Other' category cannot be deleted.
+    """
+    import logging
+    from app.models.ticket import Ticket
+    from app.core.exceptions import NotFoundException
+    
+    logger = logging.getLogger(__name__)
+    
+    # Get category to delete
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    
+    if category is None:
+        raise CategoryNotFoundException()
+    
+    # Prevent deletion of 'Other' category
+    if category.name.lower() == "other":
+        raise ConflictException(detail="'Other' category cannot be deleted as it serves as a fallback")
+    
+    logger.info(f"Deleting category: {category.name}")
+    
+    # Get 'Other' category
+    result = await db.execute(
+        select(Category).where(Category.name.ilike("other"))
+    )
+    other_category = result.scalar_one_or_none()
+    
+    if not other_category:
+        raise NotFoundException(detail="'Other' category not found. Please create it first.")
+    
+    # Reassign all tickets to 'Other' category
+    result = await db.execute(
+        select(Ticket).where(
+            Ticket.category_id == category_id,
+            Ticket.deleted_at.is_(None),
+        )
+    )
+    tickets = result.scalars().all()
+    
+    reassigned_count = 0
+    for ticket in tickets:
+        ticket.category_id = other_category.id
+        reassigned_count += 1
+        logger.info(f"  Reassigned ticket '{ticket.title}' to 'Other' category")
+    
+    logger.info(f"  Reassigned {reassigned_count} tickets to 'Other' category")
+    
+    # Delete category
+    await db.delete(category)
+    await db.commit()
+    
+    logger.info(f"Category '{category.name}' deleted successfully")

@@ -8,6 +8,7 @@ from app.api.v1 import (
     auth,
     categories,
     comments,
+    districts,
     escalations,
     feedback,
     notifications,
@@ -24,6 +25,7 @@ api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(addresses.router, tags=["Addresses"])
 api_router.include_router(teams.router, prefix="/teams", tags=["Teams"])
 api_router.include_router(categories.router, prefix="/categories", tags=["Categories"])
+api_router.include_router(districts.router, prefix="/districts", tags=["Districts"])
 api_router.include_router(tickets_router, prefix="/tickets", tags=["Tickets"])
 api_router.include_router(comments.router, prefix="/tickets", tags=["Comments"])
 api_router.include_router(feedback.router, prefix="/feedback", tags=["Feedback"])

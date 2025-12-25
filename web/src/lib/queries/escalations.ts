@@ -9,6 +9,7 @@ import { EscalationStatus, EscalationCreate, EscalationReview } from "@/lib/api/
 
 interface EscalationListParams {
   status_filter?: EscalationStatus;
+  ticket_id?: string;
   page?: number;
   page_size?: number;
 }

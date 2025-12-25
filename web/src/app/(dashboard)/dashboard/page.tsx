@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth/context";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,22 +16,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DashboardKPISkeleton, TicketCardSkeleton } from "@/components/shared/skeletons";
+
+import {
+  DashboardKPISkeleton,
+  TicketCardSkeleton,
+} from "@/components/shared/skeletons";
 import { EmptyTickets } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+
 import {
   useMyTickets,
   useAssignedTickets,
   useDashboardKPIs,
   useEscalations,
+  useTickets,
 } from "@/lib/queries";
-import { useHeatmap, useCategoryStats, useTeamPerformance, useNeighborhoodStats } from "@/lib/queries/analytics";
+import {
+  useHeatmap,
+  useCategoryStats,
+  useTeamPerformance,
+  useNeighborhoodStats,
+} from "@/lib/queries/analytics";
+
 import {
   Ticket,
   TicketStatus,
   UserRole,
   EscalationStatus,
 } from "@/lib/api/types";
+
 import {
   formatDate,
   formatRelativeTime,
@@ -39,7 +53,9 @@ import {
   formatPercentage,
   formatDuration,
   formatRating,
+  getCategoryColor,
 } from "@/lib/utils";
+
 import {
   fadeInUp,
   staggerContainer,
@@ -47,6 +63,7 @@ import {
   cardHover,
   cardTap,
 } from "@/lib/animations";
+
 import {
   Plus,
   Ticket as TicketIcon,
@@ -58,6 +75,7 @@ import {
   Users,
   Loader2,
 } from "lucide-react";
+
 import {
   PieChart,
   Pie,
@@ -65,16 +83,14 @@ import {
   ResponsiveContainer,
   Tooltip,
   Legend,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
 } from "recharts";
 
 // Dynamically import the heatmap component to avoid SSR issues with Leaflet
 const HeatmapVisualization = dynamic(
-  () => import("@/components/map/heatmap-visualization").then((mod) => ({ default: mod.HeatmapVisualization })),
+  () =>
+    import("@/components/map/heatmap-visualization").then((mod) => ({
+      default: mod.HeatmapVisualization,
+    })),
   {
     ssr: false,
     loading: () => (
@@ -82,16 +98,13 @@ const HeatmapVisualization = dynamic(
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     ),
-  }
+  },
 );
 
 // ============================================================================
-// SHARED COMPONENTS
+// SHARED HELPERS / COMPONENTS
 // ============================================================================
 
-/**
- * Get time range label from days count
- */
 function getTimeRangeLabel(days: number): string {
   switch (days) {
     case 7:
@@ -124,9 +137,7 @@ function KPICard({ title, value, icon, iconBgClass }: KPICardProps) {
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
-            <div className={`rounded-full p-3 ${iconBgClass}`}>
-              {icon}
-            </div>
+            <div className={`rounded-full p-3 ${iconBgClass}`}>{icon}</div>
             <div>
               <p className="text-sm text-muted-foreground">{title}</p>
               <p className="text-2xl font-semibold text-foreground">{value}</p>
@@ -144,7 +155,11 @@ interface TicketListItemProps {
   showMeta?: boolean;
 }
 
-function TicketListItem({ ticket, showCategory = false, showMeta = true }: TicketListItemProps) {
+function TicketListItem({
+  ticket,
+  showCategory = false,
+  showMeta = true,
+}: TicketListItemProps) {
   return (
     <motion.div variants={staggerItem}>
       <Link
@@ -153,7 +168,9 @@ function TicketListItem({ ticket, showCategory = false, showMeta = true }: Ticke
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h3 className="font-medium text-foreground truncate">{ticket.title}</h3>
+            <h3 className="font-medium text-foreground truncate">
+              {ticket.title}
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground truncate">
               {showCategory && `${ticket.category_name} • `}
               {ticket.location.address || ticket.location.city}
@@ -163,6 +180,7 @@ function TicketListItem({ ticket, showCategory = false, showMeta = true }: Ticke
             {getStatusLabel(ticket.status)}
           </Badge>
         </div>
+
         {showMeta && (
           <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
             <span>{formatRelativeTime(ticket.created_at)}</span>
@@ -197,18 +215,18 @@ function TicketListCard({
   showCategory = false,
 }: TicketListCardProps) {
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={fadeInUp}
-    >
+    <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <CardTitle className="text-lg">{title}</CardTitle>
-          <Link href={viewAllHref} className="text-sm text-primary hover:text-primary/80">
+          <Link
+            href={viewAllHref}
+            className="text-sm text-primary hover:text-primary/80"
+          >
             View all
           </Link>
         </CardHeader>
+
         <CardContent className="pt-0">
           {isLoading ? (
             <div className="space-y-3">
@@ -232,7 +250,11 @@ function TicketListCard({
               animate="visible"
             >
               {tickets.map((ticket) => (
-                <TicketListItem key={ticket.id} ticket={ticket} showCategory={showCategory} />
+                <TicketListItem
+                  key={ticket.id}
+                  ticket={ticket}
+                  showCategory={showCategory}
+                />
               ))}
             </motion.div>
           )}
@@ -247,15 +269,32 @@ function TicketListCard({
 // ============================================================================
 
 function CitizenDashboard() {
-  const { data, isLoading, isError, refetch } = useMyTickets({ page_size: 5 });
+  // Get all tickets for stats (use max page size to get accurate counts)
+  // Backend limit is 100, so we use that
+  const { data, isLoading, isError, refetch } = useMyTickets({ page_size: 100 });
   const tickets = data?.items ?? [];
-
+  
+  // Use API total for accurate total count - if not available, use items length
+  // But note: items length might be limited by page_size, so prefer API total
+  const totalTickets = data?.total !== undefined && data.total > 0 
+    ? data.total 
+    : tickets.length > 0 
+      ? tickets.length 
+      : 0;
+  
   const stats = {
-    total: tickets.length,
-    inProgress: tickets.filter((t) => t.status === TicketStatus.IN_PROGRESS).length,
-    resolved: tickets.filter((t) => t.status === TicketStatus.RESOLVED || t.status === TicketStatus.CLOSED).length,
+    total: totalTickets,
+    inProgress: tickets.filter((t) => t.status === TicketStatus.IN_PROGRESS)
+      .length,
+    resolved: tickets.filter(
+      (t) =>
+        t.status === TicketStatus.RESOLVED || t.status === TicketStatus.CLOSED,
+    ).length,
     pending: tickets.filter((t) => t.status === TicketStatus.NEW).length,
   };
+
+  // Show only first 5 tickets for display
+  const recentTickets = tickets.slice(0, 5);
 
   return (
     <motion.div
@@ -264,14 +303,17 @@ function CitizenDashboard() {
       animate="visible"
       variants={staggerContainer}
     >
-      {/* Welcome section */}
       <motion.div
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
         variants={fadeInUp}
       >
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Welcome back!</h1>
-          <p className="text-muted-foreground">Track and manage your neighborhood issues</p>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Welcome back!
+          </h1>
+          <p className="text-muted-foreground">
+            Track and manage your neighborhood issues
+          </p>
         </div>
         <Link href="/tickets/new">
           <Button>
@@ -281,7 +323,6 @@ function CitizenDashboard() {
         </Link>
       </motion.div>
 
-      {/* Quick stats */}
       {isLoading ? (
         <DashboardKPISkeleton />
       ) : (
@@ -318,11 +359,10 @@ function CitizenDashboard() {
         </motion.div>
       )}
 
-      {/* Recent tickets */}
       <TicketListCard
         title="Recent Reports"
         viewAllHref="/tickets"
-        tickets={tickets}
+        tickets={recentTickets}
         isLoading={isLoading}
         isError={isError}
         refetch={refetch}
@@ -338,6 +378,7 @@ function CitizenDashboard() {
 
 function SupportDashboard() {
   const [days, setDays] = useState(30);
+  const { user } = useAuth();
 
   const ticketsQuery = useAssignedTickets({ page_size: 5 });
   const escalationsQuery = useEscalations({
@@ -347,8 +388,10 @@ function SupportDashboard() {
   const kpisQuery = useDashboardKPIs(days);
 
   const assignedTickets = ticketsQuery.data?.items ?? [];
+  const assignedTicketsTotal = ticketsQuery.data?.total ?? 0;
   const escalations = escalationsQuery.data?.items ?? [];
   const kpis = kpisQuery.data;
+  const teamName = user?.team_name;
 
   const isLoading =
     ticketsQuery.isLoading || escalationsQuery.isLoading || kpisQuery.isLoading;
@@ -360,20 +403,27 @@ function SupportDashboard() {
       animate="visible"
       variants={staggerContainer}
     >
-      {/* Header */}
       <motion.div variants={fadeInUp}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Support Dashboard</h1>
+            <h1 className="text-2xl font-semibold text-foreground">
+              Support Dashboard
+            </h1>
             <p className="text-muted-foreground">
-              Manage assigned tickets and escalations
+              {teamName ? (
+                <>
+                  Manage assigned tickets and escalations • Team:{" "}
+                  <span className="font-medium text-foreground">{teamName}</span>
+                </>
+              ) : (
+                "Manage assigned tickets and escalations"
+              )}
             </p>
           </div>
 
-          {/* Time filter */}
           <Select
             value={days.toString()}
-            onValueChange={(value) => setDays(parseInt(value, 10))}
+            onValueChange={(v) => setDays(parseInt(v, 10))}
           >
             <SelectTrigger className="w-[150px]">
               <SelectValue />
@@ -388,139 +438,132 @@ function SupportDashboard() {
         </div>
       </motion.div>
 
-      {/* Content */}
-      <>
-        {/* KPI Cards */}
-        {isLoading ? (
-          <DashboardKPISkeleton />
-        ) : (
-          <motion.div
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-          >
-            <KPICard
-              title="Assigned"
-              value={assignedTickets.length}
-              icon={<TicketIcon className="h-5 w-5 text-blue-600" />}
-              iconBgClass="bg-blue-100"
-            />
-            <KPICard
-              title="Pending Escalations"
-              value={escalations.length}
-              icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
-              iconBgClass="bg-amber-100"
-            />
-            <KPICard
-              title="Resolution Rate"
-              value={kpis ? formatPercentage(kpis.resolution_rate, 2) : "-"}
-              icon={<TrendingUp className="h-5 w-5 text-green-600" />}
-              iconBgClass="bg-green-100"
-            />
-            <KPICard
-              title="Avg Rating"
-              value={formatRating(kpis?.average_rating ?? null)}
-              icon={<Star className="h-5 w-5 text-purple-600" />}
-              iconBgClass="bg-purple-100"
-            />
-          </motion.div>
-        )}
-
-        {/* Assigned tickets + escalations */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Assigned Tickets */}
-          <TicketListCard
-            title="Assigned Tickets"
-            viewAllHref="/tickets?assigned=me"
-            tickets={assignedTickets}
-            isLoading={ticketsQuery.isLoading}
-            isError={ticketsQuery.isError}
-            refetch={ticketsQuery.refetch}
+      {isLoading ? (
+        <DashboardKPISkeleton />
+      ) : (
+        <motion.div
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
+          <KPICard
+            title="Assigned"
+            value={assignedTicketsTotal}
+            icon={<TicketIcon className="h-5 w-5 text-blue-600" />}
+            iconBgClass="bg-blue-100"
           />
+          <KPICard
+            title="Pending Escalations"
+            value={escalations.length}
+            icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
+            iconBgClass="bg-amber-100"
+          />
+          <KPICard
+            title="Resolution Rate"
+            value={kpis ? formatPercentage(kpis.resolution_rate, 2) : "-"}
+            icon={<TrendingUp className="h-5 w-5 text-green-600" />}
+            iconBgClass="bg-green-100"
+          />
+          <KPICard
+            title="Avg Rating"
+            value={formatRating(kpis?.average_rating ?? null)}
+            icon={<Star className="h-5 w-5 text-purple-600" />}
+            iconBgClass="bg-purple-100"
+          />
+        </motion.div>
+      )}
 
-          {/* Pending Escalations */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeInUp}
-          >
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
-                <CardTitle className="text-lg">Pending Escalations</CardTitle>
-                <Link
-                  href="/escalations"
-                  className="text-sm text-primary hover:text-primary/80"
+      <div className="grid gap-6 lg:grid-cols-2">
+        <TicketListCard
+          title="Assigned Tickets"
+          viewAllHref="/tickets?assigned=me"
+          tickets={assignedTickets}
+          isLoading={ticketsQuery.isLoading}
+          isError={ticketsQuery.isError}
+          refetch={ticketsQuery.refetch}
+        />
+
+        <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <CardTitle className="text-lg">Pending Escalations</CardTitle>
+              <Link
+                href="/escalations"
+                className="text-sm text-primary hover:text-primary/80"
+              >
+                View all
+              </Link>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {escalationsQuery.isLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <TicketCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : escalations.length === 0 ? (
+                <p className="py-4 text-center text-muted-foreground">
+                  No pending escalations
+                </p>
+              ) : (
+                <motion.div
+                  className="space-y-3"
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="visible"
                 >
-                  View all
-                </Link>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {escalationsQuery.isLoading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <TicketCardSkeleton key={i} />
-                    ))}
-                  </div>
-                ) : escalations.length === 0 ? (
-                  <p className="py-4 text-center text-muted-foreground">
-                    No pending escalations
-                  </p>
-                ) : (
-                  <motion.div
-                    className="space-y-3"
-                    variants={staggerContainer}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    {escalations.map((escalation) => (
-                      <motion.div key={escalation.id} variants={staggerItem}>
-                        <Link
-                          href={`/escalations/${escalation.id}`}
-                          className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium text-foreground truncate">
-                              {escalation.ticket_title}
-                            </span>
-                            <Badge variant="warning">Pending</Badge>
-                          </div>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            By {escalation.requester_name} •{" "}
-                            {formatDate(escalation.created_at)}
-                          </p>
-                        </Link>
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </>
+                  {escalations.map((escalation) => (
+                    <motion.div key={escalation.id} variants={staggerItem}>
+                      <Link
+                        href={`/escalations/${escalation.id}`}
+                        className="block rounded-lg border border-border p-3 transition hover:border-amber-300 hover:bg-amber-50"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-foreground truncate">
+                            {escalation.ticket_title}
+                          </span>
+                          <Badge variant="warning">Pending</Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          By {escalation.requester_name} •{" "}
+                          {formatDate(escalation.created_at)}
+                        </p>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }
 
 // ============================================================================
-// MANAGER DASHBOARD
+// MANAGER DASHBOARD  (Workload Snapshot REAL TEAM DATA)
 // ============================================================================
 
 function ManagerDashboard() {
   const [days, setDays] = useState(30);
-  const [heatmapFilter, setHeatmapFilter] = useState<"all" | "in_progress">("all");
+  const [heatmapFilter, setHeatmapFilter] = useState<
+    "all" | TicketStatus
+  >("all");
 
   const kpisQuery = useDashboardKPIs(days);
-  const ticketsQuery = useMyTickets({ page_size: 5 });
+  const ticketsQuery = useTickets({ page: 1, page_size: 3 });
   const escalationsQuery = useEscalations({
     status_filter: EscalationStatus.PENDING,
     page_size: 5,
   });
+
   const heatmapQuery = useHeatmap({
     days,
-    status: heatmapFilter === "in_progress" ? TicketStatus.IN_PROGRESS : undefined
+    status: heatmapFilter === "all" ? undefined : heatmapFilter,
   });
+
   const categoryStatsQuery = useCategoryStats(days);
   const teamPerformanceQuery = useTeamPerformance(days);
   const neighborhoodStatsQuery = useNeighborhoodStats(days, 5);
@@ -529,11 +572,47 @@ function ManagerDashboard() {
   const recentTickets = ticketsQuery.data?.items ?? [];
   const pendingEscalations = escalationsQuery.data?.items ?? [];
   const heatmapData = heatmapQuery.data;
-  const categoryData = categoryStatsQuery.data?.items ?? [];
+
+  const categoryItems = categoryStatsQuery.data?.items ?? [];
   const teamData = teamPerformanceQuery.data?.items ?? [];
   const neighborhoodData = neighborhoodStatsQuery.data?.items ?? [];
 
   const isKPILoading = kpisQuery.isLoading;
+
+  // -----------------------------
+  // Robust field getters (in case API uses slightly different names)
+  // -----------------------------
+  const getTeamName = (t: any) =>
+    (t?.team_name ?? t?.name ?? t?.teamName ?? "Unnamed Team") as string;
+
+  const getOpenCount = (t: any) =>
+    Number(t?.open_tickets ?? t?.openTickets ?? t?.open_count ?? t?.open ?? 0);
+
+  const sortedTeams = [...teamData].sort(
+    (a: any, b: any) => getOpenCount(b) - getOpenCount(a),
+  );
+  const totalOpenAcrossTeams = sortedTeams.reduce(
+    (sum: number, t: any) => sum + getOpenCount(t),
+    0,
+  );
+
+  // Generate consistent colors for all categories
+  const categoryColorMap: Record<string, string> = categoryItems.reduce(
+    (acc, item) => {
+      acc[item.category_name] = getCategoryColor(item.category_name);
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+
+  const totalCategoryTickets = categoryItems.reduce(
+    (sum: number, c: any) => sum + Number(c?.total_tickets ?? 0),
+    0,
+  );
+  const totalCategoryOpen = categoryItems.reduce(
+    (sum: number, c: any) => sum + Number(c?.open_tickets ?? 0),
+    0,
+  );
 
   return (
     <motion.div
@@ -547,15 +626,18 @@ function ManagerDashboard() {
         variants={fadeInUp}
       >
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Manager Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Manager Dashboard
+          </h1>
           <p className="text-muted-foreground">
             High-level overview of city-wide performance and workloads
           </p>
         </div>
+
         <div className="flex gap-2">
           <Select
             value={days.toString()}
-            onValueChange={(value) => setDays(parseInt(value, 10))}
+            onValueChange={(v) => setDays(parseInt(v, 10))}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue />
@@ -567,6 +649,7 @@ function ManagerDashboard() {
               <SelectItem value="365">Last year</SelectItem>
             </SelectContent>
           </Select>
+
           <Link href="/analytics">
             <Button variant="outline">
               <TrendingUp className="mr-2 h-4 w-4" />
@@ -576,7 +659,7 @@ function ManagerDashboard() {
         </div>
       </motion.div>
 
-      {/* KPI Cards – overall system metrics */}
+      {/* KPI Cards */}
       {isKPILoading ? (
         <DashboardKPISkeleton />
       ) : (
@@ -613,7 +696,7 @@ function ManagerDashboard() {
         </motion.div>
       )}
 
-      {/* Additional Stats – escalations, resolved, avg time */}
+      {/* Additional Stats */}
       {isKPILoading ? (
         <div className="grid gap-4 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -658,12 +741,8 @@ function ManagerDashboard() {
         </motion.div>
       )}
 
-      {/* Pending Escalations - Full Width */}
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={fadeInUp}
-      >
+      {/* Pending Escalations */}
+      <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-lg">Pending Escalations</CardTitle>
@@ -717,7 +796,6 @@ function ManagerDashboard() {
       </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Tickets */}
         <TicketListCard
           title="Recent Tickets"
           viewAllHref="/tickets"
@@ -728,14 +806,9 @@ function ManagerDashboard() {
           showCategory
         />
 
-        {/* Category Distribution Pie Charts */}
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Total Tickets */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeInUp}
-          >
+          <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
             <Card className="h-full">
               <CardHeader className="p-4">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -744,9 +817,9 @@ function ManagerDashboard() {
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">By Category</p>
               </CardHeader>
-              <CardContent className="p-2">
+              <CardContent className="p-4">
                 {categoryStatsQuery.isLoading ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                  <div className="h-[350px] flex items-center justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : categoryStatsQuery.isError ? (
@@ -755,49 +828,54 @@ function ManagerDashboard() {
                     message="Failed"
                     onRetry={categoryStatsQuery.refetch}
                   />
-                ) : categoryStatsQuery.data?.items.length === 0 ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                ) : categoryItems.length === 0 ? (
+                  <div className="h-[350px] flex items-center justify-center">
                     <p className="text-xs text-muted-foreground">No data</p>
                   </div>
                 ) : (
-                  <div className="h-[200px] relative">
+                  <div className="h-[350px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryStatsQuery.data?.items as any}
+                          data={categoryItems as any[]}
                           cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={5}
+                          cy="42%"
+                          innerRadius={65}
+                          outerRadius={95}
+                          paddingAngle={2}
                           dataKey="total_tickets"
                           nameKey="category_name"
-                          label={({ name }: { name?: string }) => name ?? ''}
-                          labelLine={false}
+                          label={false}
+                          minAngle={5}
                         >
-                          {categoryStatsQuery.data?.items.map((entry: any, index: number) => {
-                            const colorMap: Record<string, string> = {
-                              'Infrastructure': '#0088FE',
-                              'Traffic': '#00C49F',
-                              'Lighting': '#FFBB28',
-                              'Waste Management': '#FF8042',
-                              'Parks': '#8884d8',
-                              'Other': '#82ca9d',
-                            };
-                            return (
-                              <Cell key={`cell-${index}`} fill={colorMap[entry.category_name] || '#999999'} />
-                            );
-                          })}
+                          {categoryItems.map((entry: any, index: number) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={
+                                categoryColorMap[entry.category_name] ||
+                                "#999999"
+                              }
+                            />
+                          ))}
                         </Pie>
                         <Tooltip />
+                        <Legend
+                          verticalAlign="bottom"
+                          height={50}
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+
+                    <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                       <div className="text-center">
-                        <div className="text-xl font-normal text-foreground">
-                          {categoryStatsQuery.data?.items.reduce((sum: number, cat: any) => sum + cat.total_tickets, 0)}
+                        <div className="text-2xl font-semibold text-foreground">
+                          {totalCategoryTickets}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">Total</div>
+                        <div className="text-xs text-muted-foreground">
+                          Total
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -807,11 +885,7 @@ function ManagerDashboard() {
           </motion.div>
 
           {/* Open Tickets */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeInUp}
-          >
+          <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
             <Card className="h-full">
               <CardHeader className="p-4">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -820,9 +894,9 @@ function ManagerDashboard() {
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">By Category</p>
               </CardHeader>
-              <CardContent className="p-2">
+              <CardContent className="p-4">
                 {categoryStatsQuery.isLoading ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                  <div className="h-[350px] flex items-center justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : categoryStatsQuery.isError ? (
@@ -831,49 +905,54 @@ function ManagerDashboard() {
                     message="Failed"
                     onRetry={categoryStatsQuery.refetch}
                   />
-                ) : categoryStatsQuery.data?.items.length === 0 ? (
-                  <div className="h-[200px] flex items-center justify-center">
+                ) : categoryItems.length === 0 ? (
+                  <div className="h-[350px] flex items-center justify-center">
                     <p className="text-xs text-muted-foreground">No data</p>
                   </div>
                 ) : (
-                  <div className="h-[200px] relative">
+                  <div className="h-[350px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={categoryStatsQuery.data?.items as any}
+                          data={categoryItems as any[]}
                           cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={5}
+                          cy="42%"
+                          innerRadius={65}
+                          outerRadius={95}
+                          paddingAngle={2}
                           dataKey="open_tickets"
                           nameKey="category_name"
-                          label={({ name }: { name?: string }) => name ?? ''}
-                          labelLine={false}
+                          label={false}
+                          minAngle={5}
                         >
-                          {categoryStatsQuery.data?.items.map((entry: any, index: number) => {
-                            const colorMap: Record<string, string> = {
-                              'Infrastructure': '#0088FE',
-                              'Traffic': '#00C49F',
-                              'Lighting': '#FFBB28',
-                              'Waste Management': '#FF8042',
-                              'Parks': '#8884d8',
-                              'Other': '#82ca9d',
-                            };
-                            return (
-                              <Cell key={`cell-${index}`} fill={colorMap[entry.category_name] || '#999999'} />
-                            );
-                          })}
+                          {categoryItems.map((entry: any, index: number) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={
+                                categoryColorMap[entry.category_name] ||
+                                "#999999"
+                              }
+                            />
+                          ))}
                         </Pie>
                         <Tooltip />
+                        <Legend
+                          verticalAlign="bottom"
+                          height={50}
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+
+                    <div className="absolute top-[33%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                       <div className="text-center">
-                        <div className="text-xl font-normal text-foreground">
-                          {categoryStatsQuery.data?.items.reduce((sum: number, cat: any) => sum + cat.open_tickets, 0)}
+                        <div className="text-2xl font-semibold text-foreground">
+                          {totalCategoryOpen}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">Open</div>
+                        <div className="text-xs text-muted-foreground">
+                          Open
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -889,7 +968,7 @@ function ManagerDashboard() {
         className="grid gap-6 lg:grid-cols-[1.4fr,1fr]"
         variants={fadeInUp}
       >
-        {/* Workload Snapshot */}
+        {/* Workload Snapshot (TEAM API DATA) */}
         <Card>
           <CardContent className="p-6">
             <h2 className="mb-4 text-lg font-semibold text-foreground">
@@ -899,26 +978,52 @@ function ManagerDashboard() {
               High-level distribution of open tickets across support teams. This
               helps managers balance workloads and identify overloaded teams.
             </p>
-            <div className="space-y-3 text-xs text-muted-foreground">
-              {[
-                { team: "Central Support Team", percent: 60, tickets: 42 },
-                { team: "North District Team", percent: 25, tickets: 18 },
-                { team: "South District Team", percent: 15, tickets: 11 },
-              ].map((row) => (
-                <div key={row.team}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">{row.team}</span>
-                    <span>{row.tickets} open</span>
-                  </div>
-                  <div className="mt-1 h-2 rounded-full bg-muted">
-                    <div
-                      className="h-2 rounded-full bg-primary"
-                      style={{ width: `${row.percent}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+
+            {teamPerformanceQuery.isLoading ? (
+              <div className="py-10 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : teamPerformanceQuery.isError ? (
+              <ErrorState
+                title="Failed to load team workload"
+                message="Could not load workload data. Please try again."
+                onRetry={teamPerformanceQuery.refetch}
+              />
+            ) : sortedTeams.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                No team workload data found.
+              </div>
+            ) : (
+              <div className="space-y-3 text-xs text-muted-foreground">
+                {sortedTeams.map((t: any) => {
+                  const open = getOpenCount(t);
+                  const percent =
+                    totalOpenAcrossTeams > 0
+                      ? Math.round((open / totalOpenAcrossTeams) * 100)
+                      : 0;
+
+                  const teamName = getTeamName(t);
+                  const key = (t?.team_id ?? t?.id ?? teamName) as string;
+
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-foreground">
+                          {teamName}
+                        </span>
+                        <span>{open} open</span>
+                      </div>
+                      <div className="mt-1 h-2 rounded-full bg-muted">
+                        <div
+                          className="h-2 rounded-full bg-primary"
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -938,7 +1043,7 @@ function ManagerDashboard() {
               <Link href="/teams">
                 <Button variant="outline">
                   <Users className="mr-2 h-4 w-4" />
-                  Manage Teams
+                  Manage Teams and Categories
                 </Button>
               </Link>
               <Link href="/escalations">
@@ -947,24 +1052,9 @@ function ManagerDashboard() {
                   Review Escalations
                 </Button>
               </Link>
-              <Link href="/categories">
-                <Button variant="outline">
-                  <TicketIcon className="mr-2 h-4 w-4" />
-                  Manage Categories
-                </Button>
-              </Link>
             </div>
           </CardContent>
         </Card>
-      </motion.div>
-
-
-
-      {/* Feedback Analytics - Category & Team Performance */}
-      <motion.div className="space-y-6" variants={fadeInUp}>
-
-
-
       </motion.div>
 
       {/* Issue Density Heatmap */}
@@ -975,23 +1065,35 @@ function ManagerDashboard() {
               <div>
                 <CardTitle>Issue Density Heatmap</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Geographic visualization of reported issues ({getTimeRangeLabel(days)})
+                  Geographic visualization of reported issues (
+                  {getTimeRangeLabel(days)})
                 </p>
               </div>
               <Select
                 value={heatmapFilter}
-                onValueChange={(value) => setHeatmapFilter(value as "all" | "in_progress")}
+                onValueChange={(v) =>
+                  setHeatmapFilter(v as "all" | TicketStatus)
+                }
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[1000]">
                   <SelectItem value="all">All Created</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value={TicketStatus.NEW}>New</SelectItem>
+                  <SelectItem value={TicketStatus.IN_PROGRESS}>
+                    In Progress
+                  </SelectItem>
+                  <SelectItem value={TicketStatus.RESOLVED}>Resolved</SelectItem>
+                  <SelectItem value={TicketStatus.CLOSED}>Closed</SelectItem>
+                  <SelectItem value={TicketStatus.ESCALATED}>
+                    Escalated
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </CardHeader>
+
           <CardContent className="space-y-4">
             {heatmapQuery.isLoading ? (
               <div className="h-[400px] rounded-xl bg-muted flex items-center justify-center">
@@ -1007,7 +1109,11 @@ function ManagerDashboard() {
               <div className="h-[400px] rounded-xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center p-8 text-center">
                 <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-sm text-muted-foreground">
-                  No {heatmapFilter === "in_progress" ? "in-progress" : ""} tickets found in the {getTimeRangeLabel(days)}.
+                  No{" "}
+                  {heatmapFilter !== "all"
+                    ? `${getStatusLabel(heatmapFilter as TicketStatus).toLowerCase()} `
+                    : ""}
+                  tickets found in the {getTimeRangeLabel(days)}.
                   <br />
                   The heatmap will appear once issues are reported.
                 </p>
@@ -1015,6 +1121,7 @@ function ManagerDashboard() {
             ) : (
               <>
                 <HeatmapVisualization
+                  key={`heatmap-${days}-${heatmapFilter}`}
                   points={heatmapData.points}
                   height="450px"
                 />
@@ -1039,6 +1146,7 @@ function ManagerDashboard() {
                       </li>
                     </ul>
                   </div>
+
                   <div>
                     <p className="font-medium text-foreground text-sm mb-2">
                       Statistics
@@ -1049,6 +1157,7 @@ function ManagerDashboard() {
                       <li>Max at one location: {heatmapData.max_count}</li>
                     </ul>
                   </div>
+
                   <div>
                     <p className="font-medium text-foreground text-sm mb-2">
                       Use Cases
@@ -1066,7 +1175,7 @@ function ManagerDashboard() {
         </Card>
       </motion.div>
 
-      {/* Top 5 Problematic Neighborhoods */}
+      {/* Top 5 Problematic Districts */}
       <motion.div variants={fadeInUp}>
         <Card>
           <CardHeader>
@@ -1075,6 +1184,7 @@ function ManagerDashboard() {
               Districts with most tickets and category breakdown
             </p>
           </CardHeader>
+
           <CardContent>
             {neighborhoodStatsQuery.isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -1088,7 +1198,9 @@ function ManagerDashboard() {
               />
             ) : neighborhoodData.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <p className="text-sm text-muted-foreground">No district data found</p>
+                <p className="text-sm text-muted-foreground">
+                  No district data found
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1099,11 +1211,14 @@ function ManagerDashboard() {
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold
-                            ${index === 0 ? 'bg-red-100 text-red-700' :
-                            index === 1 ? 'bg-orange-100 text-orange-700' :
-                              'bg-muted text-muted-foreground'
-                          }`}
+                        <div
+                          className={`flex items-center justify-center w-8 h-8 rounded-full font-bold
+                            ${index === 0
+                              ? "bg-red-100 text-red-700"
+                              : index === 1
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-muted text-muted-foreground"
+                            }`}
                         >
                           {index + 1}
                         </div>
@@ -1117,6 +1232,7 @@ function ManagerDashboard() {
                         </div>
                       </div>
                     </div>
+
                     <div className="flex flex-wrap gap-2">
                       {neighborhood.category_breakdown.map((cat: any) => (
                         <div
@@ -1139,12 +1255,12 @@ function ManagerDashboard() {
           </CardContent>
         </Card>
       </motion.div>
-    </motion.div >
+    </motion.div>
   );
 }
 
 // ============================================================================
-// MAIN DASHBOARD PAGE
+// MAIN PAGE
 // ============================================================================
 
 export default function DashboardPage() {
@@ -1162,7 +1278,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Render role-specific dashboard
   switch (user?.role) {
     case UserRole.MANAGER:
       return <ManagerDashboard />;
