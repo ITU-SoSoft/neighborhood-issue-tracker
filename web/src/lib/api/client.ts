@@ -17,6 +17,8 @@ import {
   FeedbackCreate,
   FeedbackUpdate,
   FeedbackTrendsResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
   HeatmapResponse,
   LoginRequest,
   LoginResponse,
@@ -32,10 +34,16 @@ import {
   RegisterResponse,
   RequestOTPRequest,
   RequestOTPResponse,
+  ResendVerificationRequest,
+  ResendVerificationResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   SavedAddress,
   SavedAddressCreate,
   SavedAddressListResponse,
   SavedAddressUpdate,
+  SetPasswordRequest,
+  SetPasswordResponse,
   StaffLoginRequest,
   TeamPerformanceResponse,
   Ticket,
@@ -52,12 +60,13 @@ import {
   UserRole,
   UserRoleUpdate,
   UserUpdate,
+  VerifyEmailResponse,
   VerifyOTPRequest,
   VerifyOTPResponse,
   CategoryStatsResponse,
   NeighborhoodStatsResponse,
 
-  // ✅ TEAMS (EĞER types.ts içinde tanımlıysa kullan)
+  // TEAMS (EĞER types.ts içinde tanımlıysa kullan)
   TeamListResponse,
   TeamDetailResponse,
   TeamResponse,
@@ -68,7 +77,8 @@ import {
 } from "./types";
 
 const API_BASE_URL =
-  (process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000/api/v1");
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000/api/v1";
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = "access_token";
@@ -286,6 +296,61 @@ export async function getCurrentUser(): Promise<User> {
   return apiFetch<User>("/auth/me");
 }
 
+export async function verifyEmail(token: string): Promise<VerifyEmailResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`,
+    {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  return handleResponse<VerifyEmailResponse>(response);
+}
+
+export async function resendVerification(
+  data: ResendVerificationRequest,
+): Promise<ResendVerificationResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ResendVerificationResponse>(response);
+}
+
+export async function setPassword(
+  data: SetPasswordRequest,
+): Promise<SetPasswordResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/set-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<SetPasswordResponse>(response);
+}
+
+export async function forgotPassword(
+  data: ForgotPasswordRequest,
+): Promise<ForgotPasswordResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ForgotPasswordResponse>(response);
+}
+
+export async function resetPassword(
+  data: ResetPasswordRequest,
+): Promise<ResetPasswordResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ResetPasswordResponse>(response);
+}
+
 // ============================================================================
 // USERS API
 // ============================================================================
@@ -392,7 +457,7 @@ export async function deleteTeam(teamId: string): Promise<void> {
 export async function getTicketsByTeam(
   teamId: string,
   page: number = 1,
-  pageSize: number = 100
+  pageSize: number = 100,
 ): Promise<TicketListResponse> {
   const params = new URLSearchParams({
     team_id: teamId,
@@ -588,9 +653,7 @@ export async function getNearbyTickets(params: {
     searchParams.set("radius_meters", params.radius_meters.toString());
   if (params.category_id) searchParams.set("category_id", params.category_id);
 
-  return apiFetch<NearbyTicket[]>(
-    `/tickets/nearby?${searchParams.toString()}`,
-  );
+  return apiFetch<NearbyTicket[]>(`/tickets/nearby?${searchParams.toString()}`);
 }
 
 export async function getTicketById(ticketId: string): Promise<TicketDetail> {
@@ -713,15 +776,12 @@ export async function createEscalation(
 
 export async function getEscalations(params?: {
   status_filter?: EscalationStatus;
-  ticket_id?: string;
   page?: number;
   page_size?: number;
 }): Promise<EscalationListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.status_filter)
     searchParams.set("status_filter", params.status_filter);
-  if (params?.ticket_id)
-    searchParams.set("ticket_id", params.ticket_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
     searchParams.set("page_size", params.page_size.toString());
@@ -782,7 +842,9 @@ export async function getHeatmap(params?: {
   );
 }
 
-export async function getTeamPerformance(days = 30): Promise<TeamPerformanceResponse> {
+export async function getTeamPerformance(
+  days = 30,
+): Promise<TeamPerformanceResponse> {
   return apiFetch<TeamPerformanceResponse>(`/analytics/teams?days=${days}`);
 }
 
@@ -795,7 +857,9 @@ export async function getMemberPerformance(
   );
 }
 
-export async function getCategoryStats(days = 30): Promise<CategoryStatsResponse> {
+export async function getCategoryStats(
+  days = 30,
+): Promise<CategoryStatsResponse> {
   return apiFetch<CategoryStatsResponse>(`/analytics/categories?days=${days}`);
 }
 
@@ -833,7 +897,9 @@ export async function getSavedAddresses(): Promise<SavedAddressListResponse> {
   return apiFetch<SavedAddressListResponse>("/addresses");
 }
 
-export async function getSavedAddressById(addressId: string): Promise<SavedAddress> {
+export async function getSavedAddressById(
+  addressId: string,
+): Promise<SavedAddress> {
   return apiFetch<SavedAddress>(`/addresses/${addressId}`);
 }
 
@@ -895,7 +961,9 @@ export async function markNotificationAsRead(
   });
 }
 
-export async function markAllNotificationsAsRead(): Promise<{ message: string }> {
+export async function markAllNotificationsAsRead(): Promise<{
+  message: string;
+}> {
   return apiFetch<{ message: string }>("/notifications/read-all", {
     method: "PATCH",
   });
