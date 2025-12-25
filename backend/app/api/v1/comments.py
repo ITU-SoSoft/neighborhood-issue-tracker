@@ -98,6 +98,12 @@ async def create_comment(
     if result.scalar_one_or_none() is None:
         raise TicketNotFoundException()
 
+    # Get ticket for notification
+    result = await db.execute(
+        select(Ticket).where(Ticket.id == ticket_id)
+    )
+    ticket = result.scalar_one()
+    
     comment = Comment(
         ticket_id=ticket_id,
         user_id=current_user.id,
@@ -107,6 +113,16 @@ async def create_comment(
     db.add(comment)
     await db.commit()
     await db.refresh(comment)
+
+    # Send notification for public comments only
+    if not comment.is_internal:
+        from app.services.notification_service import notify_comment_added
+        
+        try:
+            await notify_comment_added(db, ticket, current_user, comment.content)
+        except Exception:
+            # Don't fail comment creation if notification fails
+            pass
 
     return CommentResponse(
         id=comment.id,

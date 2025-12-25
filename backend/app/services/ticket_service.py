@@ -155,11 +155,17 @@ class TicketService:
         )
         ticket = result.scalar_one()
 
-        # Send notification
-        from app.services.notification_service import notify_ticket_created
+        # Send notifications
+        from app.services.notification_service import (
+            notify_ticket_created,
+            notify_new_ticket_for_team,
+        )
 
         try:
             await notify_ticket_created(db, ticket)
+            # Notify team members if ticket was assigned
+            if ticket.team_id:
+                await notify_new_ticket_for_team(db, ticket)
         except Exception:
             # Don't fail ticket creation if notification fails
             pass
@@ -338,6 +344,15 @@ class TicketService:
 
         await db.commit()
         await db.refresh(ticket)
+
+        # Send notification to team members
+        from app.services.notification_service import notify_ticket_assigned
+        
+        try:
+            await notify_ticket_assigned(db, ticket)
+        except Exception:
+            # Don't fail assignment if notification fails
+            pass
 
         return ticket
 
