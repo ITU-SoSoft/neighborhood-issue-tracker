@@ -19,7 +19,7 @@ export function formatDate(
     month: "short",
     day: "numeric",
     year: "numeric",
-  }
+  },
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleDateString("en-US", options);
@@ -57,7 +57,8 @@ export function formatRelativeTime(date: string | Date): string {
   if (diffHour < 24) return `${diffHour} hour${diffHour === 1 ? "" : "s"} ago`;
   if (diffDay < 7) return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
   if (diffWeek < 4) return `${diffWeek} week${diffWeek === 1 ? "" : "s"} ago`;
-  if (diffMonth < 12) return `${diffMonth} month${diffMonth === 1 ? "" : "s"} ago`;
+  if (diffMonth < 12)
+    return `${diffMonth} month${diffMonth === 1 ? "" : "s"} ago`;
   return formatDate(d);
 }
 
@@ -65,7 +66,14 @@ export function formatRelativeTime(date: string | Date): string {
 // STATUS VARIANTS (for Badge component)
 // ============================================================================
 
-type BadgeVariant = "default" | "secondary" | "success" | "warning" | "danger" | "info" | "outline";
+type BadgeVariant =
+  | "default"
+  | "secondary"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "outline";
 
 /**
  * Get badge variant for ticket status
@@ -110,7 +118,9 @@ export function getStatusLabel(status: TicketStatus): string {
 /**
  * Get badge variant for escalation status
  */
-export function getEscalationStatusVariant(status: EscalationStatus): BadgeVariant {
+export function getEscalationStatusVariant(
+  status: EscalationStatus,
+): BadgeVariant {
   switch (status) {
     case EscalationStatus.PENDING:
       return "warning";
@@ -267,6 +277,27 @@ export function formatRating(rating: number | null): string {
 }
 
 // ============================================================================
+// PLATFORM DETECTION
+// ============================================================================
+
+/**
+ * Check if the current platform is macOS
+ * Returns false during SSR (server-side rendering)
+ */
+export function isMacOS(): boolean {
+  if (typeof window === "undefined") return false;
+  return navigator.platform.toLowerCase().includes("mac");
+}
+
+/**
+ * Get the platform-appropriate modifier key symbol
+ * Returns "⌘" for macOS, "Ctrl" for Windows/Linux
+ */
+export function getModifierKey(): string {
+  return isMacOS() ? "⌘" : "Ctrl";
+}
+
+// ============================================================================
 // COLOR UTILITIES
 // ============================================================================
 
@@ -296,11 +327,11 @@ export function getCategoryColor(categoryName: string): string {
   for (let i = 0; i < categoryName.length; i++) {
     hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
   }
-  
+
   // Convert hash to RGB with good saturation and brightness
   const hue = Math.abs(hash) % 360;
   const saturation = 65 + (Math.abs(hash >> 8) % 20); // 65-85%
   const lightness = 50 + (Math.abs(hash >> 16) % 15); // 50-65%
-  
+
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }

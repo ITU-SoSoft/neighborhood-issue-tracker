@@ -413,7 +413,7 @@ export default function CreateTicketPage() {
             
             {/* Saved addresses quick select */}
             {savedAddresses.length > 0 && (
-              <div className="space-y-2 relative z-10">
+              <div className="space-y-2 relative z-[1100]">
                 <Label className="text-sm text-muted-foreground flex items-center gap-2">
                   <Home className="h-4 w-4" />
                   Use a saved address
@@ -422,7 +422,7 @@ export default function CreateTicketPage() {
                   <SelectTrigger className="relative z-10 bg-background">
                     <SelectValue placeholder="Select a saved address or pick on map" />
                   </SelectTrigger>
-                  <SelectContent className="z-20 shadow-xl">
+                  <SelectContent className="z-[1200] shadow-xl">
                     <SelectItem value="map">
                       <div className="flex items-center gap-2">
                         <Navigation className="h-4 w-4" />
