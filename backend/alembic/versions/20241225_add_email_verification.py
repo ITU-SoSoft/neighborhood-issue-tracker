@@ -21,6 +21,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Create email_verification_tokens table."""
+    # Check if table already exists to make migration idempotent
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT FROM information_schema.tables "
+            "WHERE table_name = 'email_verification_tokens')"
+        )
+    )
+    if result.scalar():
+        return  # Table already exists, skip migration
+
     op.create_table(
         "email_verification_tokens",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),

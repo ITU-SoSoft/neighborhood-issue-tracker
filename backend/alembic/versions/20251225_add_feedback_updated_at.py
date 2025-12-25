@@ -5,6 +5,7 @@ Revises: add_new_notification_types
 Create Date: 2025-12-25 19:10:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -19,10 +20,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "feedbacks",
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+    # Check if column already exists to make migration idempotent
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name='feedbacks' AND column_name='updated_at'"
+        )
     )
+    if result.fetchone() is None:
+        op.add_column(
+            "feedbacks",
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+        )
 
 
 def downgrade() -> None:
