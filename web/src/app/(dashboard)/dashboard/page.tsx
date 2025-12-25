@@ -1020,19 +1020,13 @@ function ManagerDashboard() {
               <Link href="/teams">
                 <Button variant="outline">
                   <Users className="mr-2 h-4 w-4" />
-                  Manage Teams
+                  Manage Teams and Categories
                 </Button>
               </Link>
               <Link href="/escalations">
                 <Button variant="outline">
                   <AlertTriangle className="mr-2 h-4 w-4" />
                   Review Escalations
-                </Button>
-              </Link>
-              <Link href="/categories">
-                <Button variant="outline">
-                  <TicketIcon className="mr-2 h-4 w-4" />
-                  Manage Categories
                 </Button>
               </Link>
             </div>
