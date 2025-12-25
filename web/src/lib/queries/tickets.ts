@@ -9,6 +9,7 @@ import {
   PhotoType,
   CommentCreate,
   FeedbackCreate,
+  FeedbackUpdate,
 } from "@/lib/api/types";
 
 // ============================================================================
@@ -361,6 +362,34 @@ export function useSubmitFeedback() {
       ticketId: string;
       data: FeedbackCreate;
     }) => api.submitFeedback(ticketId, data),
+    onSuccess: (_, { ticketId }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.feedback.byTicket(ticketId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tickets.detail(ticketId),
+      });
+
+      // Analytics (ratings change)
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.analytics.feedbackTrends(),
+      });
+    },
+  });
+}
+
+export function useUpdateFeedback() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      ticketId,
+      data,
+    }: {
+      ticketId: string;
+      data: FeedbackUpdate;
+    }) => api.updateFeedback(ticketId, data),
     onSuccess: (_, { ticketId }) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.feedback.byTicket(ticketId),

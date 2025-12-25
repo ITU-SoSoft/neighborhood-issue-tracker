@@ -23,6 +23,21 @@ class FeedbackCreate(BaseSchema):
         return v
 
 
+class FeedbackUpdate(BaseSchema):
+    """Schema for updating feedback."""
+
+    rating: int | None = Field(default=None, ge=1, le=5, description="Rating from 1 to 5 stars")
+    comment: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v: int | None) -> int | None:
+        """Ensure rating is between 1 and 5 if provided."""
+        if v is not None and not 1 <= v <= 5:
+            raise ValueError("Rating must be between 1 and 5")
+        return v
+
+
 class FeedbackResponse(BaseSchema):
     """Feedback response schema."""
 
@@ -33,3 +48,4 @@ class FeedbackResponse(BaseSchema):
     rating: int
     comment: str | None
     created_at: datetime
+    updated_at: datetime | None = None

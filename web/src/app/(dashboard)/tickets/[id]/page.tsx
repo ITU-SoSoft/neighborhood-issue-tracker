@@ -32,12 +32,14 @@ import { ErrorState } from "@/components/shared/error-state";
 import { TicketDetailSkeleton } from "@/components/shared/skeletons";
 import {
   useTicket,
+  useTicketFeedback,
   useUpdateTicketStatus,
   useAssignTicket,
   useFollowTicket,
   useUnfollowTicket,
   useCreateComment,
   useSubmitFeedback,
+  useUpdateFeedback,
 } from "@/lib/queries/tickets";
 import { useCreateEscalation, useEscalations } from "@/lib/queries/escalations";
 import {
@@ -76,6 +78,7 @@ import {
   Star,
   Image as ImageIcon,
   Lock,
+  Pencil,
 } from "lucide-react";
 
 // Dynamically import the map component
@@ -108,6 +111,23 @@ function getStatusIcon(status: TicketStatus) {
   }
 }
 
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`h-4 w-4 ${
+            star <= rating
+              ? "fill-yellow-400 text-yellow-400"
+              : "text-gray-300"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function TicketDetailPage({
   params,
 }: {
@@ -119,6 +139,11 @@ export default function TicketDetailPage({
 
   // TanStack Query hooks
   const { data: ticket, isLoading, error, refetch } = useTicket(id);
+  
+  // Fetch feedback details when ticket has feedback
+  const { data: feedback } = useTicketFeedback(
+    ticket?.has_feedback ? id : ""
+  );
 
   // Mutations
   const updateStatusMutation = useUpdateTicketStatus();
@@ -126,6 +151,7 @@ export default function TicketDetailPage({
   const unfollowMutation = useUnfollowTicket();
   const createCommentMutation = useCreateComment();
   const submitFeedbackMutation = useSubmitFeedback();
+  const updateFeedbackMutation = useUpdateFeedback();
   const createEscalationMutation = useCreateEscalation();
 
   // Comment state
@@ -138,6 +164,7 @@ export default function TicketDetailPage({
   const [statusComment, setStatusComment] = useState("");
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [isEditingFeedback, setIsEditingFeedback] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState("");
 
@@ -207,19 +234,42 @@ export default function TicketDetailPage({
     if (!ticket) return;
 
     try {
-      await submitFeedbackMutation.mutateAsync({
-        ticketId: ticket.id,
-        data: {
-          rating: feedbackRating,
-          comment: feedbackComment || undefined,
-        },
-      });
+      if (isEditingFeedback) {
+        // Update existing feedback
+        await updateFeedbackMutation.mutateAsync({
+          ticketId: ticket.id,
+          data: {
+            rating: feedbackRating,
+            comment: feedbackComment || undefined,
+          },
+        });
+        toast.success("Feedback updated successfully!");
+      } else {
+        // Submit new feedback
+        await submitFeedbackMutation.mutateAsync({
+          ticketId: ticket.id,
+          data: {
+            rating: feedbackRating,
+            comment: feedbackComment || undefined,
+          },
+        });
+        toast.success("Thank you for your feedback!");
+      }
       setShowFeedbackModal(false);
+      setIsEditingFeedback(false);
       setFeedbackRating(5);
       setFeedbackComment("");
-      toast.success("Thank you for your feedback!");
     } catch (err) {
-      toast.error("Failed to submit feedback");
+      toast.error(isEditingFeedback ? "Failed to update feedback" : "Failed to submit feedback");
+    }
+  };
+
+  const handleEditFeedback = () => {
+    if (feedback) {
+      setFeedbackRating(feedback.rating);
+      setFeedbackComment(feedback.comment || "");
+      setIsEditingFeedback(true);
+      setShowFeedbackModal(true);
     }
   };
 
@@ -743,7 +793,7 @@ export default function TicketDetailPage({
             </Card>
           </motion.div>
 
-          {/* Actions - Only visible for non-Citizen users */}
+          {/* Actions - Staff actions (escalation) for non-Citizen users */}
           {user?.role !== UserRole.CITIZEN && (
             <motion.div variants={staggerItem}>
               <Card className="p-6">
@@ -751,17 +801,6 @@ export default function TicketDetailPage({
                   Actions
                 </h2>
                 <div className="space-y-3">
-                  {canGiveFeedback && (
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => setShowFeedbackModal(true)}
-                    >
-                      <Star className="mr-2 h-4 w-4" />
-                      Leave Feedback
-                    </Button>
-                  )}
-                  
                   {/* Support için Request Escalation butonu */}
                   {canEscalate && (
                     <Button
@@ -800,18 +839,125 @@ export default function TicketDetailPage({
                     </Link>
                   )}
                   
-                  {ticket.has_feedback && (
-                    <p className="text-sm text-green-600 flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Feedback submitted
-                    </p>
-                  )}
-                  
                   {/* Support için escalation durumu */}
                   {!isManager && !ticket.can_escalate && ticket.has_escalation && (
                     <p className="text-sm text-amber-600 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
                       Can't escalate
+                    </p>
+                  )}
+                  {!canEscalate && !ticket.has_escalation && (
+                    <p className="text-sm text-muted-foreground">
+                      No actions available
+                    </p>
+                  )}
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Feedback Section - Visible for staff and ticket reporter */}
+          {(user?.role !== UserRole.CITIZEN || ticket.reporter_id === user?.id) && (
+            <motion.div variants={staggerItem}>
+              <Card className="p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  Feedback
+                </h2>
+                <div className="space-y-3">
+                  {/* Show feedback form button for reporter who can give feedback */}
+                  {canGiveFeedback && (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {ticket.reporter_id === user?.id 
+                          ? "Your ticket has been resolved. Please let us know how we did!"
+                          : "The reporter can leave feedback for this resolved ticket."}
+                      </p>
+                      {ticket.reporter_id === user?.id && (
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                          onClick={() => setShowFeedbackModal(true)}
+                        >
+                          <Star className="mr-2 h-4 w-4" />
+                          Leave Feedback
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* Show submitted feedback details */}
+                  {ticket.has_feedback && feedback && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <StarRating rating={feedback.rating} />
+                          <span className="text-sm text-muted-foreground">
+                            ({feedback.rating}/5)
+                          </span>
+                        </div>
+                        {/* Edit button - only for reporter within 24h */}
+                        {ticket.reporter_id === user?.id && (() => {
+                          const createdAt = new Date(feedback.created_at);
+                          const now = new Date();
+                          const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+                          const canEdit = hoursSinceCreation < 24;
+                          
+                          if (canEdit) {
+                            return (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleEditFeedback}
+                                className="h-8 px-2"
+                              >
+                                <Pencil className="h-3.5 w-3.5 mr-1" />
+                                Edit
+                              </Button>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      {feedback.comment && (
+                        <p className="text-sm text-foreground bg-muted/50 p-3 rounded-lg">
+                          "{feedback.comment}"
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Submitted {formatRelativeTime(feedback.created_at)}
+                        {feedback.updated_at && (
+                          <span className="ml-1 text-muted-foreground/70">
+                            (edited {formatRelativeTime(feedback.updated_at)})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Show loading state when feedback exists but not yet loaded */}
+                  {ticket.has_feedback && !feedback && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading feedback...
+                    </div>
+                  )}
+                  
+                  {/* Show message for non-resolved tickets without feedback (only for reporter) */}
+                  {ticket.reporter_id === user?.id && 
+                   ticket.status !== TicketStatus.RESOLVED && 
+                   ticket.status !== TicketStatus.CLOSED &&
+                   !ticket.has_feedback && (
+                    <p className="text-sm text-muted-foreground">
+                      You can leave feedback once your ticket is resolved.
+                    </p>
+                  )}
+                  
+                  {/* Show message for staff viewing tickets without feedback */}
+                  {user?.role !== UserRole.CITIZEN && 
+                   !ticket.has_feedback && 
+                   !canGiveFeedback && (
+                    <p className="text-sm text-muted-foreground">
+                      No feedback has been submitted yet.
                     </p>
                   )}
                 </div>
@@ -881,12 +1027,21 @@ export default function TicketDetailPage({
       </Dialog>
 
       {/* Feedback Dialog */}
-      <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
+      <Dialog open={showFeedbackModal} onOpenChange={(open) => {
+        setShowFeedbackModal(open);
+        if (!open) {
+          setIsEditingFeedback(false);
+          setFeedbackRating(5);
+          setFeedbackComment("");
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Leave Feedback</DialogTitle>
+            <DialogTitle>{isEditingFeedback ? "Edit Feedback" : "Leave Feedback"}</DialogTitle>
             <DialogDescription>
-              Rate your experience with the resolution of this issue
+              {isEditingFeedback 
+                ? "Update your rating and comment. You can edit feedback within 24 hours of submission."
+                : "Rate your experience with the resolution of this issue"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -937,12 +1092,12 @@ export default function TicketDetailPage({
             </Button>
             <Button
               onClick={handleSubmitFeedback}
-              disabled={submitFeedbackMutation.isPending}
+              disabled={submitFeedbackMutation.isPending || updateFeedbackMutation.isPending}
             >
-              {submitFeedbackMutation.isPending && (
+              {(submitFeedbackMutation.isPending || updateFeedbackMutation.isPending) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Submit Feedback
+              {isEditingFeedback ? "Update Feedback" : "Submit Feedback"}
             </Button>
           </DialogFooter>
         </DialogContent>
