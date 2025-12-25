@@ -20,15 +20,24 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add password_changed_at column to users table."""
-    op.add_column(
-        "users",
-        sa.Column(
-            "password_changed_at",
-            sa.DateTime(timezone=True),
-            nullable=True,
-            server_default=sa.func.now(),
-        ),
+    # Check if column already exists to make migration idempotent
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name='users' AND column_name='password_changed_at'"
+        )
     )
+    if result.fetchone() is None:
+        op.add_column(
+            "users",
+            sa.Column(
+                "password_changed_at",
+                sa.DateTime(timezone=True),
+                nullable=True,
+                server_default=sa.func.now(),
+            ),
+        )
 
 
 def downgrade() -> None:
