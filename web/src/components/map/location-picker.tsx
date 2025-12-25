@@ -357,7 +357,7 @@ export function LocationPicker({
   return (
     <div className={`relative ${className} space-y-3`}>
       {/* Search input */}
-      <div className="relative z-[1100]">
+      <div className="relative z-10">
         <div className="relative">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
@@ -386,7 +386,7 @@ export function LocationPicker({
 
         {/* Search results dropdown */}
         {showResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[1200] max-h-96 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-20 max-h-96 overflow-y-auto">
             {searchResults.map((result, index) => {
               const address = result.address || {};
               const mainName = address.road || address.suburb || address.neighbourhood || address.district || result.name || "Unknown";
@@ -433,7 +433,7 @@ export function LocationPicker({
 
         {/* No results message */}
         {showResults && searchResults.length === 0 && !isSearching && searchQuery.length >= 3 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-[1200] p-4 text-center">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-xl z-20 p-4 text-center">
             <p className="text-sm text-muted-foreground">No addresses found</p>
             <p className="text-xs text-muted-foreground mt-1">Try searching with street name, neighborhood, or district</p>
           </div>
@@ -449,7 +449,7 @@ export function LocationPicker({
         />
         
         {/* Help text overlay - top center */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full pointer-events-none">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full pointer-events-none">
           Click to set location
         </div>
 
@@ -462,7 +462,7 @@ export function LocationPicker({
           }}
           disabled={isLocating}
           title="Use my current location"
-          className="absolute top-3 right-3 z-[1000] bg-white rounded-lg p-2.5 shadow-md hover:bg-slate-50 hover:shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          className="absolute top-3 right-3 z-10 bg-white rounded-lg p-2.5 shadow-md hover:bg-slate-50 hover:shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
         >
           {isLocating ? (
             <div className="w-5 h-5 border-2 border-slate-300 border-t-emerald-600 rounded-full animate-spin" />
@@ -482,7 +482,7 @@ export function LocationPicker({
 
         {/* Error toast - bottom center, inside map */}
         {locationError && (
-          <div className="absolute bottom-3 left-3 right-3 z-[1000] bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="absolute bottom-3 left-3 right-3 z-10 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4m0 4h.01" />
@@ -503,7 +503,7 @@ export function LocationPicker({
       {/* Click outside to close results */}
       {showResults && (
         <div
-          className="fixed inset-0 z-[1050]"
+          className="fixed inset-0 z-30"
           onClick={() => setShowResults(false)}
         />
       )}
