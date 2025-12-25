@@ -36,6 +36,7 @@ export interface User {
   is_verified: boolean;
   is_active: boolean;
   team_id: string | null;
+  team_name: string | null;
   created_at: string;
   updated_at: string;
 }

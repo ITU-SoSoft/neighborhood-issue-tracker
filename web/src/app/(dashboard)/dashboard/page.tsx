@@ -365,6 +365,7 @@ function CitizenDashboard() {
 
 function SupportDashboard() {
   const [days, setDays] = useState(30);
+  const { user } = useAuth();
 
   const ticketsQuery = useAssignedTickets({ page_size: 5 });
   const escalationsQuery = useEscalations({
@@ -376,6 +377,7 @@ function SupportDashboard() {
   const assignedTickets = ticketsQuery.data?.items ?? [];
   const escalations = escalationsQuery.data?.items ?? [];
   const kpis = kpisQuery.data;
+  const teamName = user?.team_name;
 
   const isLoading =
     ticketsQuery.isLoading || escalationsQuery.isLoading || kpisQuery.isLoading;
@@ -394,7 +396,14 @@ function SupportDashboard() {
               Support Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Manage assigned tickets and escalations
+              {teamName ? (
+                <>
+                  Manage assigned tickets and escalations • Team:{" "}
+                  <span className="font-medium text-foreground">{teamName}</span>
+                </>
+              ) : (
+                "Manage assigned tickets and escalations"
+              )}
             </p>
           </div>
 

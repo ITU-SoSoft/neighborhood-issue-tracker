@@ -140,8 +140,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   try {
-    return (await response.json()) as T;
-  } catch {
+    const text = await response.text();
+    if (!text) {
+      return {} as T;
+    }
+    return JSON.parse(text) as T;
+  } catch (error) {
+    console.error("Failed to parse response:", error, "Response status:", response.status);
     return {} as T;
   }
 }

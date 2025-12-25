@@ -122,7 +122,10 @@ async def create_escalation(
     )
     escalation = result.scalar_one()
 
-    # Send notification to managers
+    # Build response first
+    response = _build_escalation_response(escalation)
+
+    # Send notification to managers (after response is built)
     from app.services.notification_service import notify_escalation_requested
     
     try:
@@ -131,7 +134,7 @@ async def create_escalation(
         # Don't fail escalation creation if notification fails
         pass
 
-    return _build_escalation_response(escalation)
+    return response
 
 
 @router.get(

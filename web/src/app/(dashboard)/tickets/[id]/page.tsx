@@ -235,21 +235,31 @@ export default function TicketDetailPage({
       setEscalationReason("");
       toast.success("Escalation request submitted");
     } catch (err) {
-      toast.error("Failed to submit escalation");
+      console.error("Escalation error:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to submit escalation";
+      toast.error(errorMessage);
     }
   };
 
   // Permission checks
+  // Support user sadece kendi takımına assign olan ticketlar için status değiştirebilir
+  const isSupportUser = user?.role === UserRole.SUPPORT;
+  const isManagerUser = user?.role === UserRole.MANAGER;
+  const isTicketFromUsersTeam = ticket?.team_id && ticket.team_id === user?.team_id;
+  
   const canUpdateStatus =
-    user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER;
+    isManagerUser || (isSupportUser && isTicketFromUsersTeam);
+  
   const canGiveFeedback =
     ticket?.status === TicketStatus.RESOLVED &&
     !ticket.has_feedback &&
     ticket.reporter_id === user?.id;
   
-  // Manager için canEscalate kontrolünü kaldır, sadece SUPPORT için göster
+  // Support user sadece kendi takımına assign olan ticketlar için escalation request yapabilir
   const canEscalate =
-    user?.role === UserRole.SUPPORT &&
+    isSupportUser &&
+    isTicketFromUsersTeam &&
     ticket?.can_escalate;
 
   // Manager için escalation request kontrolü

@@ -272,7 +272,19 @@ class TicketService:
 
         Raises:
             InvalidStatusTransitionException: If the transition is not allowed.
+            ForbiddenException: If support user tries to update ticket from another team.
         """
+        # Support users can only update tickets from their own team
+        if current_user.role == UserRole.SUPPORT:
+            if ticket.team_id is None:
+                raise ForbiddenException(
+                    detail="Cannot update status of unassigned tickets"
+                )
+            if ticket.team_id != current_user.team_id:
+                raise ForbiddenException(
+                    detail="You can only update status of tickets assigned to your team"
+                )
+        
         # Validate transition
         allowed = VALID_TRANSITIONS.get(ticket.status, [])
         if new_status not in allowed:
