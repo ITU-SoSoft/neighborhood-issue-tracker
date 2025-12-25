@@ -889,3 +889,11 @@ export async function markAllNotificationsAsRead(): Promise<{ message: string }>
     method: "PATCH",
   });
 }
+
+export async function deleteNotification(
+  notificationId: string,
+): Promise<void> {
+  return apiFetch<void>(`/notifications/${notificationId}`, {
+    method: "DELETE",
+  });
+}

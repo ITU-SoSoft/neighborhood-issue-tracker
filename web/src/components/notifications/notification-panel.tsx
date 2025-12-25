@@ -13,6 +13,7 @@ import {
   useUnreadNotificationCount,
   useMarkNotificationAsRead,
   useMarkAllNotificationsAsRead,
+  useDeleteNotification,
 } from "@/lib/queries/notifications";
 import { Notification, NotificationType } from "@/lib/api/types";
 import { formatRelativeTime } from "@/lib/utils";
@@ -51,10 +52,12 @@ const getNotificationIcon = (type: NotificationType) => {
 function NotificationItem({
   notification,
   onMarkAsRead,
+  onDelete,
   onClose,
 }: {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
+  onDelete: (id: string) => void;
   onClose: () => void;
 }) {
   const isRead = notification.is_read;
@@ -98,17 +101,28 @@ function NotificationItem({
             )}
           </div>
         </div>
-        {!isRead && (
+        <div className="flex items-center gap-1">
+          {!isRead && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition"
+              onClick={() => onMarkAsRead(notification.id)}
+              aria-label="Mark as read"
+            >
+              <Check className="h-3 w-3" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition"
-            onClick={() => onMarkAsRead(notification.id)}
-            aria-label="Mark as read"
+            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(notification.id)}
+            aria-label="Delete notification"
           >
-            <Check className="h-3 w-3" />
+            <X className="h-3 w-3" />
           </Button>
-        )}
+        </div>
       </div>
     </motion.div>
   );
@@ -119,6 +133,7 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
   const { data: unreadData, refetch: refetchUnread } = useUnreadNotificationCount();
   const markAsReadMutation = useMarkNotificationAsRead();
   const markAllAsReadMutation = useMarkAllNotificationsAsRead();
+  const deleteNotificationMutation = useDeleteNotification();
 
   const notifications = data?.items ?? [];
   const unreadCount = unreadData?.count ?? 0;
@@ -137,6 +152,10 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
 
   const handleMarkAllAsRead = () => {
     markAllAsReadMutation.mutate();
+  };
+
+  const handleDelete = (id: string) => {
+    deleteNotificationMutation.mutate(id);
   };
 
   return (
@@ -232,6 +251,7 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
                     key={notification.id}
                     notification={notification}
                     onMarkAsRead={handleMarkAsRead}
+                    onDelete={handleDelete}
                     onClose={onClose}
                   />
                 ))

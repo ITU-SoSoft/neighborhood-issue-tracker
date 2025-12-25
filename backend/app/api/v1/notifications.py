@@ -132,3 +132,28 @@ async def mark_all_as_read(
 
     return {"message": "All notifications marked as read"}
 
+
+@router.delete(
+    "/{notification_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_notification(
+    notification_id: UUID,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> None:
+    """Delete a notification."""
+    query = select(Notification).where(
+        Notification.id == notification_id,
+        Notification.user_id == current_user.id,
+    )
+    result = await db.execute(query)
+    notification = result.scalar_one_or_none()
+
+    if not notification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
+        )
+
+    await db.delete(notification)
+    await db.commit()
