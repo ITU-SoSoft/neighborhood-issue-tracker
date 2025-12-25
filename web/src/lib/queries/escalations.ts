@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./keys";
 import * as api from "@/lib/api/client";
-import { EscalationStatus, EscalationCreate, EscalationReview } from "@/lib/api/types";
+import {
+  EscalationStatus,
+  EscalationCreate,
+  EscalationReview,
+} from "@/lib/api/types";
 
 // ============================================================================
 // ESCALATION QUERIES
@@ -9,6 +13,7 @@ import { EscalationStatus, EscalationCreate, EscalationReview } from "@/lib/api/
 
 interface EscalationListParams {
   status_filter?: EscalationStatus;
+  ticket_id?: string;
   page?: number;
   page_size?: number;
 }
@@ -38,12 +43,16 @@ export function useCreateEscalation() {
   return useMutation({
     mutationFn: (data: EscalationCreate) => api.createEscalation(data),
     onSuccess: (_, { ticket_id }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.escalations.lists() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.escalations.lists(),
+      });
       queryClient.invalidateQueries({
         queryKey: queryKeys.tickets.detail(ticket_id),
       });
       // Escalations affect analytics
-      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.dashboard() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.analytics.dashboard(),
+      });
     },
   });
 }
@@ -63,9 +72,13 @@ export function useApproveEscalation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.escalations.detail(escalationId),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.escalations.lists() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.escalations.lists(),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.dashboard() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.analytics.dashboard(),
+      });
     },
   });
 }
@@ -85,7 +98,9 @@ export function useRejectEscalation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.escalations.detail(escalationId),
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.escalations.lists() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.escalations.lists(),
+      });
     },
   });
 }
