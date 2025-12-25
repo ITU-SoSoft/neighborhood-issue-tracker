@@ -388,6 +388,7 @@ function SupportDashboard() {
   const kpisQuery = useDashboardKPIs(days);
 
   const assignedTickets = ticketsQuery.data?.items ?? [];
+  const assignedTicketsTotal = ticketsQuery.data?.total ?? 0;
   const escalations = escalationsQuery.data?.items ?? [];
   const kpis = kpisQuery.data;
   const teamName = user?.team_name;
@@ -448,7 +449,7 @@ function SupportDashboard() {
         >
           <KPICard
             title="Assigned"
-            value={assignedTickets.length}
+            value={assignedTicketsTotal}
             icon={<TicketIcon className="h-5 w-5 text-blue-600" />}
             iconBgClass="bg-blue-100"
           />
