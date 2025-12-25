@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, CheckCheck, Loader2 } from "lucide-react";
@@ -35,6 +35,14 @@ const getNotificationIcon = (type: NotificationType) => {
       return "💬";
     case NotificationType.TICKET_ASSIGNED:
       return "📋";
+    case NotificationType.NEW_TICKET_FOR_TEAM:
+      return "🆕";
+    case NotificationType.ESCALATION_REQUESTED:
+      return "⚠️";
+    case NotificationType.ESCALATION_APPROVED:
+      return "✅";
+    case NotificationType.ESCALATION_REJECTED:
+      return "❌";
     default:
       return "🔔";
   }
@@ -107,13 +115,21 @@ function NotificationItem({
 }
 
 export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
-  const { data, isLoading, error } = useNotifications({ page_size: 20 });
-  const { data: unreadData } = useUnreadNotificationCount();
+  const { data, isLoading, error, refetch } = useNotifications({ page_size: 20 });
+  const { data: unreadData, refetch: refetchUnread } = useUnreadNotificationCount();
   const markAsReadMutation = useMarkNotificationAsRead();
   const markAllAsReadMutation = useMarkAllNotificationsAsRead();
 
   const notifications = data?.items ?? [];
   const unreadCount = unreadData?.count ?? 0;
+
+  // Refetch when panel opens
+  useEffect(() => {
+    if (isOpen) {
+      refetch();
+      refetchUnread();
+    }
+  }, [isOpen, refetch, refetchUnread]);
 
   const handleMarkAsRead = (id: string) => {
     markAsReadMutation.mutate(id);
