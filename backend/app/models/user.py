@@ -55,6 +55,11 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
 
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=True,
+    )
 
     # Relationships
     team: Mapped["Team | None"] = relationship("Team", back_populates="members")
@@ -106,6 +111,51 @@ class OTPCode(Base, UUIDMixin):
     @property
     def is_expired(self) -> bool:
         """Check if the OTP code has expired."""
+        return datetime.now(self.expires_at.tzinfo) > self.expires_at
+
+
+class EmailVerificationToken(Base, UUIDMixin):
+    """Email verification token for user signup and staff invites."""
+
+    __tablename__ = "email_verification_tokens"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    token_type: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="verification",  # "verification" for citizens, "invite" for staff
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    # Relationship
+    user: Mapped["User"] = relationship("User")
+
+    def __repr__(self) -> str:
+        return f"<EmailVerificationToken {self.token_type} for user {self.user_id}>"
+
+    @property
+    def is_expired(self) -> bool:
+        """Check if the token has expired."""
         return datetime.now(self.expires_at.tzinfo) > self.expires_at
 
 
