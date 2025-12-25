@@ -13,6 +13,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-sosoft}
     volumes:
       - postgres_data_staging:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sosoft} -d ${POSTGRES_DB:-sosoft}"]
       interval: 10s
