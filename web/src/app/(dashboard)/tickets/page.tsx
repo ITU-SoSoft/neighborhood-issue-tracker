@@ -55,6 +55,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Check,
+  EyeOff,
 } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -144,6 +146,7 @@ export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [hideClosed, setHideClosed] = useState(false);
 
   // Track if we're updating from URL to prevent loops
   const isUpdatingFromUrl = useRef(false);
@@ -251,6 +254,7 @@ export default function TicketsPage() {
       | "followed"
       | null;
     const page = searchParams.get("page");
+    const hideClosedParam = searchParams.get("hideClosed");
 
     if (status) setStatusFilter(status);
     else setStatusFilter("");
@@ -266,6 +270,9 @@ export default function TicketsPage() {
     
     if (page) setCurrentPage(parseInt(page, 10));
     else setCurrentPage(1);
+
+    // Set hideClosed from URL param
+    setHideClosed(hideClosedParam === "true");
 
     // Reset flag after state updates
     requestAnimationFrame(() => {
@@ -287,6 +294,7 @@ export default function TicketsPage() {
     if (user?.role !== UserRole.MANAGER && viewFilter !== "all")
       params.set("view", viewFilter);
     if (currentPage > 1) params.set("page", currentPage.toString());
+    if (hideClosed) params.set("hideClosed", "true");
 
     const newQuery = params.toString();
     const newUrl = `/tickets${newQuery ? `?${newQuery}` : ""}`;
@@ -296,7 +304,7 @@ export default function TicketsPage() {
       previousSearchParams.current = newQuery;
       router.push(newUrl, { scroll: false });
     }
-  }, [statusFilter, categoryFilter, teamFilter, viewFilter, currentPage, user?.role, router]);
+  }, [statusFilter, categoryFilter, teamFilter, viewFilter, currentPage, hideClosed, user?.role, router]);
 
   const totalPages = Math.ceil(totalTickets / PAGE_SIZE);
 
@@ -305,6 +313,7 @@ export default function TicketsPage() {
     setCategoryFilter("");
     setTeamFilter("");
     setViewFilter("all");
+    setHideClosed(false);
     setCurrentPage(1);
   };
 
@@ -314,15 +323,25 @@ export default function TicketsPage() {
     (user?.role === UserRole.MANAGER && teamFilter) ||
     (user?.role !== UserRole.MANAGER && viewFilter !== "all");
 
-  // Filter tickets by search query (client-side)
-  const filteredTickets = searchQuery
-    ? tickets.filter(
-        (t) =>
-          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.category_name?.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : tickets;
+  // Filter tickets by search query and hide closed (client-side)
+  let filteredTickets = tickets;
+  
+  // Filter out closed tickets if hideClosed is enabled
+  if (hideClosed) {
+    filteredTickets = filteredTickets.filter(
+      (t) => t.status !== TicketStatus.CLOSED
+    );
+  }
+  
+  // Filter by search query
+  if (searchQuery) {
+    filteredTickets = filteredTickets.filter(
+      (t) =>
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.category_name?.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }
 
   return (
     <motion.div
@@ -339,7 +358,9 @@ export default function TicketsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Tickets</h1>
           <p className="text-muted-foreground">
-            {totalTickets} {totalTickets === 1 ? "ticket" : "tickets"} found
+            {hideClosed || searchQuery
+              ? `${filteredTickets.length} ${filteredTickets.length === 1 ? "ticket" : "tickets"} found`
+              : `${totalTickets} ${totalTickets === 1 ? "ticket" : "tickets"} found`}
           </p>
         </div>
         {user?.role !== UserRole.MANAGER && (
@@ -558,6 +579,32 @@ export default function TicketsPage() {
                       </div>
                     )}
 
+                    {/* Hide Closed Tickets toggle */}
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant={hideClosed ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setHideClosed(!hideClosed);
+                          setCurrentPage(1);
+                        }}
+                        className="gap-2"
+                      >
+                        {hideClosed ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Hide Closed Tickets
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="h-4 w-4" />
+                            Hide Closed Tickets
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
                     {/* Clear filters */}
                     {hasActiveFilters && (
                       <div className="flex items-end">
@@ -621,7 +668,7 @@ export default function TicketsPage() {
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
-          key={`${viewFilter}-${statusFilter}-${categoryFilter}-${currentPage}`}
+          key={`${viewFilter}-${statusFilter}-${categoryFilter}-${currentPage}-${hideClosed}`}
         >
           <AnimatePresence mode="popLayout">
             {filteredTickets.map((ticket) => (
