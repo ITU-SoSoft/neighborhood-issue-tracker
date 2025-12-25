@@ -39,11 +39,12 @@ import {
   useCreateComment,
   useSubmitFeedback,
 } from "@/lib/queries/tickets";
-import { useCreateEscalation } from "@/lib/queries/escalations";
+import { useCreateEscalation, useEscalations } from "@/lib/queries/escalations";
 import {
   TicketStatus,
   UserRole,
   Comment as TicketComment,
+  EscalationStatus,
 } from "@/lib/api/types";
 import {
   formatRelativeTime,
@@ -245,9 +246,30 @@ export default function TicketDetailPage({
     ticket?.status === TicketStatus.RESOLVED &&
     !ticket.has_feedback &&
     ticket.reporter_id === user?.id;
+  
+  // Manager için canEscalate kontrolünü kaldır, sadece SUPPORT için göster
   const canEscalate =
-    (user?.role === UserRole.SUPPORT || user?.role === UserRole.MANAGER) &&
+    user?.role === UserRole.SUPPORT &&
     ticket?.can_escalate;
+
+  // Manager için escalation request kontrolü
+  const isManager = user?.role === UserRole.MANAGER;
+  const hasEscalationForManager = isManager && ticket?.has_escalation;
+
+  // Ticket için escalation request'leri al (sadece manager için ve escalation varsa)
+  const { data: ticketEscalations } = useEscalations(
+    isManager && ticket?.has_escalation && ticket?.id
+      ? { 
+          ticket_id: ticket.id,
+          page_size: 10 
+        }
+      : undefined
+  );
+
+  // Manager için pending escalation bul
+  const pendingEscalation = isManager && ticketEscalations?.items?.find(
+    (e) => e.status === EscalationStatus.PENDING
+  );
 
   const canFollow = user && user.role === UserRole.CITIZEN;
 
@@ -729,6 +751,8 @@ export default function TicketDetailPage({
                       Leave Feedback
                     </Button>
                   )}
+                  
+                  {/* Support için Request Escalation butonu */}
                   {canEscalate && (
                     <Button
                       variant="outline"
@@ -739,13 +763,42 @@ export default function TicketDetailPage({
                       Request Escalation
                     </Button>
                   )}
+                  
+                  {/* Manager için escalation değerlendirme linki - pending varsa */}
+                  {isManager && hasEscalationForManager && pendingEscalation && (
+                    <Link href={`/escalations/${pendingEscalation.id}`}>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-amber-600 hover:bg-amber-50"
+                      >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Review Escalation Request
+                      </Button>
+                    </Link>
+                  )}
+                  
+                  {/* Manager için escalation varsa ama pending değilse */}
+                  {isManager && hasEscalationForManager && !pendingEscalation && ticketEscalations?.items && ticketEscalations.items.length > 0 && (
+                    <Link href={`/escalations/${ticketEscalations.items[0].id}`}>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-amber-600 hover:bg-amber-50"
+                      >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        View Escalation
+                      </Button>
+                    </Link>
+                  )}
+                  
                   {ticket.has_feedback && (
                     <p className="text-sm text-green-600 flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4" />
                       Feedback submitted
                     </p>
                   )}
-                  {!ticket.can_escalate && ticket.has_escalation && (
+                  
+                  {/* Support için escalation durumu */}
+                  {!isManager && !ticket.can_escalate && ticket.has_escalation && (
                     <p className="text-sm text-amber-600 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
                       Can't escalate

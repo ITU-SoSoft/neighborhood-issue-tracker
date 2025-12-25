@@ -697,12 +697,15 @@ export async function createEscalation(
 
 export async function getEscalations(params?: {
   status_filter?: EscalationStatus;
+  ticket_id?: string;
   page?: number;
   page_size?: number;
 }): Promise<EscalationListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.status_filter)
     searchParams.set("status_filter", params.status_filter);
+  if (params?.ticket_id)
+    searchParams.set("ticket_id", params.ticket_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
     searchParams.set("page_size", params.page_size.toString());
