@@ -65,26 +65,25 @@ class TicketService:
         # Handle location creation based on input type
         district_name = None
         city = request.location.city
-
-        # Always prefer user-provided GPS coordinates if available
-        if request.location.latitude is not None and request.location.longitude is not None:
-            latitude = request.location.latitude
-            longitude = request.location.longitude
-        else:
-            # Fallback to Istanbul center only if no GPS coordinates provided
-            latitude = 41.0082  # Istanbul center (fallback)
-            longitude = 28.9784
-
-        # If district_id provided, get the district name for display
+        
         if request.location.district_id:
+            # Get district details from database
             district_result = await db.execute(
                 select(District).where(District.id == request.location.district_id)
             )
             district_obj = district_result.scalar_one_or_none()
-            if district_obj:
-                district_name = district_obj.name
-                if not city:
-                    city = district_obj.city
+            if not district_obj:
+                raise NotFoundException(f"District with id {request.location.district_id} not found")
+            
+            district_name = district_obj.name
+            city = district_obj.city
+            # Use default coordinates for district center (approximate)
+            latitude = 41.0082  # Istanbul center
+            longitude = 28.9784
+        else:
+            # Use provided GPS coordinates
+            latitude = request.location.latitude
+            longitude = request.location.longitude
             
         # Create location with PostGIS point
         location = Location(
@@ -156,17 +155,11 @@ class TicketService:
         )
         ticket = result.scalar_one()
 
-        # Send notifications
-        from app.services.notification_service import (
-            notify_ticket_created,
-            notify_new_ticket_for_team,
-        )
+        # Send notification
+        from app.services.notification_service import notify_ticket_created
 
         try:
             await notify_ticket_created(db, ticket)
-            # Notify team members if ticket was assigned
-            if ticket.team_id:
-                await notify_new_ticket_for_team(db, ticket)
         except Exception:
             # Don't fail ticket creation if notification fails
             pass
@@ -357,15 +350,6 @@ class TicketService:
 
         await db.commit()
         await db.refresh(ticket)
-
-        # Send notification to team members
-        from app.services.notification_service import notify_ticket_assigned
-        
-        try:
-            await notify_ticket_assigned(db, ticket)
-        except Exception:
-            # Don't fail assignment if notification fails
-            pass
 
         return ticket
 
