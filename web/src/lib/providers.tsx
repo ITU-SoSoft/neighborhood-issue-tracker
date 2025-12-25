@@ -8,6 +8,7 @@ import {
   CommandPaletteProvider,
   CommandPalette,
 } from "@/components/command-palette";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -38,18 +39,20 @@ export function Providers({ children }: ProvidersProps) {
             retry: false,
           },
         },
-      })
+      }),
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <CommandPaletteProvider>
-          {children}
-          <CommandPalette />
-        </CommandPaletteProvider>
-      </AuthProvider>
-      <Toaster position="top-right" richColors closeButton />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <CommandPaletteProvider>
+            {children}
+            <CommandPalette />
+          </CommandPaletteProvider>
+        </AuthProvider>
+        <Toaster position="top-right" richColors closeButton />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

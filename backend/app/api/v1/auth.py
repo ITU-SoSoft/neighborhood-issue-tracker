@@ -537,8 +537,8 @@ async def verify_email(
     )
 
 
-# Rate limit for resend verification: 3 per hour
-RESEND_VERIFICATION_RATE_LIMIT = RateLimitConfig(requests=3, window_seconds=3600)
+# Rate limit for resend verification: 20 per hour
+RESEND_VERIFICATION_RATE_LIMIT = RateLimitConfig(requests=20, window_seconds=3600)
 
 
 @router.post(
@@ -553,7 +553,7 @@ async def resend_verification(
 ) -> ResendVerificationResponse:
     """Resend verification email to a user.
 
-    Rate limited to 3 requests per hour per email.
+    Rate limited to 20 requests per hour per email.
     Returns a generic success message regardless of whether the email exists
     for security reasons.
     """
