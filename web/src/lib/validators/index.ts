@@ -7,7 +7,7 @@ export const phoneNumberSchema = z
   .string()
   .regex(
     turkishPhoneRegex,
-    "Please enter a valid Turkish phone number (+90XXXXXXXXXX)"
+    "Please enter a valid Turkish phone number (+90XXXXXXXXXX)",
   );
 
 // Request OTP schema
@@ -43,7 +43,7 @@ export const registerSchema = z
       .max(128, "Password must be 128 characters or fewer")
       .regex(
         /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).+$/,
-        "Password must include at least one letter, one number, and one special character"
+        "Password must include at least one letter, one number, and one special character",
       ),
     confirmPassword: z.string(),
   })
@@ -69,6 +69,33 @@ export const staffLoginSchema = z.object({
 });
 
 export type StaffLoginInput = z.infer<typeof staffLoginSchema>;
+
+// Forgot password schema
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+// Reset password schema
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128, "Password must be 128 characters or fewer")
+      .regex(
+        /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).+$/,
+        "Password must include a letter, number, and special character",
+      ),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 // Ticket schemas
 export const locationSchema = z.object({
@@ -109,7 +136,10 @@ export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 
 // Feedback schema
 export const createFeedbackSchema = z.object({
-  rating: z.number().min(1, "Rating must be at least 1").max(5, "Rating must be at most 5"),
+  rating: z
+    .number()
+    .min(1, "Rating must be at least 1")
+    .max(5, "Rating must be at most 5"),
   comment: z
     .string()
     .max(1000, "Comment must be 1000 characters or fewer")
