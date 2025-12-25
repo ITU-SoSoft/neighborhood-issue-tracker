@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     twilio_phone_number: str = ""
     twilio_enabled: bool = False  # Set to True in production
 
+    # Resend (Email)
+    resend_api_key: str = ""
+    resend_from_email: str = "noreply@mahallem.biz.tr"
+    resend_from_name: str = "Mahallem Support"
+    resend_enabled: bool = False  # Set to True in production
+
+    # Email Verification
+    email_verification_expire_hours: int = 24
+    next_public_app_base_url: str = "https://mahallem.biz.tr"
+
     # MinIO
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"
