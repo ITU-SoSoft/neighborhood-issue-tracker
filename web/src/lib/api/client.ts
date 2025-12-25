@@ -15,6 +15,7 @@ import {
   EscalationStatus,
   Feedback,
   FeedbackCreate,
+  FeedbackUpdate,
   FeedbackTrendsResponse,
   HeatmapResponse,
   LoginRequest,
@@ -680,6 +681,16 @@ export async function submitFeedback(
 
 export async function getTicketFeedback(ticketId: string): Promise<Feedback> {
   return apiFetch<Feedback>(`/feedback/tickets/${ticketId}`);
+}
+
+export async function updateFeedback(
+  ticketId: string,
+  data: FeedbackUpdate,
+): Promise<Feedback> {
+  return apiFetch<Feedback>(`/feedback/tickets/${ticketId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 // ============================================================================

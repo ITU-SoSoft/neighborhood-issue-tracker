@@ -295,10 +295,16 @@ export interface Feedback {
   rating: number;
   comment: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 export interface FeedbackCreate {
   rating: number;
+  comment?: string;
+}
+
+export interface FeedbackUpdate {
+  rating?: number;
   comment?: string;
 }
 

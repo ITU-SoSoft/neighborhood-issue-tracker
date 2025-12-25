@@ -37,6 +37,11 @@ class Feedback(Base, UUIDMixin):
         server_default=func.now(),
         nullable=False,
     )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        onupdate=func.now(),
+    )
 
     # Relationships
     ticket: Mapped["Ticket"] = relationship("Ticket", back_populates="feedback")

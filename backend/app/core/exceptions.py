@@ -137,6 +137,13 @@ class FeedbackAlreadyExistsException(ConflictException):
         super().__init__(detail="Feedback already exists for this ticket")
 
 
+class FeedbackNotFoundException(NotFoundException):
+    """Exception when feedback is not found."""
+
+    def __init__(self) -> None:
+        super().__init__(detail="Feedback not found")
+
+
 class EscalationAlreadyExistsException(ConflictException):
     """Exception when escalation already exists for a ticket."""
 
