@@ -104,6 +104,15 @@ services:
       
       # CORS (comma-separated list - set in Dokploy environment)
       CORS_ORIGINS: ${CORS_ORIGINS}
+      
+      # Resend (Email service)
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_ENABLED: ${RESEND_ENABLED:-false}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@mahallem.biz.tr}
+      RESEND_FROM_NAME: ${RESEND_FROM_NAME:-Mahallem Support}
+      
+      # Frontend URL (for email links)
+      NEXT_PUBLIC_APP_BASE_URL: ${NEXT_PUBLIC_APP_BASE_URL}
     expose:
       - "8000"
     networks:
