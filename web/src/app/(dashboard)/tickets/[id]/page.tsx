@@ -40,6 +40,7 @@ import {
   useCreateComment,
   useSubmitFeedback,
   useUpdateFeedback,
+  useDeleteTicket,
 } from "@/lib/queries/tickets";
 import { useCreateEscalation, useEscalations } from "@/lib/queries/escalations";
 import {
@@ -79,6 +80,7 @@ import {
   Image as ImageIcon,
   Lock,
   Pencil,
+  Trash2,
 } from "lucide-react";
 
 // Dynamically import the map component
@@ -153,6 +155,7 @@ export default function TicketDetailPage({
   const submitFeedbackMutation = useSubmitFeedback();
   const updateFeedbackMutation = useUpdateFeedback();
   const createEscalationMutation = useCreateEscalation();
+  const deleteTicketMutation = useDeleteTicket();
 
   // Comment state
   const [newComment, setNewComment] = useState("");
@@ -172,6 +175,7 @@ export default function TicketDetailPage({
   const [escalationReason, setEscalationReason] = useState("");
 
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Handlers
   const handleFollow = async () => {
@@ -292,6 +296,18 @@ export default function TicketDetailPage({
     }
   };
 
+  const handleDeleteTicket = async () => {
+    if (!ticket) return;
+
+    try {
+      await deleteTicketMutation.mutateAsync(ticket.id);
+      toast.success("Ticket deleted successfully");
+      router.push("/tickets");
+    } catch (err) {
+      toast.error("Failed to delete ticket");
+    }
+  };
+
   // Permission checks
   // Support user sadece kendi takımına assign olan ticketlar için status değiştirebilir
   const isSupportUser = user?.role === UserRole.SUPPORT;
@@ -332,6 +348,11 @@ export default function TicketDetailPage({
   );
 
   const canFollow = user && user.role === UserRole.CITIZEN;
+
+  // Check if user can delete their own NEW ticket (any role can delete their own tickets)
+  const canDelete =
+    ticket?.reporter_id === user?.id &&
+    ticket?.status === TicketStatus.NEW;
 
   // Loading state
   if (isLoading) {
@@ -413,6 +434,17 @@ export default function TicketDetailPage({
                 />
               )}
               {ticket.is_following ? "Following" : "Follow"}
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
             </Button>
           )}
           {canUpdateStatus && (
@@ -1162,6 +1194,33 @@ export default function TicketDetailPage({
               className="w-full rounded-lg"
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Ticket</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this ticket? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTicket}
+              disabled={deleteTicketMutation.isPending}
+            >
+              {deleteTicketMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>

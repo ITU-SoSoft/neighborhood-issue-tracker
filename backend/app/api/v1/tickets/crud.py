@@ -142,3 +142,19 @@ async def update_ticket(
 
     ticket = await ticket_service.update_ticket(db, ticket, request, current_user)
     return build_ticket_response(ticket, current_user)
+
+
+@router.delete(
+    "/{ticket_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_ticket(
+    ticket_id: UUID,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> None:
+    """Delete a ticket (soft delete).
+
+    Citizens can only delete their own NEW tickets.
+    """
+    await ticket_service.delete_ticket(db, ticket_id, current_user)
