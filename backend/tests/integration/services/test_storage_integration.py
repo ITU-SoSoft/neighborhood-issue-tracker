@@ -1,6 +1,5 @@
 """Integration tests for Storage service."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 from datetime import timedelta
 

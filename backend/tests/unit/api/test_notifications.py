@@ -176,7 +176,7 @@ class TestMarkAsRead:
         mock_result.scalar_one_or_none.return_value = notification
         mock_db.execute.return_value = mock_result
 
-        result = await mark_as_read(notification_id, citizen_user, mock_db)
+        await mark_as_read(notification_id, citizen_user, mock_db)
 
         assert notification.is_read is True
         assert notification.read_at is not None

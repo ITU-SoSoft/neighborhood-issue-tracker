@@ -11,7 +11,7 @@ from app.models.district import District
 from app.models.notification import Notification, NotificationType
 from app.models.team import Team, TeamCategory, TeamDistrict
 from app.models.ticket import StatusLog, Ticket, TicketFollower, TicketStatus
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.ticket import LocationCreate, TicketCreate, TicketUpdate
 from app.services.ticket_service import TicketService
 

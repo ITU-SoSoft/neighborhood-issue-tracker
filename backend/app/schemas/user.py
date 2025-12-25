@@ -1,7 +1,5 @@
 """User schemas."""
 
-import re
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import Field, field_validator

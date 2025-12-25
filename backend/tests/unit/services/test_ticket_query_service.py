@@ -9,7 +9,6 @@ import pytest
 from app.models.ticket import Ticket, TicketStatus
 from app.models.user import User, UserRole
 from app.models.escalation import EscalationStatus
-from app.schemas.ticket import LocationResponse
 from app.services.ticket_query_service import (
     VALID_TRANSITIONS,
     build_ticket_response,

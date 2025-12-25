@@ -160,7 +160,6 @@ class TestNearbyTicketsAdditional:
     ):
         """Should only return tickets with NEW or IN_PROGRESS status."""
         from app.models.ticket import Location, Ticket, TicketStatus
-        import uuid
 
         # Create tickets with various statuses at the same location
         statuses = [
@@ -175,7 +174,7 @@ class TestNearbyTicketsAdditional:
                 id=uuid.uuid4(),
                 latitude=41.0100,
                 longitude=28.9800,
-                coordinates=f"POINT(28.9800 41.0100)",
+                coordinates="POINT(28.9800 41.0100)",
                 address=f"Test Address {i}",
                 city="Istanbul",
             )
@@ -222,7 +221,6 @@ class TestNearbyTicketsAdditional:
     ):
         """Should return maximum 10 results."""
         from app.models.ticket import Location, Ticket, TicketStatus
-        import uuid
 
         # Create 15 tickets at the same location
         for i in range(15):
@@ -277,7 +275,6 @@ class TestNearbyTicketsAdditional:
     ):
         """Should include follower_count in response."""
         from app.models.ticket import Location, Ticket, TicketStatus, TicketFollower
-        import uuid
 
         # Create a ticket
         location = Location(
@@ -363,7 +360,6 @@ class TestNearbyTicketsAdditional:
         """Should not return soft-deleted tickets."""
         from app.models.ticket import Location, Ticket, TicketStatus
         from datetime import datetime, timezone
-        import uuid
 
         # Create a deleted ticket
         location = Location(
