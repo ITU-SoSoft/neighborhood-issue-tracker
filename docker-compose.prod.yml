@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-sosoft}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sosoft} -d ${POSTGRES_DB:-sosoft}"]
       interval: 10s
@@ -29,7 +29,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     volumes:
-      - minio_data:/data
+      - minio_data_prod:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -138,8 +138,8 @@ services:
       - dokploy-network
 
 volumes:
-  postgres_data:
-  minio_data:
+  postgres_data_prod:
+  minio_data_prod:
 
 networks:
   dokploy-network:
