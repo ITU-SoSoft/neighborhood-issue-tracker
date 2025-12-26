@@ -44,10 +44,10 @@ DEFAULT_CATEGORIES = [
     },
 ]
 
-# Default users for the platform (manager and support)
+# Default users for the platform (manager, support, and citizen)
 DEFAULT_USERS = [
     {
-        "name": "Manager User",
+        "name": "Demo Yönetici",
         "email": "manager@sosoft.com",
         "phone_number": "+905001234567",
         "password": "manager123!",
@@ -55,11 +55,19 @@ DEFAULT_USERS = [
         "is_verified": True,
     },
     {
-        "name": "Support User",
+        "name": "Demo Destek",
         "email": "support@sosoft.com",
         "phone_number": "+905001234568",
         "password": "support123!",
         "role": UserRole.SUPPORT,
+        "is_verified": True,
+    },
+    {
+        "name": "Demo Vatandaş",
+        "email": "citizen@sosoft.com",
+        "phone_number": "+905001234569",
+        "password": "citizen123!",
+        "role": UserRole.CITIZEN,
         "is_verified": True,
     },
 ]
