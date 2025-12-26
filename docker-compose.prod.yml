@@ -5,7 +5,6 @@ services:
   # PostgreSQL with PostGIS
   postgres:
     image: imresamu/postgis:16-3.5
-    container_name: sosoft-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sosoft}
@@ -19,12 +18,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - sosoft-network
+      - dokploy-network
 
   # MinIO for S3-compatible storage
   minio:
     image: minio/minio:latest
-    container_name: sosoft-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -41,12 +39,11 @@ services:
       - "9000"
       - "9001"
     networks:
-      - sosoft-network
+      - dokploy-network
 
   # MinIO setup - creates bucket on startup
   minio-setup:
     image: minio/mc:latest
-    container_name: sosoft-minio-setup
     depends_on:
       minio:
         condition: service_healthy
@@ -61,14 +58,13 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
     networks:
-      - sosoft-network
+      - dokploy-network
 
   # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: sosoft-backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -108,10 +104,19 @@ services:
       
       # CORS (comma-separated list - set in Dokploy environment)
       CORS_ORIGINS: ${CORS_ORIGINS}
+      
+      # Resend (Email service)
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_ENABLED: ${RESEND_ENABLED:-false}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@mahallem.biz.tr}
+      RESEND_FROM_NAME: ${RESEND_FROM_NAME:-Mahallem Support}
+      
+      # Frontend URL (for email links)
+      NEXT_PUBLIC_APP_BASE_URL: ${NEXT_PUBLIC_APP_BASE_URL}
     expose:
       - "8000"
     networks:
-      - sosoft-network
+      - dokploy-network
 
   # Frontend (Next.js)
   frontend:
@@ -120,7 +125,6 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-    container_name: sosoft-frontend
     restart: unless-stopped
     depends_on:
       - backend
@@ -131,12 +135,12 @@ services:
     expose:
       - "3000"
     networks:
-      - sosoft-network
+      - dokploy-network
 
 volumes:
   postgres_data:
   minio_data:
 
 networks:
-  sosoft-network:
-    driver: bridge
+  dokploy-network:
+    external: true
