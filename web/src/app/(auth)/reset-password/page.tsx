@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +15,7 @@ import { FormField } from "@/components/ui/form-field";
 import { resetPassword } from "@/lib/api/client";
 import { resetPasswordSchema, ResetPasswordInput } from "@/lib/validators";
 
-type PageStatus = "form" | "success" | "error";
+type PageStatus = "loading" | "form" | "success" | "error";
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -23,11 +23,20 @@ function ResetPasswordContent() {
   const token = searchParams.get("token");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState<PageStatus>(token ? "form" : "error");
-  const [errorMessage, setErrorMessage] = useState(
-    token ? "" : "Invalid password reset link. No token provided.",
-  );
+  const [status, setStatus] = useState<PageStatus>("loading");
+  const [errorMessage, setErrorMessage] = useState("");
   const [countdown, setCountdown] = useState(5);
+
+  // Check for token after mount to avoid hydration race condition
+  // when clicking links from email clients like Gmail
+  useEffect(() => {
+    if (token) {
+      setStatus("form");
+    } else {
+      setStatus("error");
+      setErrorMessage("Invalid password reset link. No token provided.");
+    }
+  }, [token]);
 
   const form = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
@@ -98,6 +107,13 @@ function ResetPasswordContent() {
       </Link>
 
       <div className="relative w-full max-w-md">
+        {status === "loading" && (
+          <div className="rounded-2xl border border-border bg-card/95 p-8 text-center shadow-xl backdrop-blur">
+            <Loader2 className="mx-auto h-16 w-16 animate-spin text-primary" />
+            <h1 className="mt-6 text-2xl font-semibold">Loading...</h1>
+          </div>
+        )}
+
         {status === "success" && (
           <div className="rounded-2xl border border-border bg-card/95 p-8 text-center shadow-xl backdrop-blur">
             <CheckCircle className="mx-auto h-16 w-16 text-green-500" />

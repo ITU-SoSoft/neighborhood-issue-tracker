@@ -50,6 +50,8 @@ function SetPasswordForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasToken, setHasToken] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
   const form = useForm<SetPasswordInput>({
@@ -61,6 +63,15 @@ function SetPasswordForm() {
     },
   });
 
+  // Check for token after mount to avoid hydration race condition
+  // when clicking links from email clients like Gmail
+  useEffect(() => {
+    if (token) {
+      setHasToken(true);
+    }
+    setIsLoading(false);
+  }, [token]);
+
   useEffect(() => {
     if (isSuccess && countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -70,7 +81,33 @@ function SetPasswordForm() {
     }
   }, [isSuccess, countdown, router]);
 
-  if (!token) {
+  // Show loading while checking for token
+  if (isLoading) {
+    return (
+      <div
+        className="relative flex min-h-screen items-center justify-center px-4 py-16"
+        style={{
+          backgroundImage: 'url("/background.png")',
+          backgroundAttachment: "fixed",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div
+          className="absolute inset-0 bg-background/60 backdrop-blur-[2px]"
+          aria-hidden
+        />
+        <div className="relative w-full max-w-md">
+          <div className="rounded-2xl border border-border bg-card/95 p-8 text-center shadow-xl backdrop-blur">
+            <Loader2 className="mx-auto h-16 w-16 animate-spin text-primary" />
+            <h1 className="mt-6 text-2xl font-semibold">Loading...</h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasToken) {
     return (
       <div
         className="relative flex min-h-screen items-center justify-center px-4 py-16"
