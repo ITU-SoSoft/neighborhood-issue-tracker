@@ -37,12 +37,21 @@ asyncio.run(wait_for_db())
 
 # Run Alembic migrations
 echo "🔄 Running database migrations..."
-alembic upgrade head
+if alembic upgrade head; then
+    echo "✅ Database migrations completed successfully"
+else
+    echo "❌ Database migrations FAILED!"
+    echo "Attempting to show migration error details..."
+    alembic upgrade head --sql 2>&1 || true
+    echo "❌ Cannot proceed without successful migrations. Exiting."
+    exit 1
+fi
 
 # Seed initial data in production (categories, default manager, teams)
 echo "🌱 Seeding initial data..."
 python -c "
 import asyncio
+import traceback
 from app.scripts.seed import seed_categories, seed_users
 from app.scripts.seed_teams import seed_teams
 
@@ -52,18 +61,21 @@ async def seed_all():
         print('✅ Categories seeded')
     except Exception as e:
         print(f'⚠️  Category seeding skipped (may already exist): {e}')
+        traceback.print_exc()
     
     try:
         await seed_users()
         print('✅ Default users seeded')
     except Exception as e:
         print(f'⚠️  User seeding skipped (may already exist): {e}')
+        traceback.print_exc()
     
     try:
         await seed_teams()
         print('✅ Teams seeded')
     except Exception as e:
         print(f'⚠️  Team seeding skipped (may already exist): {e}')
+        traceback.print_exc()
 
 asyncio.run(seed_all())
 "
