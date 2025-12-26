@@ -343,7 +343,7 @@ class TestAddTeamMember:
         mock_result.scalar_one_or_none.return_value = team
         mock_db.execute.return_value = mock_result
 
-        result = await add_team_member(team_id, user_id, mock_db, manager_user)
+        await add_team_member(team_id, user_id, mock_db, manager_user)
 
         assert user.team_id == team_id
         mock_db.commit.assert_called_once()

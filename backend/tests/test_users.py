@@ -3,7 +3,6 @@
 import uuid
 
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User
 from app.models.team import Team
@@ -276,7 +275,7 @@ class TestListUsersFiltering:
     ):
         """Should paginate results correctly."""
         # Create additional users for pagination testing
-        from app.models.user import User as UserModel, UserRole
+        from app.models.user import User as UserModel
         import uuid
 
         for i in range(5):
@@ -375,7 +374,6 @@ class TestUpdateUserRoleAdditional:
         manager_token: str,
     ):
         """Should return 404 for non-existent user."""
-        import uuid
 
         response = await client.patch(
             f"/api/v1/users/{uuid.uuid4()}/role",
@@ -395,7 +393,7 @@ class TestDeleteUserAdditional:
         manager_token: str,
     ):
         """Verify that deleted user is soft deleted (not hard deleted)."""
-        from app.models.user import User as UserModel, UserRole
+        from app.models.user import User as UserModel
         from sqlalchemy import select
         import uuid
 
@@ -435,7 +433,6 @@ class TestDeleteUserAdditional:
         manager_token: str,
     ):
         """Should return 404 for non-existent user."""
-        import uuid
 
         response = await client.delete(
             f"/api/v1/users/{uuid.uuid4()}",
@@ -450,7 +447,7 @@ class TestDeleteUserAdditional:
         manager_token: str,
     ):
         """Deleted user should not be retrievable."""
-        from app.models.user import User as UserModel, UserRole
+        from app.models.user import User as UserModel
         from datetime import datetime, timezone
         import uuid
 

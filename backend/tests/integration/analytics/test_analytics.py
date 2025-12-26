@@ -4,8 +4,7 @@ import uuid
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Category, Team, Ticket, User, UserRole, Feedback
-from app.models.ticket import Location, TicketStatus
+from app.models import Category, Team, Ticket, User, Feedback
 from tests.conftest import auth_headers
 
 

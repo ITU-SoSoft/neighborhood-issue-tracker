@@ -158,7 +158,7 @@ main() {
     echo ""
     
     log_info "Starting all services (development mode - no build)..."
-    docker compose up -d
+    docker compose up -d 
     
     log_success "All services started!"
     echo ""

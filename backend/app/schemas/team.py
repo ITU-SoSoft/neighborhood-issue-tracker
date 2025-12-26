@@ -32,6 +32,7 @@ class TeamResponse(TimestampSchema):
     description: str | None
     member_count: int = 0
     active_ticket_count: int = 0
+    district_ids: list[UUID] = Field(default_factory=list, description="List of district IDs this team covers")
 
 
 class TeamDistrictCreate(BaseSchema):

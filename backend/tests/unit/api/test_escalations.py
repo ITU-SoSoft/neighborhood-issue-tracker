@@ -1,7 +1,6 @@
 """Unit tests for escalations API endpoints."""
 
 import uuid
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -20,7 +19,6 @@ from app.core.exceptions import (
     EscalationAlreadyExistsException,
 )
 from app.models.user import User, UserRole
-from app.models.team import Team
 from app.models.ticket import Ticket, TicketStatus
 from app.models.escalation import EscalationRequest, EscalationStatus
 from app.schemas.escalation import EscalationCreate, EscalationReview

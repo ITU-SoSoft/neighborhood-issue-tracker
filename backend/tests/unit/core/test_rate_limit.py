@@ -1,7 +1,7 @@
 """Tests for rate limiting utilities."""
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -11,7 +11,6 @@ from app.core.rate_limit import (
     InMemoryRateLimiter,
     get_client_ip,
     check_rate_limit,
-    rate_limiter,
 )
 
 

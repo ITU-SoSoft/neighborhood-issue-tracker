@@ -24,8 +24,6 @@ export function useNotifications(
     queryKey: queryKeys.notifications.list(params),
     queryFn: () => api.getNotifications(params),
     enabled: options?.enabled ?? true,
-    refetchInterval: 10000,
-    staleTime: 5000,
   });
 }
 

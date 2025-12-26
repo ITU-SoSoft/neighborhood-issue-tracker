@@ -68,8 +68,8 @@ async def create_fallback_team() -> None:
         logger.info(f"✅ Created fallback team: {FALLBACK_TEAM_NAME}")
         logger.info(f"   Categories: {len(all_categories)}")
         logger.info(f"   Districts: {len(all_districts)}")
-        logger.info(f"   Purpose: Catches all unassigned tickets")
-        logger.info(f"   Note: This team CANNOT be deleted")
+        logger.info("   Purpose: Catches all unassigned tickets")
+        logger.info("   Note: This team CANNOT be deleted")
         logger.info("="*60)
 
 

@@ -134,6 +134,7 @@ export interface TeamListResponse {
  * Basic team response after create/update: TeamResponse
  */
 export interface TeamResponse {
+  district_ids?: string[];
   id: string;
   name: string;
   description: string | null;
@@ -367,10 +368,6 @@ export enum NotificationType {
   TICKET_FOLLOWED = "TICKET_FOLLOWED",
   COMMENT_ADDED = "COMMENT_ADDED",
   TICKET_ASSIGNED = "TICKET_ASSIGNED",
-  ESCALATION_REQUESTED = "ESCALATION_REQUESTED",
-  ESCALATION_APPROVED = "ESCALATION_APPROVED",
-  ESCALATION_REJECTED = "ESCALATION_REJECTED",
-  NEW_TICKET_FOR_TEAM = "NEW_TICKET_FOR_TEAM",
 }
 
 export interface Notification {
@@ -596,10 +593,7 @@ export interface RegisterRequest {
 }
 
 export interface RegisterResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  user_id: string;
+  message: string;
 }
 
 export interface StaffLoginRequest {
@@ -615,6 +609,47 @@ export interface TokenResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
+}
+
+// Email Verification
+export interface VerifyEmailResponse {
+  message: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
+}
+
+export interface ResendVerificationResponse {
+  message: string;
+}
+
+export interface SetPasswordRequest {
+  token: string;
+  phone_number: string;
+  password: string;
+}
+
+export interface SetPasswordResponse {
+  message: string;
+}
+
+// Password Reset
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
 }
 
 // API Error

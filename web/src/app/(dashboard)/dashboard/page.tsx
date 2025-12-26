@@ -1121,7 +1121,6 @@ function ManagerDashboard() {
             ) : (
               <>
                 <HeatmapVisualization
-                  key={`heatmap-${days}-${heatmapFilter}`}
                   points={heatmapData.points}
                   height="450px"
                 />
@@ -1213,11 +1212,12 @@ function ManagerDashboard() {
                       <div className="flex items-center gap-3">
                         <div
                           className={`flex items-center justify-center w-8 h-8 rounded-full font-bold
-                            ${index === 0
-                              ? "bg-red-100 text-red-700"
-                              : index === 1
-                                ? "bg-orange-100 text-orange-700"
-                                : "bg-muted text-muted-foreground"
+                            ${
+                              index === 0
+                                ? "bg-red-100 text-red-700"
+                                : index === 1
+                                  ? "bg-orange-100 text-orange-700"
+                                  : "bg-muted text-muted-foreground"
                             }`}
                         >
                           {index + 1}

@@ -1,7 +1,6 @@
 """Integration tests for SMS service."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from app.services.sms import SMSService, sms_service
 

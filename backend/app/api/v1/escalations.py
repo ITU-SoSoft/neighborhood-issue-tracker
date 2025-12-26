@@ -73,11 +73,15 @@ async def create_escalation(
 
     # Check if support user belongs to the ticket's team
     if ticket.team_id != current_user.team_id:
-        raise ForbiddenException(detail="You can only escalate tickets assigned to your team")
+        raise ForbiddenException(
+            detail="You can only escalate tickets assigned to your team"
+        )
 
     # Check for existing escalations that block new creation
     has_pending = any(e.status == EscalationStatus.PENDING for e in ticket.escalations)
-    has_approved = any(e.status == EscalationStatus.APPROVED for e in ticket.escalations)
+    has_approved = any(
+        e.status == EscalationStatus.APPROVED for e in ticket.escalations
+    )
 
     if has_pending:
         raise EscalationAlreadyExistsException()
@@ -127,7 +131,7 @@ async def create_escalation(
 
     # Send notification to managers (after response is built)
     from app.services.notification_service import notify_escalation_requested
-    
+
     try:
         await notify_escalation_requested(db, ticket, request.reason, current_user)
     except Exception:
@@ -273,16 +277,6 @@ async def approve_escalation(
     await db.commit()
     await db.refresh(escalation)
 
-    # Send notification to reporter and requester
-    from app.services.notification_service import notify_escalation_decision
-    
-    try:
-        if escalation.ticket:
-            await notify_escalation_decision(db, escalation.ticket, approved=True, decided_by=current_user)
-    except Exception:
-        # Don't fail approval if notification fails
-        pass
-
     return _build_escalation_response(escalation)
 
 
@@ -336,15 +330,5 @@ async def reject_escalation(
 
     await db.commit()
     await db.refresh(escalation)
-
-    # Send notification to reporter and requester
-    from app.services.notification_service import notify_escalation_decision
-    
-    try:
-        if escalation.ticket:
-            await notify_escalation_decision(db, escalation.ticket, approved=False, decided_by=current_user)
-    except Exception:
-        # Don't fail rejection if notification fails
-        pass
 
     return _build_escalation_response(escalation)

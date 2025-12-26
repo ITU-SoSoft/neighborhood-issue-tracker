@@ -1,10 +1,8 @@
 """Seed test data: 6 districts x 2 categories = 12 teams with 2 members each."""
 import asyncio
 import random
-from uuid import uuid4
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_maker
 from app.core.security import hash_password
@@ -185,7 +183,7 @@ async def create_test_teams_and_users() -> None:
         await session.commit()
         
         print("\n" + "="*60)
-        print(f"✅ Test data creation complete!")
+        print("✅ Test data creation complete!")
         print(f"   Teams created: {teams_created}")
         print(f"   Users created: {users_created}")
         print(f"   Total teams: {len(TEST_DISTRICTS) * len(TEST_CATEGORIES)} ({len(TEST_DISTRICTS)} districts x {len(TEST_CATEGORIES)} categories)")
@@ -310,10 +308,10 @@ async def create_test_tickets() -> None:
             print(f"   ✅ Created 5 tickets for {team.name}")
         
         print("\n" + "="*60)
-        print(f"✅ Ticket creation complete!")
+        print("✅ Ticket creation complete!")
         print(f"   Total tickets created: {tickets_created}")
         print(f"   Teams: {len(teams_data)}")
-        print(f"   Tickets per team: 5")
+        print("   Tickets per team: 5")
         print("="*60)
 
 
@@ -322,8 +320,8 @@ async def main():
     print("🌱 Starting test data seeding...")
     print(f"   Districts: {', '.join(TEST_DISTRICTS)}")
     print(f"   Categories: {', '.join(TEST_CATEGORIES)}")
-    print(f"   Users per team: 2")
-    print(f"   Tickets per team: 5")
+    print("   Users per team: 2")
+    print("   Tickets per team: 5")
     print()
     
     await create_test_teams_and_users()

@@ -1,25 +1,36 @@
 """Authentication API routes."""
 
-from datetime import datetime, timezone
+import re
+import secrets
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Query, Request, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DatabaseSession
 from app.config import settings
 from app.core.exceptions import (
     EmailAlreadyExistsException,
+    EmailAlreadyVerifiedException,
+    EmailVerificationTokenExpiredException,
+    EmailVerificationTokenInvalidException,
     InvalidCredentialsException,
     NotStaffException,
     OTPExpiredException,
     OTPInvalidException,
+    PasswordResetTokenExpiredException,
+    PasswordResetTokenInvalidException,
+    PhoneNumberMismatchException,
     UserAlreadyExistsException,
     UserNotVerifiedException,
 )
 from app.core.rate_limit import (
+    FORGOT_PASSWORD_RATE_LIMIT,
     LOGIN_RATE_LIMIT,
     OTP_RATE_LIMIT,
     REGISTER_RATE_LIMIT,
+    RateLimitConfig,
     check_rate_limit,
 )
 from app.core.security import (
@@ -31,8 +42,10 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.models.user import OTPCode, User, UserRole
+from app.models.user import EmailVerificationToken, OTPCode, User, UserRole
 from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     LoginResponse,
     RefreshTokenRequest,
@@ -40,12 +53,20 @@ from app.schemas.auth import (
     RegisterResponse,
     RequestOTPRequest,
     RequestOTPResponse,
+    ResendVerificationRequest,
+    ResendVerificationResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
+    SetPasswordRequest,
+    SetPasswordResponse,
     StaffLoginRequest,
     TokenResponse,
+    VerifyEmailResponse,
     VerifyOTPRequest,
     VerifyOTPResponse,
 )
 from app.schemas.user import UserResponse
+from app.services.email import email_service
 from app.services.sms import sms_service
 
 router = APIRouter()
@@ -188,10 +209,13 @@ async def register(
     db: DatabaseSession,
     http_request: Request,
 ) -> RegisterResponse:
-    """Register a new user with email, password, and phone number.
+    """Register a new citizen user with email, password, and phone number.
 
     All fields (email, password, phone_number, full_name) are required.
     Email and phone_number must be unique across all users.
+
+    After registration, a verification email is sent. The user must verify
+    their email before they can log in.
 
     Rate limited to 3 requests per 5 minutes per IP/phone combination.
     """
@@ -222,27 +246,43 @@ async def register(
     if existing_email_user is not None:
         raise EmailAlreadyExistsException()
 
-    # Create new user
+    # Create new user with is_verified=False
     user = User(
         phone_number=request.phone_number,
         name=request.full_name,
         email=request.email,
         password_hash=hash_password(request.password),
         role=UserRole.CITIZEN,
-        is_verified=True,
+        is_verified=False,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
 
-    # Generate tokens
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    # Generate verification token
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        hours=settings.email_verification_expire_hours
+    )
+
+    verification_token = EmailVerificationToken(
+        user_id=user.id,
+        token=token,
+        token_type="verification",
+        expires_at=expires_at,
+    )
+    db.add(verification_token)
+    await db.commit()
+
+    # Send verification email
+    await email_service.send_verification_email(
+        to_email=user.email,
+        user_name=user.name,
+        token=token,
+    )
 
     return RegisterResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user_id=str(user.id),
+        message="Registration successful. Please check your email to verify your account."
     )
 
 
@@ -285,9 +325,15 @@ async def login(
     if not verify_password(request.password, user.password_hash):
         raise InvalidCredentialsException()
 
-    # Generate tokens
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    # Generate tokens with password_changed_at for invalidation on password reset
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        password_changed_at=user.password_changed_at,
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": str(user.id)},
+        password_changed_at=user.password_changed_at,
+    )
 
     return LoginResponse(
         access_token=access_token,
@@ -341,9 +387,15 @@ async def staff_login(
     if not verify_password(request.password, user.password_hash):
         raise InvalidCredentialsException()
 
-    # Generate tokens
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    # Generate tokens with password_changed_at for invalidation on password reset
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        password_changed_at=user.password_changed_at,
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": str(user.id)},
+        password_changed_at=user.password_changed_at,
+    )
 
     return LoginResponse(
         access_token=access_token,
@@ -380,9 +432,15 @@ async def refresh_token(
     if user is None:
         raise OTPInvalidException()
 
-    # Generate new tokens
-    access_token = create_access_token(data={"sub": str(user.id)})
-    new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    # Generate new tokens with password_changed_at for invalidation on password reset
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        password_changed_at=user.password_changed_at,
+    )
+    new_refresh_token = create_refresh_token(
+        data={"sub": str(user.id)},
+        password_changed_at=user.password_changed_at,
+    )
 
     return TokenResponse(
         access_token=access_token,
@@ -401,17 +459,11 @@ async def get_current_user_info(
 ) -> UserResponse:
     """Get the current authenticated user's profile."""
     # Reload user with team relationship to get team name
-    from sqlalchemy.orm import selectinload
-    from sqlalchemy import select
-    from app.models.user import User
-    
     result = await db.execute(
-        select(User)
-        .options(selectinload(User.team))
-        .where(User.id == current_user.id)
+        select(User).options(selectinload(User.team)).where(User.id == current_user.id)
     )
     user_with_team = result.scalar_one()
-    
+
     # Create response with team_name
     user_dict = {
         "id": user_with_team.id,
@@ -427,3 +479,340 @@ async def get_current_user_info(
         "updated_at": user_with_team.updated_at,
     }
     return UserResponse.model_validate(user_dict)
+
+
+@router.get(
+    "/verify-email",
+    response_model=VerifyEmailResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def verify_email(
+    token: str = Query(..., description="Verification token from email"),
+    db: DatabaseSession = None,
+) -> VerifyEmailResponse:
+    """Verify email address using token from verification email.
+
+    This endpoint is called when a citizen clicks the verification link
+    in their email. After successful verification, they can log in.
+    """
+    # Find the token
+    result = await db.execute(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token == token,
+            EmailVerificationToken.token_type == "verification",
+            EmailVerificationToken.is_used == False,  # noqa: E712
+        )
+    )
+    verification_token = result.scalar_one_or_none()
+
+    if verification_token is None:
+        raise EmailVerificationTokenInvalidException()
+
+    # Check if expired
+    if datetime.now(timezone.utc) > verification_token.expires_at:
+        raise EmailVerificationTokenExpiredException()
+
+    # Get the user
+    user_result = await db.execute(
+        select(User).where(
+            User.id == verification_token.user_id,
+            User.deleted_at.is_(None),
+        )
+    )
+    user = user_result.scalar_one_or_none()
+
+    if user is None:
+        raise EmailVerificationTokenInvalidException()
+
+    if user.is_verified:
+        raise EmailAlreadyVerifiedException()
+
+    # Mark token as used and verify user
+    verification_token.is_used = True
+    user.is_verified = True
+    await db.commit()
+
+    return VerifyEmailResponse(
+        message="Email verified successfully. You can now log in."
+    )
+
+
+# Rate limit for resend verification: 20 per hour
+RESEND_VERIFICATION_RATE_LIMIT = RateLimitConfig(requests=20, window_seconds=3600)
+
+
+@router.post(
+    "/resend-verification",
+    response_model=ResendVerificationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def resend_verification(
+    request: ResendVerificationRequest,
+    db: DatabaseSession,
+    http_request: Request,
+) -> ResendVerificationResponse:
+    """Resend verification email to a user.
+
+    Rate limited to 20 requests per hour per email.
+    Returns a generic success message regardless of whether the email exists
+    for security reasons.
+    """
+    # Check rate limit
+    await check_rate_limit(
+        http_request,
+        f"resend_verification:{request.email}",
+        RESEND_VERIFICATION_RATE_LIMIT,
+    )
+
+    # Find user by email (don't reveal if email exists)
+    result = await db.execute(
+        select(User).where(
+            User.email == request.email,
+            User.deleted_at.is_(None),
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    # Only send if user exists and is not verified
+    if user is not None and not user.is_verified:
+        # Invalidate old tokens
+        old_tokens_result = await db.execute(
+            select(EmailVerificationToken).where(
+                EmailVerificationToken.user_id == user.id,
+                EmailVerificationToken.token_type == "verification",
+                EmailVerificationToken.is_used == False,  # noqa: E712
+            )
+        )
+        old_tokens = old_tokens_result.scalars().all()
+        for old_token in old_tokens:
+            old_token.is_used = True
+
+        # Generate new token
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            hours=settings.email_verification_expire_hours
+        )
+
+        verification_token = EmailVerificationToken(
+            user_id=user.id,
+            token=token,
+            token_type="verification",
+            expires_at=expires_at,
+        )
+        db.add(verification_token)
+        await db.commit()
+
+        # Send verification email
+        await email_service.send_verification_email(
+            to_email=user.email,
+            user_name=user.name,
+            token=token,
+        )
+
+    # Always return success for security (don't reveal if email exists)
+    return ResendVerificationResponse(
+        message="If an account with this email exists and is not verified, a verification email has been sent."
+    )
+
+
+@router.post(
+    "/set-password",
+    response_model=SetPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def set_password(
+    request: SetPasswordRequest,
+    db: DatabaseSession,
+) -> SetPasswordResponse:
+    """Set password for staff members invited by manager.
+
+    This endpoint is used when a staff member clicks the invite link
+    in their email. They must provide:
+    - The token from the email
+    - Their phone number (must match what manager entered)
+    - Their new password
+
+    After successful password setup, they can log in.
+    """
+    # Find the token
+    result = await db.execute(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token == request.token,
+            EmailVerificationToken.token_type == "invite",
+            EmailVerificationToken.is_used == False,  # noqa: E712
+        )
+    )
+    verification_token = result.scalar_one_or_none()
+
+    if verification_token is None:
+        raise EmailVerificationTokenInvalidException()
+
+    # Check if expired
+    if datetime.now(timezone.utc) > verification_token.expires_at:
+        raise EmailVerificationTokenExpiredException()
+
+    # Get the user
+    user_result = await db.execute(
+        select(User).where(
+            User.id == verification_token.user_id,
+            User.deleted_at.is_(None),
+        )
+    )
+    user = user_result.scalar_one_or_none()
+
+    if user is None:
+        raise EmailVerificationTokenInvalidException()
+
+    # Normalize phone numbers for comparison
+    def normalize_phone(phone: str) -> str:
+        """Normalize phone number for comparison."""
+        cleaned = re.sub(r"[\s\-]", "", phone)
+        # If starts with 0, replace with +90
+        if cleaned.startswith("0"):
+            cleaned = "+90" + cleaned[1:]
+        # If doesn't start with +, add +90
+        if not cleaned.startswith("+"):
+            cleaned = "+90" + cleaned
+        return cleaned
+
+    # Verify phone number matches
+    normalized_request_phone = normalize_phone(request.phone_number)
+    normalized_user_phone = normalize_phone(user.phone_number)
+
+    if normalized_request_phone != normalized_user_phone:
+        raise PhoneNumberMismatchException()
+
+    # Set password, mark as verified, and update password_changed_at
+    verification_token.is_used = True
+    user.password_hash = hash_password(request.password)
+    user.password_changed_at = datetime.now(timezone.utc)
+    user.is_verified = True
+    await db.commit()
+
+    return SetPasswordResponse(message="Password set successfully. You can now log in.")
+
+
+@router.post(
+    "/forgot-password",
+    response_model=ForgotPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: DatabaseSession,
+    http_request: Request,
+) -> ForgotPasswordResponse:
+    """Request a password reset email.
+
+    Rate limited to 3 requests per hour per email.
+    Always returns success for security (don't reveal if email exists).
+    """
+    # Check rate limit
+    await check_rate_limit(
+        http_request,
+        f"forgot_password:{request.email}",
+        FORGOT_PASSWORD_RATE_LIMIT,
+    )
+
+    # Find user by email (don't reveal if exists)
+    result = await db.execute(
+        select(User).where(
+            User.email == request.email,
+            User.deleted_at.is_(None),
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    # Only send if user exists and is verified
+    if user is not None and user.is_verified:
+        # Invalidate old password reset tokens
+        old_tokens_result = await db.execute(
+            select(EmailVerificationToken).where(
+                EmailVerificationToken.user_id == user.id,
+                EmailVerificationToken.token_type == "password_reset",
+                EmailVerificationToken.is_used == False,  # noqa: E712
+            )
+        )
+        old_tokens = old_tokens_result.scalars().all()
+        for old_token in old_tokens:
+            old_token.is_used = True
+
+        # Generate new token (1 hour expiry)
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        reset_token = EmailVerificationToken(
+            user_id=user.id,
+            token=token,
+            token_type="password_reset",
+            expires_at=expires_at,
+        )
+        db.add(reset_token)
+        await db.commit()
+
+        # Send reset email
+        await email_service.send_password_reset_email(
+            to_email=user.email,
+            user_name=user.name,
+            token=token,
+        )
+
+    # Always return success (security)
+    return ForgotPasswordResponse(
+        message="If an account with this email exists, a password reset email has been sent."
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=ResetPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: DatabaseSession,
+) -> ResetPasswordResponse:
+    """Reset password using token from email.
+
+    The token must be valid and not expired (1 hour).
+    After successful reset, all existing sessions are invalidated.
+    """
+    # Find the token
+    result = await db.execute(
+        select(EmailVerificationToken).where(
+            EmailVerificationToken.token == request.token,
+            EmailVerificationToken.token_type == "password_reset",
+            EmailVerificationToken.is_used == False,  # noqa: E712
+        )
+    )
+    reset_token = result.scalar_one_or_none()
+
+    if reset_token is None:
+        raise PasswordResetTokenInvalidException()
+
+    # Check if expired
+    if datetime.now(timezone.utc) > reset_token.expires_at:
+        raise PasswordResetTokenExpiredException()
+
+    # Get the user
+    user_result = await db.execute(
+        select(User).where(
+            User.id == reset_token.user_id,
+            User.deleted_at.is_(None),
+        )
+    )
+    user = user_result.scalar_one_or_none()
+
+    if user is None:
+        raise PasswordResetTokenInvalidException()
+
+    # Update password, mark token as used, and update password_changed_at
+    # This invalidates all existing JWT tokens
+    reset_token.is_used = True
+    user.password_hash = hash_password(request.password)
+    user.password_changed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return ResetPasswordResponse(
+        message="Password reset successfully. You can now log in with your new password."
+    )

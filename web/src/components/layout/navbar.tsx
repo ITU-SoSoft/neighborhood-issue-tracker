@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth/context";
 import { useCommandPalette } from "@/components/command-palette";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, isMacOS } from "@/lib/utils";
 import { NotificationPanel } from "@/components/notifications/notification-panel";
 import { useUnreadNotificationCount } from "@/lib/queries/notifications";
 
@@ -22,6 +22,10 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const { data: unreadData } = useUnreadNotificationCount();
   const unreadCount = unreadData?.count ?? 0;
+
+  // Detect platform for keyboard shortcut display
+  // Use lazy initial state to handle SSR (defaults to Mac symbol, updates on client)
+  const [modifierKey] = useState(() => (isMacOS() ? "⌘" : "Ctrl+"));
 
   return (
     <header
@@ -54,12 +58,12 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
           size="sm"
           onClick={openCommandPalette}
           className="gap-2 text-muted-foreground"
-          aria-label="Search (Cmd+K)"
+          aria-label={`Search (${modifierKey}K)`}
         >
           <Search className="h-4 w-4" />
           <span className="hidden sm:inline-flex">Search</span>
           <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-flex">
-            <span className="text-xs">&#8984;</span>K
+            {modifierKey}K
           </kbd>
         </Button>
 
@@ -73,16 +77,11 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
         >
           <Bell className="h-5 w-5" aria-hidden="true" />
           {unreadCount > 0 && (
-            <>
-              {/* Animated pulse ring */}
-              <span className="absolute right-0 top-0 flex h-5 w-5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-5 w-5 bg-red-500 items-center justify-center text-[10px] font-bold text-white shadow-lg">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
+            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive">
+              <span className="sr-only">
+                You have {unreadCount} new notifications
               </span>
-              <span className="sr-only">You have {unreadCount} new notifications</span>
-            </>
+            </span>
           )}
         </Button>
 
@@ -99,7 +98,9 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
             size="icon"
             className={cn(
               "relative",
-              isStaff ? "text-slate-600 hover:text-slate-900" : "text-muted-foreground hover:text-foreground",
+              isStaff
+                ? "text-slate-600 hover:text-slate-900"
+                : "text-muted-foreground hover:text-foreground",
             )}
             aria-label="Go to profile"
           >
@@ -112,8 +113,8 @@ export function Navbar({ title, isStaff = false }: NavbarProps) {
           <div
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors cursor-pointer",
-              isStaff 
-                ? "bg-slate-700 text-white hover:bg-slate-600" 
+              isStaff
+                ? "bg-slate-700 text-white hover:bg-slate-600"
                 : "bg-primary/10 text-primary hover:bg-primary/20",
             )}
             role="button"

@@ -12,12 +12,15 @@ from app.config import settings
 def create_access_token(
     data: dict,
     expires_delta: timedelta | None = None,
+    password_changed_at: datetime | None = None,
 ) -> str:
     """Create a JWT access token.
 
     Args:
         data: The data to encode in the token.
         expires_delta: Optional custom expiration time.
+        password_changed_at: Timestamp when password was last changed.
+            Used for token invalidation on password reset.
 
     Returns:
         The encoded JWT token.
@@ -30,6 +33,8 @@ def create_access_token(
             minutes=settings.jwt_access_token_expire_minutes
         )
     to_encode.update({"exp": expire, "type": "access"})
+    if password_changed_at:
+        to_encode["pwd_changed"] = password_changed_at.isoformat()
     return jwt.encode(
         to_encode,
         settings.jwt_secret_key,
@@ -40,12 +45,15 @@ def create_access_token(
 def create_refresh_token(
     data: dict,
     expires_delta: timedelta | None = None,
+    password_changed_at: datetime | None = None,
 ) -> str:
     """Create a JWT refresh token.
 
     Args:
         data: The data to encode in the token.
         expires_delta: Optional custom expiration time.
+        password_changed_at: Timestamp when password was last changed.
+            Used for token invalidation on password reset.
 
     Returns:
         The encoded JWT refresh token.
@@ -58,6 +66,8 @@ def create_refresh_token(
             days=settings.jwt_refresh_token_expire_days
         )
     to_encode.update({"exp": expire, "type": "refresh"})
+    if password_changed_at:
+        to_encode["pwd_changed"] = password_changed_at.isoformat()
     return jwt.encode(
         to_encode,
         settings.jwt_secret_key,

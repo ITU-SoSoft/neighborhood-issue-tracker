@@ -448,3 +448,217 @@ class TestUpdateTicket:
             headers=auth_headers(citizen_token),
         )
         assert response.status_code == 404
+
+
+# ============================================================================
+# DELETE /api/v1/tickets/{id} - Delete ticket
+# ============================================================================
+
+
+class TestDeleteTicket:
+    """Tests for DELETE /api/v1/tickets/{id}."""
+
+    async def test_citizen_deletes_own_new_ticket(
+        self, client: AsyncClient, citizen_token: str, ticket
+    ):
+        """Citizen should be able to delete their own NEW ticket."""
+        response = await client.delete(
+            f"/api/v1/tickets/{ticket.id}",
+            headers=auth_headers(citizen_token),
+        )
+        assert response.status_code == 204
+
+        # Verify ticket is deleted (soft delete)
+        get_response = await client.get(
+            f"/api/v1/tickets/{ticket.id}",
+            headers=auth_headers(citizen_token),
+        )
+        assert get_response.status_code == 404
+
+    async def test_citizen_cannot_delete_in_progress_ticket(
+        self, client: AsyncClient, citizen_token: str, db_session, ticket
+    ):
+        """Citizen should not be able to delete IN_PROGRESS tickets."""
+        from app.models.ticket import TicketStatus
+
+        ticket.status = TicketStatus.IN_PROGRESS
+        await db_session.commit()
+
+        response = await client.delete(
+            f"/api/v1/tickets/{ticket.id}",
+            headers=auth_headers(citizen_token),
+        )
+        assert response.status_code == 403
+
+    async def test_citizen_cannot_delete_others_ticket(
+        self, client: AsyncClient, citizen_token: str, db_session, category
+    ):
+        """Citizen should not be able to delete other users' tickets."""
+        from app.models.user import User, UserRole
+        from app.models.ticket import Ticket, Location, TicketStatus
+
+        # Create another user and their ticket
+        other_user = User(
+            id=uuid.uuid4(),
+            phone_number="+905558888888",
+            email="other_delete_test@test.com",
+            password_hash="dummy_hash",
+            name="Other User Delete Test",
+            role=UserRole.CITIZEN,
+            is_verified=True,
+            is_active=True,
+        )
+        db_session.add(other_user)
+        await db_session.flush()
+
+        location = Location(
+            id=uuid.uuid4(),
+            latitude=41.0,
+            longitude=29.0,
+            coordinates="SRID=4326;POINT(29.0 41.0)",
+            city="Istanbul",
+        )
+        db_session.add(location)
+        await db_session.flush()
+
+        other_ticket = Ticket(
+            id=uuid.uuid4(),
+            title="Other User Ticket for Delete Test",
+            description="Another user's issue that should not be deletable",
+            status=TicketStatus.NEW,
+            category_id=category.id,
+            location_id=location.id,
+            reporter_id=other_user.id,
+        )
+        db_session.add(other_ticket)
+        await db_session.commit()
+
+        # Try to delete other user's ticket
+        response = await client.delete(
+            f"/api/v1/tickets/{other_ticket.id}",
+            headers=auth_headers(citizen_token),
+        )
+        assert response.status_code == 403
+
+    async def test_unauthenticated_cannot_delete_ticket(
+        self, client: AsyncClient, ticket
+    ):
+        """Unauthenticated requests should be rejected."""
+        response = await client.delete(
+            f"/api/v1/tickets/{ticket.id}",
+        )
+        assert response.status_code == 401
+
+    async def test_delete_nonexistent_ticket_returns_404(
+        self, client: AsyncClient, citizen_token: str
+    ):
+        """Should return 404 for nonexistent ticket."""
+        response = await client.delete(
+            f"/api/v1/tickets/{uuid.uuid4()}",
+            headers=auth_headers(citizen_token),
+        )
+        assert response.status_code == 404
+
+    async def test_support_cannot_delete_others_ticket(
+        self, client: AsyncClient, support_token: str, ticket
+    ):
+        """Support user should not be able to delete other users' tickets."""
+        # The ticket fixture is created by citizen_user, so support cannot delete it
+        response = await client.delete(
+            f"/api/v1/tickets/{ticket.id}",
+            headers=auth_headers(support_token),
+        )
+        assert response.status_code == 403
+
+    async def test_manager_cannot_delete_others_ticket(
+        self, client: AsyncClient, manager_token: str, ticket
+    ):
+        """Manager should not be able to delete other users' tickets."""
+        # The ticket fixture is created by citizen_user, so manager cannot delete it
+        response = await client.delete(
+            f"/api/v1/tickets/{ticket.id}",
+            headers=auth_headers(manager_token),
+        )
+        assert response.status_code == 403
+
+    async def test_support_deletes_own_new_ticket(
+        self,
+        client: AsyncClient,
+        support_token: str,
+        support_user,
+        db_session,
+        category,
+    ):
+        """Support user should be able to delete their own NEW ticket."""
+        from app.models.ticket import Ticket, Location, TicketStatus
+
+        # Create a ticket owned by support user
+        location = Location(
+            id=uuid.uuid4(),
+            latitude=41.0,
+            longitude=29.0,
+            coordinates="SRID=4326;POINT(29.0 41.0)",
+            city="Istanbul",
+        )
+        db_session.add(location)
+        await db_session.flush()
+
+        support_ticket = Ticket(
+            id=uuid.uuid4(),
+            title="Support User's Own Ticket",
+            description="A ticket created by support user for testing deletion",
+            status=TicketStatus.NEW,
+            category_id=category.id,
+            location_id=location.id,
+            reporter_id=support_user.id,
+        )
+        db_session.add(support_ticket)
+        await db_session.commit()
+
+        # Support should be able to delete their own ticket
+        response = await client.delete(
+            f"/api/v1/tickets/{support_ticket.id}",
+            headers=auth_headers(support_token),
+        )
+        assert response.status_code == 204
+
+    async def test_manager_deletes_own_new_ticket(
+        self,
+        client: AsyncClient,
+        manager_token: str,
+        manager_user,
+        db_session,
+        category,
+    ):
+        """Manager should be able to delete their own NEW ticket."""
+        from app.models.ticket import Ticket, Location, TicketStatus
+
+        # Create a ticket owned by manager user
+        location = Location(
+            id=uuid.uuid4(),
+            latitude=41.0,
+            longitude=29.0,
+            coordinates="SRID=4326;POINT(29.0 41.0)",
+            city="Istanbul",
+        )
+        db_session.add(location)
+        await db_session.flush()
+
+        manager_ticket = Ticket(
+            id=uuid.uuid4(),
+            title="Manager's Own Ticket",
+            description="A ticket created by manager for testing deletion",
+            status=TicketStatus.NEW,
+            category_id=category.id,
+            location_id=location.id,
+            reporter_id=manager_user.id,
+        )
+        db_session.add(manager_ticket)
+        await db_session.commit()
+
+        # Manager should be able to delete their own ticket
+        response = await client.delete(
+            f"/api/v1/tickets/{manager_ticket.id}",
+            headers=auth_headers(manager_token),
+        )
+        assert response.status_code == 204

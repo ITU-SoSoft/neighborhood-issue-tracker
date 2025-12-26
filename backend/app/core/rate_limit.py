@@ -66,6 +66,9 @@ rate_limiter = InMemoryRateLimiter()
 OTP_RATE_LIMIT = RateLimitConfig(requests=5, window_seconds=300)  # 5 per 5 minutes
 LOGIN_RATE_LIMIT = RateLimitConfig(requests=10, window_seconds=300)  # 10 per 5 minutes
 REGISTER_RATE_LIMIT = RateLimitConfig(requests=3, window_seconds=300)  # 3 per 5 minutes
+FORGOT_PASSWORD_RATE_LIMIT = RateLimitConfig(
+    requests=3, window_seconds=3600
+)  # 3 per hour
 
 
 def get_client_ip(request: Request) -> str:

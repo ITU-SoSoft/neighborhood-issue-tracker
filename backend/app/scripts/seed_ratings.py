@@ -17,7 +17,7 @@ from app.models.category import Category
 from app.models.feedback import Feedback
 from app.models.ticket import Location, Ticket, TicketStatus
 from app.models.user import User, UserRole
-from app.models.team import Team, TeamCategory, TeamDistrict
+from app.models.team import Team, TeamDistrict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

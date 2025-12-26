@@ -17,6 +17,8 @@ import {
   FeedbackCreate,
   FeedbackUpdate,
   FeedbackTrendsResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
   HeatmapResponse,
   LoginRequest,
   LoginResponse,
@@ -32,10 +34,16 @@ import {
   RegisterResponse,
   RequestOTPRequest,
   RequestOTPResponse,
+  ResendVerificationRequest,
+  ResendVerificationResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   SavedAddress,
   SavedAddressCreate,
   SavedAddressListResponse,
   SavedAddressUpdate,
+  SetPasswordRequest,
+  SetPasswordResponse,
   StaffLoginRequest,
   TeamPerformanceResponse,
   Ticket,
@@ -52,12 +60,13 @@ import {
   UserRole,
   UserRoleUpdate,
   UserUpdate,
+  VerifyEmailResponse,
   VerifyOTPRequest,
   VerifyOTPResponse,
   CategoryStatsResponse,
   NeighborhoodStatsResponse,
 
-  // ✅ TEAMS (EĞER types.ts içinde tanımlıysa kullan)
+  // TEAMS (EĞER types.ts içinde tanımlıysa kullan)
   TeamListResponse,
   TeamDetailResponse,
   TeamResponse,
@@ -68,33 +77,66 @@ import {
 } from "./types";
 
 const API_BASE_URL =
-  (process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000/api/v1");
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000/api/v1";
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 
-// Token management
+// In-memory fallback for when localStorage is unavailable
+// (e.g., cross-origin iframes, privacy mode, storage disabled)
+let memoryTokens: { access: string | null; refresh: string | null } = {
+  access: null,
+  refresh: null,
+};
+
+// Token management with try/catch for DOMException handling
+// Browsers may throw "The operation is insecure" when:
+// - Running in cross-origin iframes
+// - Privacy/incognito mode with strict settings
+// - User has disabled cookies/storage
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch {
+    return memoryTokens.access;
+  }
 }
 
 export function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return memoryTokens.refresh;
+  }
 }
 
 export function setTokens(accessToken: string, refreshToken: string): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  // Always update memory fallback
+  memoryTokens = { access: accessToken, refresh: refreshToken };
+  try {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  } catch {
+    // Storage unavailable - tokens stored in memory only
+    // Session won't persist across page reloads
+  }
 }
 
 export function clearTokens(): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  // Always clear memory fallback
+  memoryTokens = { access: null, refresh: null };
+  try {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    // Ignore - memory already cleared
+  }
 }
 
 // API Error handling
@@ -147,7 +189,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
     }
     return JSON.parse(text) as T;
   } catch (error) {
-    console.error("Failed to parse response:", error, "Response status:", response.status);
+    console.error(
+      "Failed to parse response:",
+      error,
+      "Response status:",
+      response.status,
+    );
     return {} as T;
   }
 }
@@ -286,6 +333,61 @@ export async function getCurrentUser(): Promise<User> {
   return apiFetch<User>("/auth/me");
 }
 
+export async function verifyEmail(token: string): Promise<VerifyEmailResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`,
+    {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  return handleResponse<VerifyEmailResponse>(response);
+}
+
+export async function resendVerification(
+  data: ResendVerificationRequest,
+): Promise<ResendVerificationResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ResendVerificationResponse>(response);
+}
+
+export async function setPassword(
+  data: SetPasswordRequest,
+): Promise<SetPasswordResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/set-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<SetPasswordResponse>(response);
+}
+
+export async function forgotPassword(
+  data: ForgotPasswordRequest,
+): Promise<ForgotPasswordResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ForgotPasswordResponse>(response);
+}
+
+export async function resetPassword(
+  data: ResetPasswordRequest,
+): Promise<ResetPasswordResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ResetPasswordResponse>(response);
+}
+
 // ============================================================================
 // USERS API
 // ============================================================================
@@ -392,7 +494,7 @@ export async function deleteTeam(teamId: string): Promise<void> {
 export async function getTicketsByTeam(
   teamId: string,
   page: number = 1,
-  pageSize: number = 100
+  pageSize: number = 100,
 ): Promise<TicketListResponse> {
   const params = new URLSearchParams({
     team_id: teamId,
@@ -588,13 +690,17 @@ export async function getNearbyTickets(params: {
     searchParams.set("radius_meters", params.radius_meters.toString());
   if (params.category_id) searchParams.set("category_id", params.category_id);
 
-  return apiFetch<NearbyTicket[]>(
-    `/tickets/nearby?${searchParams.toString()}`,
-  );
+  return apiFetch<NearbyTicket[]>(`/tickets/nearby?${searchParams.toString()}`);
 }
 
 export async function getTicketById(ticketId: string): Promise<TicketDetail> {
   return apiFetch<TicketDetail>(`/tickets/${ticketId}`);
+}
+
+export async function deleteTicket(ticketId: string): Promise<void> {
+  return apiFetch<void>(`/tickets/${ticketId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function updateTicketStatus(
@@ -720,8 +826,7 @@ export async function getEscalations(params?: {
   const searchParams = new URLSearchParams();
   if (params?.status_filter)
     searchParams.set("status_filter", params.status_filter);
-  if (params?.ticket_id)
-    searchParams.set("ticket_id", params.ticket_id);
+  if (params?.ticket_id) searchParams.set("ticket_id", params.ticket_id);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.page_size)
     searchParams.set("page_size", params.page_size.toString());
@@ -782,7 +887,9 @@ export async function getHeatmap(params?: {
   );
 }
 
-export async function getTeamPerformance(days = 30): Promise<TeamPerformanceResponse> {
+export async function getTeamPerformance(
+  days = 30,
+): Promise<TeamPerformanceResponse> {
   return apiFetch<TeamPerformanceResponse>(`/analytics/teams?days=${days}`);
 }
 
@@ -795,7 +902,9 @@ export async function getMemberPerformance(
   );
 }
 
-export async function getCategoryStats(days = 30): Promise<CategoryStatsResponse> {
+export async function getCategoryStats(
+  days = 30,
+): Promise<CategoryStatsResponse> {
   return apiFetch<CategoryStatsResponse>(`/analytics/categories?days=${days}`);
 }
 
@@ -833,7 +942,9 @@ export async function getSavedAddresses(): Promise<SavedAddressListResponse> {
   return apiFetch<SavedAddressListResponse>("/addresses");
 }
 
-export async function getSavedAddressById(addressId: string): Promise<SavedAddress> {
+export async function getSavedAddressById(
+  addressId: string,
+): Promise<SavedAddress> {
   return apiFetch<SavedAddress>(`/addresses/${addressId}`);
 }
 
@@ -895,7 +1006,9 @@ export async function markNotificationAsRead(
   });
 }
 
-export async function markAllNotificationsAsRead(): Promise<{ message: string }> {
+export async function markAllNotificationsAsRead(): Promise<{
+  message: string;
+}> {
   return apiFetch<{ message: string }>("/notifications/read-all", {
     method: "PATCH",
   });

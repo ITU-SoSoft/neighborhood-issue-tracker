@@ -1,7 +1,6 @@
 """Unit tests for analytics API endpoints."""
 
 import uuid
-from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -490,7 +489,6 @@ class TestGetFeedbackTrends:
 
     async def test_feedback_trends_with_data(self, mock_db, manager_user):
         """Should return feedback trends by category."""
-        from app.models.feedback import Feedback
 
         category = Category(
             id=uuid.uuid4(),

@@ -37,7 +37,7 @@ function SignInForm() {
 
       const response = await login(values);
       await authLogin(response.access_token, response.refresh_token);
-      
+
       toast.success("Signed in successfully");
 
       const callbackUrl = searchParams.get("callbackUrl");
@@ -63,12 +63,16 @@ function SignInForm() {
         backgroundPosition: "center",
       }}
     >
-      <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" aria-hidden />
-      <Link
-        href="/"
-        className="absolute left-6 top-6 z-10"
-      >
-        <Button variant="ghost" size="sm" className="bg-background/90 backdrop-blur-sm">
+      <div
+        className="absolute inset-0 bg-background/60 backdrop-blur-[2px]"
+        aria-hidden
+      />
+      <Link href="/" className="absolute left-6 top-6 z-10">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="bg-background/90 backdrop-blur-sm"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Home
         </Button>
@@ -82,18 +86,23 @@ function SignInForm() {
             Stay in sync with what matters in your neighborhood.
           </h1>
           <p className="text-base text-foreground/80">
-            Track the issues you care about, receive real-time updates from municipal teams, and work with neighbors to
-            resolve problems faster.
+            Track the issues you care about, receive real-time updates from
+            municipal teams, and work with neighbors to resolve problems faster.
           </p>
           <ul className="space-y-3 text-sm text-foreground/75">
             <li>Report new issues in seconds.</li>
             <li>Keep track of issues you care about.</li>
-            <li>Coordinate volunteer efforts and community responses seamlessly.</li>
+            <li>
+              Coordinate volunteer efforts and community responses seamlessly.
+            </li>
           </ul>
           <div className="rounded-3xl border border-border bg-muted/50 p-6">
-            <p className="text-sm font-medium text-primary">New to the platform?</p>
+            <p className="text-sm font-medium text-primary">
+              New to the platform?
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Create an account to access collaborative reporting tools and invite your neighbors to join you.
+              Create an account to access collaborative reporting tools and
+              invite your neighbors to join you.
             </p>
             <Link
               href="/sign-up"
@@ -141,6 +150,14 @@ function SignInForm() {
                 {...form.register("password")}
               />
             </FormField>
+            <div className="flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Button type="submit" className="w-full" isLoading={isSubmitting}>
               Sign in
             </Button>
@@ -162,12 +179,16 @@ function SignInFormFallback() {
         backgroundPosition: "center",
       }}
     >
-      <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" aria-hidden />
-      <Link
-        href="/"
-        className="absolute left-6 top-6 z-10"
-      >
-        <Button variant="ghost" size="sm" className="bg-background/90 backdrop-blur-sm">
+      <div
+        className="absolute inset-0 bg-background/60 backdrop-blur-[2px]"
+        aria-hidden
+      />
+      <Link href="/" className="absolute left-6 top-6 z-10">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="bg-background/90 backdrop-blur-sm"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Home
         </Button>

@@ -192,7 +192,7 @@ class TestRegister:
         return request
 
     async def test_register_success(self, mock_db, mock_request):
-        """Should create user and return tokens on successful registration."""
+        """Should create user and return verification message on successful registration."""
         register_request = RegisterRequest(
             phone_number="+905551234567",
             email="test@example.com",
@@ -207,17 +207,15 @@ class TestRegister:
 
         with patch("app.api.v1.auth.check_rate_limit", new_callable=AsyncMock):
             with patch("app.api.v1.auth.hash_password") as mock_hash:
-                with patch("app.api.v1.auth.create_access_token") as mock_access:
-                    with patch("app.api.v1.auth.create_refresh_token") as mock_refresh:
-                        mock_hash.return_value = "hashed_password"
-                        mock_access.return_value = "access_token"
-                        mock_refresh.return_value = "refresh_token"
+                with patch("app.api.v1.auth.email_service") as mock_email_service:
+                    mock_hash.return_value = "hashed_password"
+                    mock_email_service.send_verification_email = AsyncMock()
 
-                        result = await register(register_request, mock_db, mock_request)
+                    result = await register(register_request, mock_db, mock_request)
 
-                        assert result.access_token == "access_token"
-                        assert result.token_type == "bearer"
-                        mock_db.add.assert_called_once()
+                    # New behavior: returns message instead of tokens (email verification required)
+                    assert "message" in result.model_dump()
+                    mock_db.add.assert_called()
 
     async def test_register_phone_already_exists(self, mock_db, mock_request):
         """Should raise UserAlreadyExistsException for existing phone."""

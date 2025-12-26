@@ -9,7 +9,6 @@ import pytest
 from app.models.ticket import Ticket, TicketStatus
 from app.models.user import User, UserRole
 from app.models.escalation import EscalationStatus
-from app.schemas.ticket import LocationResponse
 from app.services.ticket_query_service import (
     VALID_TRANSITIONS,
     build_ticket_response,
@@ -48,9 +47,9 @@ class TestValidTransitions:
         """RESOLVED tickets can be reopened (IN_PROGRESS)."""
         assert TicketStatus.IN_PROGRESS in VALID_TRANSITIONS[TicketStatus.RESOLVED]
 
-    def test_closed_is_final_state(self):
-        """CLOSED tickets cannot transition to any other state."""
-        assert VALID_TRANSITIONS[TicketStatus.CLOSED] == []
+    def test_closed_can_transition_to_in_progress(self):
+        """CLOSED tickets can transition back to IN_PROGRESS."""
+        assert TicketStatus.IN_PROGRESS in VALID_TRANSITIONS[TicketStatus.CLOSED]
 
 
 def create_mock_location():
