@@ -298,6 +298,24 @@ export function useUnfollowTicket() {
   });
 }
 
+export function useDeleteTicket() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ticketId: string) => api.deleteTicket(ticketId),
+    onSuccess: () => {
+      // Invalidate all ticket-related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.my() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.followed() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tickets.allUser() });
+
+      // Analytics may change (KPIs)
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all });
+    },
+  });
+}
+
 // ============================================================================
 // COMMENTS
 // ============================================================================

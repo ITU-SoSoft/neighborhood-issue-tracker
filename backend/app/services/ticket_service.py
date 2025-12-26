@@ -12,6 +12,7 @@ from app.core.exceptions import (
     ForbiddenException,
     InvalidStatusTransitionException,
     NotFoundException,
+    TicketNotFoundException,
 )
 from app.models.category import Category
 from app.models.district import District
@@ -45,12 +46,15 @@ class TicketService:
             CategoryNotFoundException: If the category doesn't exist or is inactive.
         """
         import logging
+
         logger = logging.getLogger(__name__)
         logger.info(f"Creating ticket: {request.title}")
         logger.info(f"  Category ID: {request.category_id}")
         logger.info(f"  Location - district_id: {request.location.district_id}")
-        logger.info(f"  Location - coordinates: ({request.location.latitude}, {request.location.longitude})")
-        
+        logger.info(
+            f"  Location - coordinates: ({request.location.latitude}, {request.location.longitude})"
+        )
+
         # Verify category exists
         result = await db.execute(
             select(Category).where(
@@ -65,7 +69,7 @@ class TicketService:
         # Handle location creation based on input type
         district_name = None
         city = request.location.city
-        
+
         if request.location.district_id:
             # Get district details from database
             district_result = await db.execute(
@@ -73,8 +77,10 @@ class TicketService:
             )
             district_obj = district_result.scalar_one_or_none()
             if not district_obj:
-                raise NotFoundException(f"District with id {request.location.district_id} not found")
-            
+                raise NotFoundException(
+                    f"District with id {request.location.district_id} not found"
+                )
+
             district_name = district_obj.name
             city = district_obj.city
             # Use default coordinates for district center (approximate)
@@ -84,7 +90,7 @@ class TicketService:
             # Use provided GPS coordinates
             latitude = request.location.latitude
             longitude = request.location.longitude
-            
+
         # Create location with PostGIS point
         location = Location(
             latitude=latitude,
@@ -136,10 +142,10 @@ class TicketService:
         db.add(status_log)
 
         await db.commit()
-        
+
         # Reload ticket with all relationships to avoid lazy loading issues
         from app.models.comment import Comment
-        
+
         result = await db.execute(
             select(Ticket)
             .where(Ticket.id == ticket.id)
@@ -277,7 +283,7 @@ class TicketService:
                 raise ForbiddenException(
                     detail="You can only update status of tickets assigned to your team"
                 )
-        
+
         # Validate transition
         allowed = VALID_TRANSITIONS.get(ticket.status, [])
         if new_status not in allowed:
@@ -309,7 +315,9 @@ class TicketService:
         from app.services.notification_service import notify_ticket_status_changed
 
         try:
-            await notify_ticket_status_changed(db, ticket, old_status, new_status, current_user)
+            await notify_ticket_status_changed(
+                db, ticket, old_status, new_status, current_user
+            )
         except Exception:
             # Don't fail status update if notification fails
             pass
@@ -337,10 +345,8 @@ class TicketService:
         """
         # Verify team exists
         from app.models.team import Team
-        
-        result = await db.execute(
-            select(Team).where(Team.id == team_id)
-        )
+
+        result = await db.execute(select(Team).where(Team.id == team_id))
         team = result.scalar_one_or_none()
 
         if team is None:
@@ -352,6 +358,51 @@ class TicketService:
         await db.refresh(ticket)
 
         return ticket
+
+    async def delete_ticket(
+        self,
+        db: AsyncSession,
+        ticket_id: UUID,
+        current_user: User,
+    ) -> None:
+        """Soft delete a ticket.
+
+        Citizens can only delete their own tickets if status is NEW.
+
+        Args:
+            db: Database session.
+            ticket_id: The ticket ID to delete.
+            current_user: The user requesting deletion.
+
+        Raises:
+            TicketNotFoundException: If ticket doesn't exist.
+            ForbiddenException: If user doesn't have permission.
+        """
+        # Fetch the ticket
+        result = await db.execute(
+            select(Ticket).where(
+                Ticket.id == ticket_id,
+                Ticket.deleted_at.is_(None),
+            )
+        )
+        ticket = result.scalar_one_or_none()
+
+        if not ticket:
+            raise TicketNotFoundException()
+
+        # Permission check: only reporter can delete
+        if ticket.reporter_id != current_user.id:
+            raise ForbiddenException(detail="You can only delete your own tickets")
+
+        # Only NEW tickets can be deleted
+        if ticket.status != TicketStatus.NEW:
+            raise ForbiddenException(
+                detail="You can only delete tickets with NEW status"
+            )
+
+        # Soft delete
+        ticket.deleted_at = datetime.now(timezone.utc)
+        await db.commit()
 
 
 # Singleton instance

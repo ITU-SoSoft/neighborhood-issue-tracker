@@ -697,6 +697,12 @@ export async function getTicketById(ticketId: string): Promise<TicketDetail> {
   return apiFetch<TicketDetail>(`/tickets/${ticketId}`);
 }
 
+export async function deleteTicket(ticketId: string): Promise<void> {
+  return apiFetch<void>(`/tickets/${ticketId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function updateTicketStatus(
   ticketId: string,
   data: TicketStatusUpdate,
