@@ -59,31 +59,6 @@ cd neighborhood-issue-tracker
 cp .env.example .env
 ```
 
-Edit `.env` with these minimal settings for local development:
-
-```env
-# Database
-POSTGRES_USER=sosoft
-POSTGRES_PASSWORD=localdev123
-POSTGRES_DB=sosoft
-
-# JWT Secret (any random string works for local dev)
-JWT_SECRET_KEY=local-development-secret-key-change-in-production
-
-# MinIO (Object Storage)
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin123
-MINIO_PUBLIC_ENDPOINT=localhost:9000
-
-# URLs
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
-CORS_ORIGINS=http://localhost:3000
-
-# Disable external services for local development
-RESEND_ENABLED=false
-TWILIO_ENABLED=false
-```
-
 ### Step 3: Build and Start
 
 ```bash
