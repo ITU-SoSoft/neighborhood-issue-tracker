@@ -53,7 +53,7 @@ git clone https://github.com/ITU-SoSoft/neighborhood-issue-tracker.git
 cd neighborhood-issue-tracker
 ```
 
-### Step 2: Create Environment File
+### Step 2: Create Environment File and Configure
 
 ```bash
 cp .env.example .env
