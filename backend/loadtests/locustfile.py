@@ -1,10 +1,11 @@
 """
 Load test scenarios for Neighborhood Issue Tracker API.
+Updated: 2025-12-28T20:31
 
 This file contains three main user types:
 1. CitizenUser - Creates tickets and adds comments
-2. SupportUser - Updates ticket status and assigns tickets
-3. ManagerUser - Accesses analytics endpoints
+2. SupportUser - Lists tickets only (status updates removed)
+3. ManagerUser - Accesses analytics endpoints (team fetch removed)
 
 Run with:
     locust -f locustfile.py --host=http://localhost:8000
