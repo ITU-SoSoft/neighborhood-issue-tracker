@@ -12,20 +12,19 @@ API_PREFIX = "/api/v1"
 # Timeouts
 REQUEST_TIMEOUT = 30  # seconds
 
-# Test user credentials - these should exist in the database
+# Test user credentials - using existing staging users
 TEST_USERS = {
     "citizen": {
-        "email": "loadtest_citizen@example.com",
-        "password": "LoadTest123!",
-        "phone_number": "+905551234567",
+        "email": "sagbasofc@gmail.com",
+        "password": "sagbas123!",
     },
     "support": {
-        "email": "loadtest_support@example.com",
-        "password": "LoadTest123!",
+        "email": "support@sosoft.com",
+        "password": "support123!",
     },
     "manager": {
-        "email": "loadtest_manager@example.com",
-        "password": "LoadTest123!",
+        "email": "manager@sosoft.com",
+        "password": "manager123!",
     },
 }
 
