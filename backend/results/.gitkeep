@@ -1,0 +1,4 @@
+# Results Directory
+This directory stores load test results (CSV, HTML reports).
+
+Files are gitignored - see .gitignore

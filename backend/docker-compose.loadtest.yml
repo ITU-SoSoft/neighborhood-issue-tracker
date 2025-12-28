@@ -1,0 +1,43 @@
+# Locust Load Testing - Docker Compose
+# Run load tests against production/staging environment
+
+services:
+  locust-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    container_name: locust-master
+    ports:
+      - "8089:8089"
+    environment:
+      # Change this to your deployed API URL
+      - LOAD_TEST_BASE_URL=https://api.help.sagbas.io
+    command: >
+      locust -f loadtests/locustfile.py
+      --master
+      --web-host=0.0.0.0
+    volumes:
+      - ./results:/loadtest/results
+    networks:
+      - loadtest-network
+
+  locust-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    environment:
+      - LOAD_TEST_BASE_URL=https://api.help.sagbas.io
+    command: >
+      locust -f loadtests/locustfile.py
+      --worker
+      --master-host=locust-master
+    depends_on:
+      - locust-master
+    deploy:
+      replicas: 4  # Increase for more load generation capacity
+    networks:
+      - loadtest-network
+
+networks:
+  loadtest-network:
+    driver: bridge

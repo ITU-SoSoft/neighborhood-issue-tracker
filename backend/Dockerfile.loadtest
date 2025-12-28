@@ -1,0 +1,20 @@
+# Locust Load Testing Dockerfile
+FROM python:3.13-slim
+
+WORKDIR /loadtest
+
+# Install dependencies
+COPY requirements-loadtest.txt .
+RUN pip install --no-cache-dir -r requirements-loadtest.txt
+
+# Copy load test files
+COPY loadtests/ ./loadtests/
+
+# Set environment variables - defaults to production
+ENV LOAD_TEST_BASE_URL=https://api.help.sagbas.io
+
+# Expose Locust web UI port
+EXPOSE 8089
+
+# Default command - Web UI mode
+CMD ["locust", "-f", "loadtests/locustfile.py", "--web-host=0.0.0.0"]
