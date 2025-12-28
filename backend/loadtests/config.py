@@ -2,9 +2,9 @@
 
 import os
 
-# Base URL for the API - defaults to production
+# Base URL for the API - defaults to staging
 # Override with LOAD_TEST_BASE_URL environment variable
-BASE_URL = os.getenv("LOAD_TEST_BASE_URL", "https://api.help.sagbas.io")
+BASE_URL = os.getenv("LOAD_TEST_BASE_URL", "https://staging-api.mahallem.biz.tr")
 
 # API Version prefix
 API_PREFIX = "/api/v1"
