@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 
 from app.config import settings
 from app.models.user import User, UserRole
-from app.core.security import get_password_hash
+from app.core.security import hash_password
 
 
 # Test user definitions
@@ -73,7 +73,7 @@ async def create_test_users():
             # Create new user
             user = User(
                 email=user_data["email"],
-                hashed_password=get_password_hash(user_data["password"]),
+                hashed_password=hash_password(user_data["password"]),
                 phone_number=user_data["phone_number"],
                 full_name=user_data["full_name"],
                 role=user_data["role"],
