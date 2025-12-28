@@ -233,26 +233,6 @@ class SupportUser(HttpUser):
             name="[Ticket] List Tickets",
         )
     
-    @task(8)
-    def update_ticket_status(self):
-        """Update a ticket's status - PRIMARY LOAD TEST SCENARIO."""
-        if not self.ticket_ids:
-            self._fetch_tickets()
-            if not self.ticket_ids:
-                return
-        
-        ticket_id = random.choice(self.ticket_ids)
-        new_status = random.choice(["IN_PROGRESS", "RESOLVED", "NEW"])
-        
-        self.client.patch(
-            f"{API_PREFIX}/tickets/{ticket_id}/status",
-            json={
-                "status": new_status,
-                "comment": f"Status updated to {new_status} via load test",
-            },
-            headers=self._get_headers(),
-            name="[Ticket] Update Status",
-        )
     
     
     @task(2)
@@ -279,12 +259,10 @@ class ManagerUser(HttpUser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.token = None
-        self.team_ids = []
     
     def on_start(self):
         """Login and fetch required data."""
         self._login()
-        self._fetch_teams()
     
     def _login(self):
         """Authenticate as manager."""
@@ -309,16 +287,6 @@ class ManagerUser(HttpUser):
         """Get authorization headers."""
         return {"Authorization": f"Bearer {self.token}"} if self.token else {}
     
-    def _fetch_teams(self):
-        """Fetch teams for performance queries."""
-        response = self.client.get(
-            f"{API_PREFIX}/teams",
-            headers=self._get_headers(),
-            name="[Setup] Manager Fetch Teams",
-        )
-        if response.status_code == 200:
-            data = response.json()
-            self.team_ids = [t["id"] for t in data]
     
     @task(10)
     def get_dashboard_kpis(self):
