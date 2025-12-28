@@ -181,7 +181,7 @@ class SupportUser(HttpUser):
         """Authenticate as support staff."""
         credentials = TEST_USERS["support"]
         response = self.client.post(
-            f"{API_PREFIX}/auth/staff-login",
+            f"{API_PREFIX}/auth/staff/login",
             json={
                 "email": credentials["email"],
                 "password": credentials["password"],
@@ -311,7 +311,7 @@ class ManagerUser(HttpUser):
         """Authenticate as manager."""
         credentials = TEST_USERS["manager"]
         response = self.client.post(
-            f"{API_PREFIX}/auth/staff-login",
+            f"{API_PREFIX}/auth/staff/login",
             json={
                 "email": credentials["email"],
                 "password": credentials["password"],
