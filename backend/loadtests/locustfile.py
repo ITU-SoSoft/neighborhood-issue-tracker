@@ -320,19 +320,7 @@ class ManagerUser(HttpUser):
             name="[Analytics] Team Performance",
         )
     
-    @task(4)
-    def get_team_member_performance(self):
-        """Get specific team member performance."""
-        if not self.team_ids:
-            return
-        
-        team_id = random.choice(self.team_ids)
-        self.client.get(
-            f"{API_PREFIX}/analytics/teams/{team_id}/members",
-            headers=self._get_headers(),
-            params={"days": 30},
-            name="[Analytics] Team Member Performance",
-        )
+
     
     @task(5)
     def get_category_statistics(self):
