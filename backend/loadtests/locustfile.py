@@ -311,15 +311,6 @@ class ManagerUser(HttpUser):
             name="[Analytics] Ticket Heatmap",
         )
     
-    @task(5)
-    def get_team_performance(self):
-        """Get team performance metrics."""
-        self.client.get(
-            f"{API_PREFIX}/analytics/teams/performance",
-            headers=self._get_headers(),
-            params={"days": 30},
-            name="[Analytics] Team Performance",
-        )
     
 
     
