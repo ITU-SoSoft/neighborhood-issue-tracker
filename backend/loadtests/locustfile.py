@@ -67,7 +67,8 @@ class CitizenUser(HttpUser):
             self.token = data.get("access_token")
             token_manager.set_token("citizen", self.token)
         else:
-            # If login fails, stop this user
+            # Log error details before stopping
+            print(f"Citizen login failed: {response.status_code} - {response.text}")
             raise StopUser()
     
     def _get_headers(self):
@@ -96,7 +97,10 @@ class CitizenUser(HttpUser):
         )
         if response.status_code == 200:
             data = response.json()
-            self.district_ids = [d["id"] for d in data]
+            # Handle both list and {items: [...]} formats
+            items = data.get("items", data) if isinstance(data, dict) else data
+            if isinstance(items, list):
+                self.district_ids = [d["id"] for d in items if isinstance(d, dict)]
     
     @task(10)
     def create_ticket(self):
