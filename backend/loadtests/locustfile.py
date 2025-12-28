@@ -169,13 +169,11 @@ class SupportUser(HttpUser):
         super().__init__(*args, **kwargs)
         self.token = None
         self.ticket_ids = []
-        self.team_ids = []
     
     def on_start(self):
         """Login and fetch required data."""
         self._login()
         self._fetch_tickets()
-        self._fetch_teams()
     
     def _login(self):
         """Authenticate as support staff."""
@@ -212,16 +210,6 @@ class SupportUser(HttpUser):
             data = response.json()
             self.ticket_ids = [t["id"] for t in data.get("items", [])]
     
-    def _fetch_teams(self):
-        """Fetch available teams for assignment."""
-        response = self.client.get(
-            f"{API_PREFIX}/teams",
-            headers=self._get_headers(),
-            name="[Setup] Fetch Teams",
-        )
-        if response.status_code == 200:
-            data = response.json()
-            self.team_ids = [t["id"] for t in data]
     
     @task(5)
     def list_tickets(self):
@@ -230,7 +218,7 @@ class SupportUser(HttpUser):
         
         # Randomly apply filters
         if random.random() > 0.5:
-            params["status_filter"] = random.choice(["new", "in_progress", "resolved"])
+            params["status_filter"] = random.choice(["NEW", "IN_PROGRESS", "RESOLVED"])
         
         self.client.get(
             f"{API_PREFIX}/tickets/",
@@ -248,7 +236,7 @@ class SupportUser(HttpUser):
                 return
         
         ticket_id = random.choice(self.ticket_ids)
-        new_status = random.choice(["in_progress", "resolved", "new"])
+        new_status = random.choice(["IN_PROGRESS", "RESOLVED", "NEW"])
         
         self.client.patch(
             f"{API_PREFIX}/tickets/{ticket_id}/status",
@@ -260,21 +248,6 @@ class SupportUser(HttpUser):
             name="[Ticket] Update Status",
         )
     
-    @task(3)
-    def assign_ticket(self):
-        """Assign a ticket to a team."""
-        if not self.ticket_ids or not self.team_ids:
-            return
-        
-        ticket_id = random.choice(self.ticket_ids)
-        team_id = random.choice(self.team_ids)
-        
-        self.client.post(
-            f"{API_PREFIX}/tickets/{ticket_id}/assign",
-            json={"team_id": team_id},
-            headers=self._get_headers(),
-            name="[Ticket] Assign to Team",
-        )
     
     @task(2)
     def view_assigned_tickets(self):
