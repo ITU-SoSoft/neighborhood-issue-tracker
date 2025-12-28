@@ -83,7 +83,9 @@ class CitizenUser(HttpUser):
         )
         if response.status_code == 200:
             data = response.json()
-            self.category_ids = [cat["id"] for cat in data]
+            # Categories returns {items: [...], total: N}
+            items = data.get("items", []) if isinstance(data, dict) else data
+            self.category_ids = [cat["id"] for cat in items if isinstance(cat, dict)]
     
     def _fetch_districts(self):
         """Fetch available districts for ticket location."""
